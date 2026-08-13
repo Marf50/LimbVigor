@@ -15,7 +15,7 @@ This is not a feast-from-hunger hack. Medical tick, HUD, I-key tooltip, same num
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.8.7: HUD hooks TitleScreen through KenshiLib `GetRealAddress` (v1.8.6 used a raw RVA — `Error enabling hook: 8` on 1.0.65, so the window never existed). One KillButton-style window. Limb swaps wait 25s after the first medical tick so they do not run while the save is still streaming.
+v1.8.8: Title-screen hook worked. The window existed. Then `eventFrameStart` ran *inside* the title constructor and the game died before the menu. KillButton never registers that delegate. v1.8.8 is the KillButton create only. Numbers update from the medical GUI hook we already have.
 
 ## Get the DLL
 

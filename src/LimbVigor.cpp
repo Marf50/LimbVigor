@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.8.7 — HUD via TitleScreen GetRealAddress. Parts wait 25s after first tick.");
+        LvLog("LimbVigor: ready v1.8.8 — KillButton HUD, no frame delegate. Parts wait 25s.");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }
