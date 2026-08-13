@@ -34,11 +34,10 @@ panel — the same list that already shows Blood and Hunger.
        Time       ~36h on the road. Bed is 2x.
        How        Hive: hemolymph knits on its own...
 
-Speech bubbles fire when a limb comes off, each 25% stage,
-when growth is blocked, and when the limb comes back.
+Speech is on the STATS lines (Time / How), not bubbles. Cut / stage
+/ finish still print to RE_Kenshi_log.txt.
 
-If STATS crashes, set EnableHud=0. If speech crashes, it turns
-itself off (or set EnableSpeech=0). Growth still runs.
+If STATS crashes, set EnableHud=0. Growth still runs.
 
 Hive grows if fed and bandaged.
 Shek need toughness 20 or a used Splint Kit.

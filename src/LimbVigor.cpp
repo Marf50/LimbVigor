@@ -18,9 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready — STATS panel (Blood) + How/Time lines");
+        LvLog("LimbVigor: ready — STATS panel under Blood (Hemolymph / Regrowth / Time / How)");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
-    if (LvCfg().enableSpeech)
-        LvLog("LimbVigor: speech on");
 }

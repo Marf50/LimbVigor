@@ -42,7 +42,6 @@
 // Official documented RVAs from KenshiLib headers (not guessed).
 // Used only when GetRealAddress cannot pick an overload.
 static const intptr_t kRvaSetLineProg = 0x6FCF00;
-static const intptr_t kRvaSetLineKey  = 0x6FD4B0;
 
 static const RobotLimbs::Limb kGameLimb[LIMB_COUNT] = {
     RobotLimbs::RIGHT_LEG,
@@ -52,12 +51,8 @@ static const RobotLimbs::Limb kGameLimb[LIMB_COUNT] = {
 };
 
 typedef void* (*FnSetLineProg)(DatapanelGUI*, const GameStr*, int, float, const GameStr*, bool);
-typedef void* (*FnSetLineKey)(DatapanelGUI*, const GameStr*, const GameStr*, const GameStr*, int, bool, bool);
-typedef void  (*FnSay)(Character*, const GameStr*);
 
 static FnSetLineProg g_setLineProg = nullptr;
-static FnSetLineKey  g_setLineKey  = nullptr;
-static FnSay         g_say         = nullptr;
 static int           g_gameReady   = 0;
 
 static void* ExeBase()
@@ -102,21 +97,16 @@ void LvGameInit()
     g_gameReady = 1;
 
 #if !defined(LIMBVIGOR_IDE)
+    // GetRealAddress ONLY on KenshiLib-exported stubs.
+    // say_WithARepeatLimiter is NOT a stub — calling GetRealAddress on it
+    // asserts ("address is in your own module") and kills the process.
     intptr_t prog = KenshiLib::GetRealAddress(&DatapanelGUI::setLineProgress);
-    intptr_t say  = KenshiLib::GetRealAddress(&Character::say_WithARepeatLimiter);
     void* base = ExeBase();
     if (prog)
         g_setLineProg = (FnSetLineProg)prog;
     else if (base)
         g_setLineProg = (FnSetLineProg)((unsigned char*)base + kRvaSetLineProg);
-    // setLine is overloaded — documented RVA only.
-    if (base)
-        g_setLineKey = (FnSetLineKey)((unsigned char*)base + kRvaSetLineKey);
-    if (say)
-        g_say = (FnSay)say;
     LvLog(g_setLineProg ? "LimbVigor: game helpers ready" : "LimbVigor: no setLineProgress — HUD will stay empty");
-    if (g_say) LvLog("LimbVigor: speech ready");
-    if (g_setLineKey) LvLog("LimbVigor: tip lines ready");
 #endif
 }
 
@@ -404,40 +394,26 @@ int LvItemLooksLikeCatalyst(Item* item)
 
 void LvSay(Character* me, const char* text)
 {
+    // Character::say is not a KenshiLib stub. GetRealAddress on it
+    // asserts and crashes the game. Keep messages on the STATS panel + log.
+    (void)me;
     if (text && text[0]) LvLog(text);
-    if (!me || !text || !text[0] || !LvCfg().enableSpeech || !g_say) return;
-    GameStr s;
-    GameStrSet(&s, text);
-    LV_TRY { g_say(me, &s); }
-    LV_EXCEPT
-    {
-        static int once = 0;
-        if (!once) { LvErr("LimbVigor: say SEH — speech off"); once = 1; }
-        LvDisableSpeech();
-        g_say = nullptr;
-    }
 }
 
-static void AddTipLine(DatapanelGUI* panel, int cat, const char* key, const char* left, const char* right)
+static void AddTextLine(DatapanelGUI* panel, int cat, const char* name, const char* value)
 {
-    if (!g_setLineKey || !panel) return;
-    GameStr k, a, b;
-    GameStrSet(&k, key);
-    GameStrSet(&a, left);
-    GameStrSet(&b, right);
-    LV_TRY { g_setLineKey(panel, &k, &a, &b, cat, false, false); }
-    LV_EXCEPT
-    {
-        static int once = 0;
-        if (!once) { LvErr("LimbVigor: setLine SEH — tip lines off"); once = 1; }
-        g_setLineKey = nullptr;
-    }
+    if (!g_setLineProg || !panel || !name) return;
+    GameStr key, right;
+    GameStrSet(&key, name);
+    GameStrSet(&right, value ? value : "");
+    LV_TRY { g_setLineProg(panel, &key, cat, 0.f, &right, false); }
+    LV_EXCEPT {}
 }
 
 void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
 {
     if (!med || !panel || !snap || !LvCfg().enableHud) return;
-    if (!g_setLineProg && !g_setLineKey) return;
+    if (!g_setLineProg) return;
 
     const int cat = 0;
     GameStr key, right;
@@ -446,12 +422,9 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     {
         GameStrSet(&key, "Limb Vigor");
         GameStrSet(&right, "Frames do not grow flesh.");
-        if (g_setLineProg)
-        {
-            LV_TRY { g_setLineProg(panel, &key, cat, 0.f, &right, false); }
-            LV_EXCEPT {}
-        }
-        AddTipLine(panel, cat, "lv_how", "How", LvRaceHint(RACE_SKELETON));
+        LV_TRY { g_setLineProg(panel, &key, cat, 0.f, &right, false); }
+        LV_EXCEPT {}
+        AddTextLine(panel, cat, "How", LvRaceHint(RACE_SKELETON));
         return;
     }
 
@@ -463,11 +436,8 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     std::snprintf(buf, sizeof(buf), "%.0f / %.0f", snap->vigor, LvCfg().maxVigor);
     GameStrSet(&key, res && res[0] ? res : "Vigor");
     GameStrSet(&right, buf);
-    if (g_setLineProg)
-    {
-        LV_TRY { g_setLineProg(panel, &key, cat, fill, &right, true); }
-        LV_EXCEPT {}
-    }
+    LV_TRY { g_setLineProg(panel, &key, cat, fill, &right, true); }
+    LV_EXCEPT {}
 
     const int stump = LvFirstStump(snap);
     if (stump >= 0)
@@ -484,31 +454,25 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
         GameStrSet(&key, "Regrowth");
         GameStrSet(&right, buf);
         const float p = ok ? (snap->progress[stump] / 100.f) : 0.f;
-        if (g_setLineProg)
-        {
-            LV_TRY { g_setLineProg(panel, &key, cat, p, &right, false); }
-            LV_EXCEPT {}
-        }
+        LV_TRY { g_setLineProg(panel, &key, cat, p, &right, false); }
+        LV_EXCEPT {}
 
         char eta[96];
         LvEtaText(snap, eta, (int)sizeof(eta));
-        AddTipLine(panel, cat, "lv_time", "Time", eta);
-        AddTipLine(panel, cat, "lv_how", "How", LvRaceHint(snap->race));
+        AddTextLine(panel, cat, "Time", eta);
+        AddTextLine(panel, cat, "How", LvRaceHint(snap->race));
     }
     else if (snap->catalystHours > 0.f)
     {
         std::snprintf(buf, sizeof(buf), "splint  %.0fh left", snap->catalystHours);
         GameStrSet(&key, "Regrowth");
         GameStrSet(&right, buf);
-        if (g_setLineProg)
-        {
-            LV_TRY { g_setLineProg(panel, &key, cat, 0.f, &right, false); }
-            LV_EXCEPT {}
-        }
-        AddTipLine(panel, cat, "lv_how", "How", LvRaceHint(snap->race));
+        LV_TRY { g_setLineProg(panel, &key, cat, 0.f, &right, false); }
+        LV_EXCEPT {}
+        AddTextLine(panel, cat, "How", LvRaceHint(snap->race));
     }
     else
     {
-        AddTipLine(panel, cat, "lv_how", "How", LvRaceHint(snap->race));
+        AddTextLine(panel, cat, "How", LvRaceHint(snap->race));
     }
 }

@@ -13,7 +13,7 @@ This is not a feast-from-hunger hack and not a MyGUI overlay. Three official Ken
 
 A bed roughly halves the time. One stump at a time, legs first. The new limb is original flesh at ~22% of that part’s max HP. A prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.4: STATS panel under Blood shows the resource bar, a Regrowth bar, a **Time** line (how long until the limb is back), and a **How** line (the race rule). Speech bubbles fire on cut / stage / block / finish. Speech turns itself off if the string ABI faults.
+v1.4.1: STATS panel under Blood shows Hemolymph / Regrowth / **Time** / **How**. Speech bubbles are off — KenshiLib has no stub for `Character::say` and calling GetRealAddress on it crashes at load. How/Time carry the same info.
 
 ## Get the DLL
 
