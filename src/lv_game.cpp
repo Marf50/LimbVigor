@@ -270,15 +270,47 @@ int LvRestoreLimb(MedicalSystem* med, int limbId)
     if (!med || limbId < 0 || limbId >= LIMB_COUNT) return 0;
     const RobotLimbs::Limb limb = kGameLimb[limbId];
 
-    LimbState before = LIMB_STUMP;
+    LimbState before = LIMB_ORIGINAL;
     LV_TRY { before = med->getLimbState(limb); }
-    LV_EXCEPT { before = LIMB_STUMP; }
+    LV_EXCEPT { before = LIMB_ORIGINAL; }
     if (before == LIMB_ORIGINAL) return 1;
-    if (before == LIMB_REPLACED) return 0; // do not rip off a prosthetic
+    if (before == LIMB_REPLACED) return 0;
+    if (before != LIMB_STUMP && before != LIMB_CRUSHED)
+    {
+        LvLogf("LimbVigor: refuse restore limb %d — state %d is not a stump", limbId, (int)before);
+        return 0;
+    }
 
     MedicalSystem::HealthPartStatus* part = nullptr;
     LV_TRY { part = med->getPart(limb); }
     LV_EXCEPT { part = nullptr; }
+
+    // A real stump has ~0 flesh. If this part still has health it is
+    // attached — never call setRobotLimbItem(nullptr) on it.
+    // v1.2 did that every tick and ripped off legs at 65/75.
+    if (part)
+    {
+        float flesh = 0.f;
+        float mx = 100.f;
+        LV_TRY
+        {
+            mx = part->_maxHealth;
+            flesh = part->flesh;
+        }
+        LV_EXCEPT { flesh = 0.f; }
+        if (mx < 1.f || mx > 10000.f) mx = 100.f;
+        if (flesh > mx * 0.08f)
+        {
+            LvLogf("LimbVigor: refuse restore limb %d — flesh %.0f/%.0f still attached",
+                limbId, flesh, mx);
+            return 1;
+        }
+    }
+
+    RobotLimbs* robots = nullptr;
+    LV_TRY { robots = med->robotLimbs; }
+    LV_EXCEPT { robots = nullptr; }
+    if (!robots) return 0;
 
     // Flesh first — a 0-HP part can immediately re-sever after setLimb.
     if (part)
@@ -294,11 +326,6 @@ int LvRestoreLimb(MedicalSystem* med, int limbId)
         }
         LV_EXCEPT {}
     }
-
-    RobotLimbs* robots = nullptr;
-    LV_TRY { robots = med->robotLimbs; }
-    LV_EXCEPT { robots = nullptr; }
-    if (!robots) return 0;
 
     int ok = 0;
     LV_TRY

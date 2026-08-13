@@ -201,7 +201,11 @@ static void DriveTick(MedicalSystem* med, float frameTime)
             if (r.restored >= 0 && r.restored < LIMB_COUNT && live->restoreLock <= 0.f)
             {
                 const int limb = r.restored;
-                if (!LvRestoreLimb(med, limb))
+                if (live->limbs[limb] != LIMB_KIND_STUMP && live->limbs[limb] != LIMB_KIND_CRUSHED)
+                {
+                    LvLogf("LimbVigor: skip restore limb %d on %s — not a stump", limb, live->name);
+                }
+                else if (!LvRestoreLimb(med, limb))
                 {
                     live->limbs[limb] = LIMB_KIND_STUMP;
                     live->progress[limb] = 99.5f;
