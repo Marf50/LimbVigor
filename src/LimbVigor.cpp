@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready — growth stages are real parts (I-key limb slot). HUD bar under Blood.");
+        LvLog("LimbVigor: ready — stump/budding/forming/knitting/grown are real I-key parts. HUD under Blood.");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

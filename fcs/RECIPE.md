@@ -1,7 +1,7 @@
 # FCS companion — Limb Vigor
 
-`LimbVigor.mod` already contains 16 `LimbReplacement` records
-(stump / budding / forming / knitting × four sockets). Do not
+`LimbVigor.mod` already contains 20 `LimbReplacement` records
+(stump / budding / forming / knitting / grown × four sockets). Do not
 duplicate those by hand — `tools/write_parts_mod.py` is the source.
 
 Optional extra: named drugs on shelves.

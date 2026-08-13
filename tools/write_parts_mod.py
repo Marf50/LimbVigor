@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write LimbVigor.mod as a type-16 FCS file with 16 LimbReplacement items.
+"""Write LimbVigor.mod as a type-16 FCS file with 20 LimbReplacement items.
 
 Format matches OpenConstructionSet DataFileType.Mod + OcsWriter:
   header (type, version, author, description, dependencies, references, lastId, itemCount)
@@ -38,6 +38,8 @@ PARTS = [
      "Bone and tendon are finding their shape.", 3, 65, 0.60, 0.65, 0.50, 1.0, 1.0, 1.0, 1.0, 1.4),
     ("r-leg", "knit", "LV Knitting Right Leg", "lv-knit-r-leg",
      "Almost a leg. Soft. Do not kick anyone.", 3, 85, 0.85, 0.85, 0.75, 1.0, 1.0, 1.0, 1.0, 2.0),
+    ("r-leg", "grown", "LV Grown Right Leg", "lv-grown-r-leg",
+     "A new leg. Soft. Yours.", 3, 100, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.4),
     ("l-leg", "stump", "LV Stump Left Leg", "lv-stump-l-leg",
      "A raw stump. Almost no push-off.", 2, 30, 0.15, 0.20, 0.10, 1.0, 1.0, 1.0, 1.0, 0.4),
     ("l-leg", "bud", "LV Budding Left Leg", "lv-bud-l-leg",
@@ -46,6 +48,8 @@ PARTS = [
      "Bone and tendon are finding their shape.", 2, 65, 0.60, 0.65, 0.50, 1.0, 1.0, 1.0, 1.0, 1.4),
     ("l-leg", "knit", "LV Knitting Left Leg", "lv-knit-l-leg",
      "Almost a leg. Soft. Do not kick anyone.", 2, 85, 0.85, 0.85, 0.75, 1.0, 1.0, 1.0, 1.0, 2.0),
+    ("l-leg", "grown", "LV Grown Left Leg", "lv-grown-l-leg",
+     "A new leg. Soft. Yours.", 2, 100, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.4),
     ("r-arm", "stump", "LV Stump Right Arm", "lv-stump-r-arm",
      "A raw stump. The hand is a memory.", 1, 30, 1.0, 1.0, 0.10, 0.15, 0.20, 0.15, 0.10, 0.3),
     ("r-arm", "bud", "LV Budding Right Arm", "lv-bud-r-arm",
@@ -54,6 +58,8 @@ PARTS = [
      "A forearm you can almost trust.", 1, 65, 1.0, 1.0, 0.50, 0.60, 0.70, 0.55, 0.50, 1.1),
     ("r-arm", "knit", "LV Knitting Right Arm", "lv-knit-r-arm",
      "Almost a hand. Soft. Do not make a fist.", 1, 85, 1.0, 1.0, 0.75, 0.85, 0.90, 0.80, 0.80, 1.6),
+    ("r-arm", "grown", "LV Grown Right Arm", "lv-grown-r-arm",
+     "A new arm. Soft. Yours.", 1, 100, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.9),
     ("l-arm", "stump", "LV Stump Left Arm", "lv-stump-l-arm",
      "A raw stump. The hand is a memory.", 0, 30, 1.0, 1.0, 0.10, 0.15, 0.20, 0.15, 0.10, 0.3),
     ("l-arm", "bud", "LV Budding Left Arm", "lv-bud-l-arm",
@@ -62,6 +68,8 @@ PARTS = [
      "A forearm you can almost trust.", 0, 65, 1.0, 1.0, 0.50, 0.60, 0.70, 0.55, 0.50, 1.1),
     ("l-arm", "knit", "LV Knitting Left Arm", "lv-knit-l-arm",
      "Almost a hand. Soft. Do not make a fist.", 0, 85, 1.0, 1.0, 0.75, 0.85, 0.90, 0.80, 0.80, 1.6),
+    ("l-arm", "grown", "LV Grown Left Arm", "lv-grown-l-arm",
+     "A new arm. Soft. Yours.", 0, 100, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.9),
 ]
 
 

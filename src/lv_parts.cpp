@@ -5,6 +5,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <cstdint>
 
 #if defined(LIMBVIGOR_IDE)
 #include "stubs/kenshi_ide_stubs.h"
@@ -23,25 +24,15 @@
 #include <kenshi/Globals.h>
 #include <kenshi/GameWorld.h>
 #include <kenshi/GameData.h>
-#include <kenshi/GameDataManager.h>
 #include <kenshi/MedicalSystem.h>
 #include <kenshi/Item.h>
-#include <kenshi/RootObjectFactory.h>
 #include <kenshi/Enums.h>
-#include <kenshi/util/hand.h>
 #endif
 
 // C++ try/catch — this file builds GameStr. Access violations are
 // caught by the medicalUpdate hook SEH around DriveTick.
 #define LV_TRY    try
 #define LV_EXCEPT catch (...)
-
-static const RobotLimbs::Limb kGameLimb[LIMB_COUNT] = {
-    RobotLimbs::RIGHT_LEG,
-    RobotLimbs::LEFT_LEG,
-    RobotLimbs::RIGHT_ARM,
-    RobotLimbs::LEFT_ARM
-};
 
 // FCS LimbSlot / RobotLimbs::Limb numbers.
 static const int kFcsSlot[LIMB_COUNT] = {
@@ -51,43 +42,40 @@ static const int kFcsSlot[LIMB_COUNT] = {
     0  // LEFT_ARM
 };
 
-static const char* kEconomyName[LIMB_COUNT] = {
-    "Economy Leg (right)",
-    "Economy Leg (left)",
-    "Economy Arm (right)",
-    "Economy Arm (left)"
-};
-
-// 4 limbs × 4 stages. Names start with "LV " so ReadLimb can tell
-// a growing part from a real prosthetic.
+// 4 limbs × 5 stages. Names start with "LV " so ReadLimb can tell
+// a growing part from a real prosthetic. Grown is the finished limb.
 static const LvPartDef kParts[LIMB_COUNT][LV_PART_COUNT] = {
     // RIGHT LEG
     {
-        { "LV Stump Right Leg",    "lv-stump-r-leg", "A raw stump. Almost no push-off.",           "Economy Leg (right)", 3, 30.f, 0.15f, 0.20f, 0.10f, 1.f, 1.f, 1.f, 1.f, 0.4f },
-        { "LV Budding Right Leg",  "lv-bud-r-leg",   "Flesh is budding on the stump.",             "Economy Leg (right)", 3, 45.f, 0.35f, 0.40f, 0.25f, 1.f, 1.f, 1.f, 1.f, 0.8f },
-        { "LV Forming Right Leg",  "lv-form-r-leg",  "Bone and tendon are finding their shape.",   "Economy Leg (right)", 3, 65.f, 0.60f, 0.65f, 0.50f, 1.f, 1.f, 1.f, 1.f, 1.4f },
-        { "LV Knitting Right Leg", "lv-knit-r-leg",  "Almost a leg. Soft. Do not kick anyone.",    "Economy Leg (right)", 3, 85.f, 0.85f, 0.85f, 0.75f, 1.f, 1.f, 1.f, 1.f, 2.0f },
+        { "LV Stump Right Leg",    "lv-stump-r-leg", "A raw stump. Almost no push-off.",           "Economy Leg (right)", 3,  30.f, 0.15f, 0.20f, 0.10f, 1.f, 1.f, 1.f, 1.f, 0.4f },
+        { "LV Budding Right Leg",  "lv-bud-r-leg",   "Flesh is budding on the stump.",             "Economy Leg (right)", 3,  45.f, 0.35f, 0.40f, 0.25f, 1.f, 1.f, 1.f, 1.f, 0.8f },
+        { "LV Forming Right Leg",  "lv-form-r-leg",  "Bone and tendon are finding their shape.",   "Economy Leg (right)", 3,  65.f, 0.60f, 0.65f, 0.50f, 1.f, 1.f, 1.f, 1.f, 1.4f },
+        { "LV Knitting Right Leg", "lv-knit-r-leg",  "Almost a leg. Soft. Do not kick anyone.",    "Economy Leg (right)", 3,  85.f, 0.85f, 0.85f, 0.75f, 1.f, 1.f, 1.f, 1.f, 2.0f },
+        { "LV Grown Right Leg",    "lv-grown-r-leg", "A new leg. Soft. Yours.",                    "Economy Leg (right)", 3, 100.f, 1.00f, 1.00f, 1.00f, 1.f, 1.f, 1.f, 1.f, 2.4f },
     },
     // LEFT LEG
     {
-        { "LV Stump Left Leg",    "lv-stump-l-leg", "A raw stump. Almost no push-off.",           "Economy Leg (left)", 2, 30.f, 0.15f, 0.20f, 0.10f, 1.f, 1.f, 1.f, 1.f, 0.4f },
-        { "LV Budding Left Leg",  "lv-bud-l-leg",   "Flesh is budding on the stump.",             "Economy Leg (left)", 2, 45.f, 0.35f, 0.40f, 0.25f, 1.f, 1.f, 1.f, 1.f, 0.8f },
-        { "LV Forming Left Leg",  "lv-form-l-leg",  "Bone and tendon are finding their shape.",   "Economy Leg (left)", 2, 65.f, 0.60f, 0.65f, 0.50f, 1.f, 1.f, 1.f, 1.f, 1.4f },
-        { "LV Knitting Left Leg", "lv-knit-l-leg",  "Almost a leg. Soft. Do not kick anyone.",    "Economy Leg (left)", 2, 85.f, 0.85f, 0.85f, 0.75f, 1.f, 1.f, 1.f, 1.f, 2.0f },
+        { "LV Stump Left Leg",    "lv-stump-l-leg", "A raw stump. Almost no push-off.",           "Economy Leg (left)", 2,  30.f, 0.15f, 0.20f, 0.10f, 1.f, 1.f, 1.f, 1.f, 0.4f },
+        { "LV Budding Left Leg",  "lv-bud-l-leg",   "Flesh is budding on the stump.",             "Economy Leg (left)", 2,  45.f, 0.35f, 0.40f, 0.25f, 1.f, 1.f, 1.f, 1.f, 0.8f },
+        { "LV Forming Left Leg",  "lv-form-l-leg",  "Bone and tendon are finding their shape.",   "Economy Leg (left)", 2,  65.f, 0.60f, 0.65f, 0.50f, 1.f, 1.f, 1.f, 1.f, 1.4f },
+        { "LV Knitting Left Leg", "lv-knit-l-leg",  "Almost a leg. Soft. Do not kick anyone.",    "Economy Leg (left)", 2,  85.f, 0.85f, 0.85f, 0.75f, 1.f, 1.f, 1.f, 1.f, 2.0f },
+        { "LV Grown Left Leg",    "lv-grown-l-leg", "A new leg. Soft. Yours.",                    "Economy Leg (left)", 2, 100.f, 1.00f, 1.00f, 1.00f, 1.f, 1.f, 1.f, 1.f, 2.4f },
     },
     // RIGHT ARM
     {
-        { "LV Stump Right Arm",    "lv-stump-r-arm", "A raw stump. The hand is a memory.",         "Economy Arm (right)", 1, 30.f, 1.f, 1.f, 0.10f, 0.15f, 0.20f, 0.15f, 0.10f, 0.3f },
-        { "LV Budding Right Arm",  "lv-bud-r-arm",   "Fingers are suggestions, not facts.",        "Economy Arm (right)", 1, 45.f, 1.f, 1.f, 0.25f, 0.35f, 0.40f, 0.30f, 0.25f, 0.6f },
-        { "LV Forming Right Arm",  "lv-form-r-arm",  "A forearm you can almost trust.",            "Economy Arm (right)", 1, 65.f, 1.f, 1.f, 0.50f, 0.60f, 0.70f, 0.55f, 0.50f, 1.1f },
-        { "LV Knitting Right Arm", "lv-knit-r-arm",  "Almost a hand. Soft. Do not make a fist.",   "Economy Arm (right)", 1, 85.f, 1.f, 1.f, 0.75f, 0.85f, 0.90f, 0.80f, 0.80f, 1.6f },
+        { "LV Stump Right Arm",    "lv-stump-r-arm", "A raw stump. The hand is a memory.",         "Economy Arm (right)", 1,  30.f, 1.f, 1.f, 0.10f, 0.15f, 0.20f, 0.15f, 0.10f, 0.3f },
+        { "LV Budding Right Arm",  "lv-bud-r-arm",   "Fingers are suggestions, not facts.",        "Economy Arm (right)", 1,  45.f, 1.f, 1.f, 0.25f, 0.35f, 0.40f, 0.30f, 0.25f, 0.6f },
+        { "LV Forming Right Arm",  "lv-form-r-arm",  "A forearm you can almost trust.",            "Economy Arm (right)", 1,  65.f, 1.f, 1.f, 0.50f, 0.60f, 0.70f, 0.55f, 0.50f, 1.1f },
+        { "LV Knitting Right Arm", "lv-knit-r-arm",  "Almost a hand. Soft. Do not make a fist.",   "Economy Arm (right)", 1,  85.f, 1.f, 1.f, 0.75f, 0.85f, 0.90f, 0.80f, 0.80f, 1.6f },
+        { "LV Grown Right Arm",    "lv-grown-r-arm", "A new arm. Soft. Yours.",                    "Economy Arm (right)", 1, 100.f, 1.f, 1.f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.9f },
     },
     // LEFT ARM
     {
-        { "LV Stump Left Arm",    "lv-stump-l-arm", "A raw stump. The hand is a memory.",         "Economy Arm (left)", 0, 30.f, 1.f, 1.f, 0.10f, 0.15f, 0.20f, 0.15f, 0.10f, 0.3f },
-        { "LV Budding Left Arm",  "lv-bud-l-arm",   "Fingers are suggestions, not facts.",        "Economy Arm (left)", 0, 45.f, 1.f, 1.f, 0.25f, 0.35f, 0.40f, 0.30f, 0.25f, 0.6f },
-        { "LV Forming Left Arm",  "lv-form-l-arm",  "A forearm you can almost trust.",            "Economy Arm (left)", 0, 65.f, 1.f, 1.f, 0.50f, 0.60f, 0.70f, 0.55f, 0.50f, 1.1f },
-        { "LV Knitting Left Arm", "lv-knit-l-arm",  "Almost a hand. Soft. Do not make a fist.",   "Economy Arm (left)", 0, 85.f, 1.f, 1.f, 0.75f, 0.85f, 0.90f, 0.80f, 0.80f, 1.6f },
+        { "LV Stump Left Arm",    "lv-stump-l-arm", "A raw stump. The hand is a memory.",         "Economy Arm (left)", 0,  30.f, 1.f, 1.f, 0.10f, 0.15f, 0.20f, 0.15f, 0.10f, 0.3f },
+        { "LV Budding Left Arm",  "lv-bud-l-arm",   "Fingers are suggestions, not facts.",        "Economy Arm (left)", 0,  45.f, 1.f, 1.f, 0.25f, 0.35f, 0.40f, 0.30f, 0.25f, 0.6f },
+        { "LV Forming Left Arm",  "lv-form-l-arm",  "A forearm you can almost trust.",            "Economy Arm (left)", 0,  65.f, 1.f, 1.f, 0.50f, 0.60f, 0.70f, 0.55f, 0.50f, 1.1f },
+        { "LV Knitting Left Arm", "lv-knit-l-arm",  "Almost a hand. Soft. Do not make a fist.",   "Economy Arm (left)", 0,  85.f, 1.f, 1.f, 0.75f, 0.85f, 0.90f, 0.80f, 0.80f, 1.6f },
+        { "LV Grown Left Arm",    "lv-grown-l-arm", "A new arm. Soft. Yours.",                    "Economy Arm (left)", 0, 100.f, 1.f, 1.f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.9f },
     },
 };
 
@@ -106,18 +94,18 @@ const char* LvPartStageName(int stage)
     case LV_PART_BUDDING:  return "budding";
     case LV_PART_FORMING:  return "forming";
     case LV_PART_KNITTING: return "knitting";
+    case LV_PART_GROWN:    return "grown";
     default: return "limb";
     }
 }
 
 int LvPartStageFromProgress(float progress)
 {
-    if (progress < 0.f) return LV_PART_STUMP;
     if (progress < 25.f) return LV_PART_STUMP;
     if (progress < 50.f) return LV_PART_BUDDING;
     if (progress < 75.f) return LV_PART_FORMING;
     if (progress < 100.f) return LV_PART_KNITTING;
-    return LV_PART_KNITTING;
+    return LV_PART_GROWN;
 }
 
 int LvPartSlotForLimb(int limbId)
@@ -135,6 +123,28 @@ void LvClearGrowthPart(MedicalSystem*, int) {}
 void LvSyncGrowthParts(MedicalSystem*, const CharSnap*) {}
 
 #else
+
+static const RobotLimbs::Limb kGameLimb[LIMB_COUNT] = {
+    RobotLimbs::RIGHT_LEG,
+    RobotLimbs::LEFT_LEG,
+    RobotLimbs::RIGHT_ARM,
+    RobotLimbs::LEFT_ARM
+};
+
+static const char* kEconomyName[LIMB_COUNT] = {
+    "Economy Leg (right)",
+    "Economy Leg (left)",
+    "Economy Arm (right)",
+    "Economy Arm (left)"
+};
+
+// RootObjectFactory.h pulls boost/thread (auto-links a .lib we do not ship).
+// createItem is a non-virtual at the documented RVA. this = factory.
+static const intptr_t kRvaCreateItem = 0x57FFD0;
+static const intptr_t kRvaNullHand   = 0x1E375F8;
+
+typedef Item* (*FnCreateItem)(void* factory, GameData* gd, const void* handle,
+    GameData* mesh, GameData* mat, int level, void* faction);
 
 static std::string& GS(GameStr* s)
 {
@@ -181,10 +191,11 @@ int LvGrowthPartStage(Item* item)
     if (!GameStrRead(base + 0x28, name, (int)sizeof(name)))
         GameStrRead(base + 0x58, name, (int)sizeof(name));
     if (!NameLooksLikeOurs(name) && !DataLooksLikeOurs(data)) return -1;
-    if (std::strstr(name, "tump") || std::strstr(name, "stump")) return LV_PART_STUMP;
-    if (std::strstr(name, "ud") || std::strstr(name, "bud")) return LV_PART_BUDDING;
-    if (std::strstr(name, "orm") || std::strstr(name, "form")) return LV_PART_FORMING;
+    if (std::strstr(name, "rown") || std::strstr(name, "Grown")) return LV_PART_GROWN;
     if (std::strstr(name, "nit") || std::strstr(name, "knit")) return LV_PART_KNITTING;
+    if (std::strstr(name, "orm") || std::strstr(name, "form")) return LV_PART_FORMING;
+    if (std::strstr(name, "ud") || std::strstr(name, "bud")) return LV_PART_BUDDING;
+    if (std::strstr(name, "tump") || std::strstr(name, "stump")) return LV_PART_STUMP;
     return LV_PART_STUMP;
 }
 
@@ -237,21 +248,14 @@ static GameData* LookupData(const char* stringId, const char* name)
 static Item* MakeItem(GameData* gd)
 {
     if (!gd || !ou || !ou->theFactory) return nullptr;
-    Item* item = nullptr;
     void* base = ExeBase();
-    const hand* nullHand = nullptr;
-    if (base)
-        nullHand = (const hand*)((unsigned char*)base + 0x1E375F8);
+    if (!base) return nullptr;
+    FnCreateItem fn = (FnCreateItem)((unsigned char*)base + kRvaCreateItem);
+    const void* nullHand = (const void*)((unsigned char*)base + kRvaNullHand);
+    Item* item = nullptr;
     LV_TRY
     {
-        if (nullHand)
-            item = ou->theFactory->createItem(gd, *nullHand, nullptr, nullptr, 0, nullptr);
-        else
-        {
-            unsigned char buf[40];
-            std::memset(buf, 0, sizeof(buf));
-            item = ou->theFactory->createItem(gd, *reinterpret_cast<hand*>(buf), nullptr, nullptr, 0, nullptr);
-        }
+        item = fn(ou->theFactory, gd, nullHand, nullptr, nullptr, 0, nullptr);
     }
     LV_EXCEPT { item = nullptr; }
     return item;

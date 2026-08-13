@@ -152,10 +152,15 @@ int main()
         Expect(LvPartStageFromProgress(50.f) == LV_PART_FORMING, "50% is forming");
         Expect(LvPartStageFromProgress(75.f) == LV_PART_KNITTING, "75% is knitting");
         Expect(LvPartStageFromProgress(99.f) == LV_PART_KNITTING, "99% is knitting");
+        Expect(LvPartStageFromProgress(100.f) == LV_PART_GROWN, "100% is grown");
         const LvPartDef* p = LvPartFor(LIMB_LEFT_LEG, LV_PART_BUDDING);
         Expect(p && std::strstr(p->name, "LV ") == p->name, "left-leg budding is named LV");
         Expect(p && std::strstr(p->stringId, "lv-") == p->stringId, "stringId is lv-");
         Expect(LvPartFor(LIMB_RIGHT_ARM, LV_PART_KNITTING) != nullptr, "right-arm knitting exists");
+        Expect(LvPartFor(LIMB_LEFT_LEG, LV_PART_GROWN) != nullptr, "left-leg grown exists");
+        Expect(LvPartFor(LIMB_LEFT_LEG, LV_PART_GROWN)
+            && std::strstr(LvPartFor(LIMB_LEFT_LEG, LV_PART_GROWN)->name, "Grown"),
+            "grown part is named Grown");
         Expect(LvPartFor(-1, 0) == nullptr, "bad limb rejected");
         Expect(LvPartSlotForLimb(LIMB_LEFT_ARM) == 0, "left arm FCS slot 0");
         Expect(LvPartSlotForLimb(LIMB_RIGHT_LEG) == 3, "right leg FCS slot 3");

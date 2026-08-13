@@ -321,8 +321,8 @@ void LvTick(CharSnap* c, float dtHours, TickResult* out)
 
     if (c->progress[target] >= 100.f && c->restoreLock <= 0.f)
     {
-        // Simulator marks the socket whole. The game hook re-reads the
-        // real limb and only then calls setLimb. Do not wipe progress here.
+        // Simulator marks the socket whole. The game hook slots the
+        // Grown part — that is the limb. Progress stays 100 until then.
         c->limbs[target] = LIMB_KIND_WHOLE;
         c->progress[target] = 100.f;
         if (out)
@@ -332,7 +332,7 @@ void LvTick(CharSnap* c, float dtHours, TickResult* out)
             {
                 c->lastStage[target] = 4;
                 std::snprintf(out->speech, sizeof(out->speech),
-                    "The %s is ready. Putting the flesh back.",
+                    "The %s has grown back.",
                     LvLimbLabel((LimbId)target));
             }
         }

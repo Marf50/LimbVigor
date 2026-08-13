@@ -213,9 +213,8 @@ static void DriveTick(MedicalSystem* med, float frameTime)
             }
 
             // LvTick paints the socket WHOLE for the simulator. The game
-            // may still have a stump / growth part — re-read and restore
-            // original flesh at ~22%. If that fails, put the knitting
-            // part back so the socket is not a −15 hole.
+            // still has a growth part in the hole. Slot the Grown part —
+            // that IS the restored limb. Do not peel it for original flesh.
             if (r.restored >= 0 && r.restored < LIMB_COUNT && live->restoreLock <= 0.f)
             {
                 const int limb = r.restored;
@@ -223,31 +222,31 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                 std::memset(&now, 0, sizeof(now));
                 LvReadSnap(med, &now);
                 const LimbKind gameLimb = now.limbs[limb];
-                if (gameLimb != LIMB_KIND_STUMP && gameLimb != LIMB_KIND_CRUSHED)
+                if (gameLimb == LIMB_KIND_WHOLE || gameLimb == LIMB_KIND_PROSTHETIC)
                 {
-                    live->limbs[limb] = LIMB_KIND_WHOLE;
+                    live->limbs[limb] = gameLimb;
                     live->progress[limb] = 0.f;
                     live->lastStage[limb] = -1;
                     LvLogf("LimbVigor: %s %s already attached — clearing 100%%",
                         live->name, LvLimbLabel((LimbId)limb));
                 }
-                else if (!LvRestoreLimb(med, limb))
+                else if (LvEquipGrowthPart(med, limb, LV_PART_GROWN))
+                {
+                    live->limbs[limb] = LIMB_KIND_WHOLE;
+                    live->progress[limb] = 0.f;
+                    live->lastStage[limb] = LV_PART_GROWN;
+                    LvSay(who, "The limb is back. Soft, but mine.");
+                    LvLogf("LimbVigor: slotted grown part on %s %s",
+                        live->name, LvLimbLabel((LimbId)limb));
+                }
+                else
                 {
                     live->limbs[limb] = LIMB_KIND_STUMP;
                     live->progress[limb] = 100.f;
                     live->restoreLock = 20.f / secPerHour;
                     LvEquipGrowthPart(med, limb, LV_PART_KNITTING);
-                    LvLogf("LimbVigor: restore deferred on %s %s — knitting part stays",
+                    LvLogf("LimbVigor: grown part deferred on %s %s — knitting stays",
                         live->name, LvLimbLabel((LimbId)limb));
-                }
-                else
-                {
-                    live->limbs[limb] = LIMB_KIND_WHOLE;
-                    live->progress[limb] = 0.f;
-                    live->lastStage[limb] = -1;
-                    LvSay(who, "The limb is back. Weak. Mine.");
-                    LvLogf("LimbVigor: restored %s on %s",
-                        LvLimbLabel((LimbId)limb), live->name);
                 }
             }
 

@@ -20,9 +20,9 @@ Send the notes back and the plugin gets patched.
 - [ ] **Bleed / starve pause.** Open a bleed — pause. Starve — pause + drain. Feed + bandage — resume.
 - [ ] **Bed is faster.** Twin hivers, one in a bed. About 2×.
 - [ ] **Legs first.** Missing a leg and an arm. Leg finishes first.
-- [ ] **I-key growth part.** Select the stump character, open inventory (I). The missing limb slot should show `LV Stump …` / `LV Budding …` / `LV Forming …` / `LV Knitting …`, not empty and not a bought Economy limb (unless the .mod failed to load — then the log says `economy`). Hover the slot: stats should be worse than a real leg and improve as the bar climbs.
+- [ ] **I-key growth part.** Select the stump character, open inventory (I). The missing limb slot should show `LV Stump …` / `LV Budding …` / `LV Forming …` / `LV Knitting …` / `LV Grown …`, not empty and not a bought Economy limb (unless the .mod failed to load — then the log says `economy`). Hover the slot: stats should be worse than a real leg and improve as the bar climbs.
 - [ ] **Not a real prosthetic.** Fitting a growth part must NOT stop Hemolymph. The HUD still ticks. Buying a real robot limb still blocks.
-- [ ] **Weak return.** At 100% the plugin tries original flesh at ~22% HP. If the stump stays −15, the knitting part should still be in the I-key slot. Send the log either way.
+- [ ] **Grown is the limb.** At 100% the I-key slot should say `LV Grown …`, not −15 and not original flesh. Send the log either way. Boop's already-100% left leg should become Grown on load.
 - [ ] **Save / load.** Grow to ~40%, save, quit, load. Numbers persist (LimbVigor.progress).
 - [ ] **Squad.** Player + hired hive + hired shek, each selected shows their own bar.
 

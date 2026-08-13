@@ -4,6 +4,7 @@
 
 // Growth stages as real limb parts — same idea as robot limbs:
 // a named GameData item with stats, slotted into the socket.
+// Grown (100%) IS the restored limb. We do not peel it for original flesh.
 
 enum LvPartStage
 {
@@ -11,6 +12,7 @@ enum LvPartStage
     LV_PART_BUDDING,
     LV_PART_FORMING,
     LV_PART_KNITTING,
+    LV_PART_GROWN,
     LV_PART_COUNT
 };
 
@@ -46,7 +48,7 @@ class Item;
 #endif
 
 int  LvIsGrowthPart(Item* item);
-int  LvGrowthPartStage(Item* item); // 0..3 or -1
+int  LvGrowthPartStage(Item* item); // 0..4 or -1
 int  LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage);
 void LvClearGrowthPart(MedicalSystem* med, int limbId);
 void LvSyncGrowthParts(MedicalSystem* med, const CharSnap* snap);

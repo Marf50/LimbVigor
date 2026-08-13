@@ -189,8 +189,8 @@ static LimbKind ReadLimb(MedicalSystem* med, int slot)
     LV_TRY { part = med->getPart(kGameLimb[slot]); }
     LV_EXCEPT { part = nullptr; }
 
-    // Our growth parts occupy the socket like a prosthetic. Treat them as
-    // a stump so the sim keeps growing instead of stopping.
+    // Our growth parts occupy the socket like a prosthetic. Mid-growth
+    // they stay a stump so the sim keeps going. A Grown part IS the limb.
     Item* worn = nullptr;
     LV_TRY
     {
@@ -199,7 +199,11 @@ static LimbKind ReadLimb(MedicalSystem* med, int slot)
     }
     LV_EXCEPT { worn = nullptr; }
     if (worn && LvIsGrowthPart(worn))
+    {
+        if (LvGrowthPartStage(worn) == LV_PART_GROWN)
+            return LIMB_KIND_WHOLE;
         return LIMB_KIND_STUMP;
+    }
 
     if (part)
     {
