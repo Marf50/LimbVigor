@@ -25,9 +25,10 @@ void LvHudInstall() {}
 #include <mygui/MyGUI_Gui.h>
 #include <mygui/MyGUI_Window.h>
 #include <mygui/MyGUI_Button.h>
+#include <mygui/MyGUI_Widget.h>
 
-// Snapshot from the medical tick. Caption is written from getMedicalGUIData
-// (already hooked, no extra MyGUI delegate).
+// Snapshot is written on the game thread. Caption is written ONLY from
+// MyGUI mouse events (UI thread) — same path KillButton uses.
 static CharSnap g_snap;
 static volatile int g_have = 0;
 static volatile int g_ready = 0;
@@ -39,9 +40,50 @@ static int g_painted = 0;
 
 static TitleScreen* (*Title_orig)(TitleScreen*) = nullptr;
 
-// Exact KillButton recipe. No eventFrameStart — that delegate ran
-// re-entrant during TitleScreen's own constructor and killed v1.8.7
-// before the menu existed.
+static void WriteCaption()
+{
+    if (!g_btn) return;
+
+    char text[256];
+    if (!g_have)
+    {
+        std::snprintf(text, sizeof(text), "%s", "hover after load");
+    }
+    else
+    {
+        char bar1[96], bar2[96], tip[160];
+        float f1 = 0.f, f2 = 0.f;
+        LvHudLines(&g_snap, bar1, (int)sizeof(bar1), &f1,
+                   bar2, (int)sizeof(bar2), &f2,
+                   tip, (int)sizeof(tip));
+        if (bar2[0])
+            std::snprintf(text, sizeof(text), "%s | %s", bar1, bar2);
+        else
+            std::snprintf(text, sizeof(text), "%s", bar1);
+    }
+
+    if (std::strcmp(g_last, text) == 0) return;
+    std::snprintf(g_last, sizeof(g_last), "%s", text);
+    g_btn->setCaption(text);
+    if (!g_painted)
+    {
+        g_painted = 1;
+        LvLogf("LimbVigor: HUD painted  %s", text);
+    }
+}
+
+static void OnClick(MyGUI::Widget*)
+{
+    WriteCaption();
+}
+
+static void OnFocus(MyGUI::Widget*, MyGUI::Widget*)
+{
+    WriteCaption();
+}
+
+// KillButton recipe. No eventFrameStart. Caption updates only from
+// click / hover, which MyGUI runs on the UI thread.
 static TitleScreen* Title_hook(TitleScreen* self)
 {
     TitleScreen* ts = Title_orig ? Title_orig(self) : self;
@@ -57,7 +99,7 @@ static TitleScreen* Title_hook(TitleScreen* self)
 
     MyGUI::Window* window = gui->createWidgetReal<MyGUI::Window>(
         "Kenshi_WindowCX",
-        0.10f, 0.10f, 0.16f, 0.08f,
+        0.10f, 0.10f, 0.18f, 0.08f,
         MyGUI::Align::Default,
         "Window",
         "LimbVigorWin");
@@ -70,16 +112,20 @@ static TitleScreen* Title_hook(TitleScreen* self)
 
     MyGUI::Button* button = window->getClientWidget()->createWidgetReal<MyGUI::Button>(
         "Kenshi_Button1",
-        0.05f, 0.10f, 0.90f, 0.80f,
+        0.04f, 0.10f, 0.92f, 0.80f,
         MyGUI::Align::Default,
         "LimbVigorBtn");
     if (button)
-        button->setCaption("waiting...");
+    {
+        button->setCaption("hover after load");
+        button->eventMouseButtonClick += MyGUI::newDelegate(OnClick);
+        button->eventMouseSetFocus += MyGUI::newDelegate(OnFocus);
+    }
 
     g_win = window;
     g_btn = button;
     g_ready = 1;
-    LvLog("LimbVigor: HUD created at title screen (no frame delegate)");
+    LvLog("LimbVigor: HUD created at title screen (click/hover to refresh)");
     return ts;
 }
 
@@ -109,32 +155,8 @@ void LvHudNote(const CharSnap* snap)
 
 void LvHudPaint(const CharSnap* snap)
 {
+    // Game thread — snapshot only. Never touch MyGUI here.
     LvHudNote(snap);
-    if (!g_ready || !g_btn || !snap) return;
-
-    char bar1[96], bar2[96], tip[160];
-    float f1 = 0.f, f2 = 0.f;
-    LvHudLines(snap, bar1, (int)sizeof(bar1), &f1,
-               bar2, (int)sizeof(bar2), &f2,
-               tip, (int)sizeof(tip));
-
-    char text[256];
-    if (bar2[0])
-        std::snprintf(text, sizeof(text), "%s  |  %s", bar1, bar2);
-    else
-        std::snprintf(text, sizeof(text), "%s", bar1);
-
-    if (std::strcmp(g_last, text) == 0) return;
-    std::snprintf(g_last, sizeof(g_last), "%s", text);
-
-    try { g_btn->setCaption(text); }
-    catch (...) { return; }
-
-    if (!g_painted)
-    {
-        g_painted = 1;
-        LvLogf("LimbVigor: HUD painted  %s", text);
-    }
 }
 
 #endif

@@ -8,7 +8,7 @@ Every ~15s the log prints `LimbVigor: Boop  Hemolymph 38/100  left leg 4% dorman
 
 Send the notes back and the plugin gets patched.
 
-- [ ] **Reaches the main menu.** RE_Kenshi_log shows `ready v1.8.8` then `TitleScreen HUD` then `HUD created at title screen (no frame delegate)`. A small Limb Vigor box is on the title screen. Must NOT die before `Main menu loaded`.
+- [ ] **Reaches the menu and the save.** `ready v1.8.9` then `HUD created at title screen (click/hover to refresh)` then `Main menu loaded` then `In-game`. Then `player squad seen` then ~45s later `ticks on` then ~90s later `parts on`. Hover the Limb Vigor box — it should stop saying `hover after load` and show Hemolymph / Vigor.
 - [ ] **Left HUD widgets.** Select a squad member. Under Blood: resource bar with the number on it. You can read it without hovering. Hover it — tooltip matches the line under the bar.
 - [ ] **STATS panel.** C still lists Hemolymph / Regrowth / Time. Backup only.
 - [ ] **I-key tooltip.** Open inventory. Socket says `LV Stump/Budding/Forming/Knitting/Grown …`. Hover it — description has Hemolymph / stage / time, not a silent Economy limb blurb.

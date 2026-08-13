@@ -15,7 +15,7 @@ This is not a feast-from-hunger hack. Medical tick, HUD, I-key tooltip, same num
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.8.8: Title-screen hook worked. The window existed. Then `eventFrameStart` ran *inside* the title constructor and the game died before the menu. KillButton never registers that delegate. v1.8.8 is the KillButton create only. Numbers update from the medical GUI hook we already have.
+v1.8.9: v1.8.8 reached the menu and the save. The box said `waiting...` because caption updates never ran on the UI thread. Then the 25s world-warmup fired limb swaps (and STATS writes) while the save was still settling — crash, no `first player-squad tick`. Warmup now starts when *your* squad is seen. Math ticks at 45s. Limb parts at 90s. Hover or click the Limb Vigor box to refresh the numbers.
 
 ## Get the DLL
 

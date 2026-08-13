@@ -30,12 +30,15 @@ left of the screen (same place as the portrait / Blood stack).
   2. Line 2 (if a stump): left leg  budding  32%
   3. Line 3: time left + race rule (always visible)
 
-v1.8.8 is the official KillButton window with no extra
-MyGUI frame callback. v1.8.7 created the window then
-registered a frame delegate during the title constructor
-— the game died before the menu. You should reach the
-menu and see a small Limb Vigor box. Numbers fill in
-after you load (about 25s). I-key still has the full text.
+v1.8.9 reached the menu and your save. The box stayed on
+"waiting..." because we never wrote it from the UI thread.
+Then a 25s timer that started on the first NPC medical tick
+fired limb swaps too early.
+
+This build: hover or click the Limb Vigor box to see numbers.
+Growth math starts 45s after your squad is seen. Visible
+limb parts wait 90s. Overwrite both LimbVigor.dll and
+LimbVigor.mod. Keep LimbVigor.progress.
 
 Open I: the socket is LV Stump / Budding / Forming / Knitting /
 Grown. Hover that item for Hemolymph / stage / hours left.
