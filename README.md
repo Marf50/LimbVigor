@@ -15,7 +15,7 @@ A bed roughly halves the time. One stump at a time, legs first. The new limb is 
 
 ## Get the DLL
 
-GitHub Actions compiles `LimbVigor.dll` on every push to `main`.
+GitHub Actions compiles `LimbVigor.dll` when I trigger it (not on every push). The last good zip is on [Releases](https://github.com/Marf50/LimbVigor/releases).
 
 1. Open [Actions](https://github.com/Marf50/LimbVigor/actions)
 2. Latest green **Build LimbVigor.dll** run
