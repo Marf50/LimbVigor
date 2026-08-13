@@ -10,7 +10,7 @@
 #endif
 
 static LvConfig g_cfg = {
-    1, 1, 0, 1,
+    1, 1, 1, 1,
     100.f,
     5.0f, 1.5f, 0.6f,
     6.0f, 14.0f, 8.0f,
@@ -54,6 +54,11 @@ void LvErr(const char* msg)
 void LvDisableHud()
 {
     g_cfg.enableHud = 0;
+}
+
+void LvDisableSpeech()
+{
+    g_cfg.enableSpeech = 0;
 }
 
 void LvLogf(const char* fmt, ...)

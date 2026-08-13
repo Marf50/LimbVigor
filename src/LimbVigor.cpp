@@ -18,7 +18,9 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready — squad only, HUD on the STATS panel under Blood");
+        LvLog("LimbVigor: ready — STATS panel (Blood) + How/Time lines");
     else
-        LvLog("LimbVigor: ready — squad only, HUD off (EnableHud=0)");
+        LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
+    if (LvCfg().enableSpeech)
+        LvLog("LimbVigor: speech on");
 }

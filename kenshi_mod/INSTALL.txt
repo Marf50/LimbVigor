@@ -29,16 +29,16 @@ panel — the same list that already shows Blood and Hunger.
   1. Click the character (Boop, Plop, …)
   2. Open STATS (default key C, or the stats tab on the side panel)
   3. Under Blood you should see:
-       Hive        — Hemolymph   38 / 100
-       Shek        — Battle-heat …
-       Human       — Vigor …
-       plus a Regrowth line if they have a stump
+       Hemolymph / Battle-heat / Vigor     (the resource bar)
+       Regrowth   left leg  budding  4%
+       Time       ~36h on the road. Bed is 2x.
+       How        Hive: hemolymph knits on its own...
 
-Every ~15 seconds RE_Kenshi_log.txt also prints a heartbeat:
-  LimbVigor: Boop  Hemolymph 38/100  left leg 4% dormant stump
+Speech bubbles fire when a limb comes off, each 25% stage,
+when growth is blocked, and when the limb comes back.
 
-If the STATS panel crashes, set EnableHud=0 in config.ini and use
-the log. Growth still runs.
+If STATS crashes, set EnableHud=0. If speech crashes, it turns
+itself off (or set EnableSpeech=0). Growth still runs.
 
 Hive grows if fed and bandaged.
 Shek need toughness 20 or a used Splint Kit.

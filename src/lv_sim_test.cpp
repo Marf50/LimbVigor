@@ -125,6 +125,20 @@ int main()
         Expect(c.vigor > 0.f, "blocked human still fills vigor");
     }
 
+    {
+        Expect(std::strstr(LvRaceHint(RACE_HIVE), "fed") != nullptr, "hive hint mentions fed");
+        CharSnap c = Hive();
+        char eta[96];
+        LvEtaText(&c, eta, 96);
+        Expect(eta[0] != 0, "eligible hive has an ETA");
+        c.race = RACE_HUMAN;
+        c.toughness = 1;
+        c.medic = 1;
+        LvEtaText(&c, eta, 96);
+        Expect(std::strstr(eta, "Splint") != nullptr || std::strstr(eta, "toughness") != nullptr,
+            "blocked human ETA explains why");
+    }
+
     if (g_fail)
     {
         std::fprintf(stderr, "%d failed\n", g_fail);

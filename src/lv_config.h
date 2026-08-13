@@ -51,3 +51,4 @@ void        LvLog(const char* msg);
 void        LvLogf(const char* fmt, ...);
 void        LvErr(const char* msg);
 void        LvDisableHud();
+void        LvDisableSpeech();

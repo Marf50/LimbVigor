@@ -113,6 +113,8 @@ static CharSnap* Bind(MedicalSystem* med)
     CharSnap* live = LvPersistFind(tmp.name, 1);
     if (!live) return nullptr;
 
+    Character* speaker = LvCharFromMed(med);
+
     const int firstSeen = !live->seen;
     live->seen = 1;
     live->race = tmp.race;
@@ -142,13 +144,13 @@ static CharSnap* Bind(MedicalSystem* med)
             live->lastStage[i] = -1;
             LvMarkDirty();
             if (tmp.race == RACE_HIVE)
-                LvSay(nullptr, "The stump itches. Hemolymph will try to knit it.");
+                LvSay(speaker, "The stump itches. Hemolymph will try to knit it.");
             else if (tmp.race == RACE_SHEK)
-                LvSay(nullptr, "The bone remembers. Survive. Stay fed.");
+                LvSay(speaker, "The bone remembers. Survive. Stay fed.");
             else if (tmp.race == RACE_SKELETON)
-                LvSay(nullptr, "A machine does not grow flesh. Find a replacement.");
+                LvSay(speaker, "A machine does not grow flesh. Find a replacement.");
             else
-                LvSay(nullptr, "Flesh does not grow back on its own. You need a splint — or to have earned it.");
+                LvSay(speaker, "Flesh does not grow back on its own. You need a splint — or to have earned it.");
         }
         if (tmp.limbs[i] == LIMB_KIND_WHOLE && was != LIMB_KIND_WHOLE)
         {

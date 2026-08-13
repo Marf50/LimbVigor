@@ -13,7 +13,7 @@ This is not a feast-from-hunger hack and not a MyGUI overlay. Three official Ken
 
 A bed roughly halves the time. One stump at a time, legs first. The new limb is original flesh at ~22% of that part’s max HP. A prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.3: HUD is on. Click the character, open **STATS** (the list with Blood). You should see Hemolymph / Battle-heat / Vigor and a Regrowth line. Speech is still off (VS2010 string ABI). `RE_Kenshi_log.txt` prints a heartbeat every 15s so we can bug-test without staring at the panel.
+v1.4: STATS panel under Blood shows the resource bar, a Regrowth bar, a **Time** line (how long until the limb is back), and a **How** line (the race rule). Speech bubbles fire on cut / stage / block / finish. Speech turns itself off if the string ABI faults.
 
 ## Get the DLL
 

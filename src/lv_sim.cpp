@@ -123,6 +123,73 @@ int LvEligible(const CharSnap* c, char* why, int whySize)
     return 0;
 }
 
+const char* LvRaceHint(RaceKind k)
+{
+    switch (k)
+    {
+    case RACE_HIVE:
+        return "Hive: hemolymph knits on its own. Stay fed. Bandage. Sleep.";
+    case RACE_SHEK:
+        return "Shek: toughness 20, or use a Splint Kit on the stump.";
+    case RACE_HUMAN:
+        return "Human: toughness 40 and medic 25, or a used Splint Kit.";
+    case RACE_SKELETON:
+        return "Skeleton: frames do not grow flesh. Buy a replacement.";
+    default:
+        return "This body cannot regrow a limb.";
+    }
+}
+
+static float GrowthRatePerHour(const CharSnap* c)
+{
+    if (!c) return 0.f;
+    const LvConfig& cfg = LvCfg();
+    float rate = cfg.humanGrowth;
+    if (c->race == RACE_HIVE) rate = cfg.hiveGrowth;
+    else if (c->race == RACE_SHEK) rate = cfg.shekGrowth;
+    if (c->inBed) rate *= cfg.bedGrowthMult;
+    return rate;
+}
+
+float LvHoursToFinish(const CharSnap* c)
+{
+    char why[8];
+    if (!c || !LvEligible(c, why, (int)sizeof(why))) return -1.f;
+    const int t = LvFirstStump(c);
+    if (t < 0) return -1.f;
+    const float left = 100.f - c->progress[t];
+    if (left <= 0.f) return 0.f;
+    const float rate = GrowthRatePerHour(c);
+    if (rate < 0.01f) return -1.f;
+    return left / rate;
+}
+
+void LvEtaText(const CharSnap* c, char* out, int outsz)
+{
+    if (!out || outsz < 8) return;
+    out[0] = 0;
+    if (!c) return;
+    char why[96];
+    if (!LvEligible(c, why, (int)sizeof(why)))
+    {
+        if (why[0]) std::snprintf(out, (size_t)outsz, "%s", why);
+        else std::snprintf(out, (size_t)outsz, "%s", LvRaceHint(c->race));
+        return;
+    }
+    const float h = LvHoursToFinish(c);
+    if (h < 0.f)
+    {
+        std::snprintf(out, (size_t)outsz, "Paused. Eat, bandage, or rest.");
+        return;
+    }
+    if (h < 1.f)
+        std::snprintf(out, (size_t)outsz, "Almost there — under an hour.");
+    else if (h < 24.f)
+        std::snprintf(out, (size_t)outsz, c->inBed ? "~%.0fh in this bed." : "~%.0fh on the road. Bed is 2x.", h);
+    else
+        std::snprintf(out, (size_t)outsz, c->inBed ? "~%.1f days in this bed." : "~%.1f days walking. Bed is 2x.", h / 24.f);
+}
+
 void LvClearResult(TickResult* out)
 {
     if (!out) return;
