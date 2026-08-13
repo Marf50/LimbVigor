@@ -1,0 +1,39 @@
+Limb Vigor — install
+====================
+
+Needs: Kenshi 64-bit + RE_Kenshi
+https://www.nexusmods.com/kenshi/mods/847
+
+1. Download the LimbVigor-mod artifact from GitHub Actions
+   (or a Release zip if one exists).
+2. Extract so you have:
+
+   Kenshi/mods/LimbVigor/LimbVigor.dll
+   Kenshi/mods/LimbVigor/RE_Kenshi.json
+   Kenshi/mods/LimbVigor/config.ini
+
+3. Enable RE_Kenshi. If the launcher lists Limb Vigor, enable it too.
+4. Optional backup: in Plugins_x64.cfg, after Plugin=RE_Kenshi add
+   Plugin=LimbVigor
+   and copy LimbVigor.dll next to kenshi_x64.exe.
+
+What you should see
+-------------------
+Open a character medical panel. Under Blood:
+  Hive        — Hemolymph bar
+  Shek        — Battle-heat bar
+  Human       — Vigor bar
+  Skeleton    — “Frames do not grow flesh.”
+
+A stump stages: dormant → budding → forming → knitting → whole.
+The new limb is original flesh at ~22% HP. First-aid it.
+
+Hive grows if fed and bandaged.
+Shek need toughness 20 or a used Splint Kit.
+Humans need toughness 40 and Field Medic 25, or a used Splint Kit.
+Skeletons never.
+
+If the game crashes on load: set EnableHud=0 in config.ini and try again.
+Speech can be turned off with EnableSpeech=0.
+
+Bug notes go in testdoc/BUGTEST.md — send them back and we patch.

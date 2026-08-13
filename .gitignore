@@ -1,0 +1,14 @@
+cmake-build-*/
+build/
+build-test/
+.idea/
+.vs/
+CMakeUserPresets.json
+**/LimbVigor.dll
+**/LimbVigor.pdb
+**/LimbVigor.exp
+**/LimbVigor.lib
+*.user
+*.suo
+third_party/KenshiLib/
+LimbVigor.progress

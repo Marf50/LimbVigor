@@ -1,0 +1,88 @@
+name: Build LimbVigor.dll
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sim-test:
+    name: Headless sim (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure + test
+        run: |
+          cmake -S . -B build-test -DLIMBVIGOR_BUILD_TESTS=ON
+          cmake --build build-test --target lv_sim_test -j
+          ./build-test/lv_sim_test
+
+  build-dll:
+    name: MSVC x64 Release
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Git LFS
+        run: git lfs install
+
+      - name: Clone KenshiLib deps
+        shell: pwsh
+        run: |
+          $deps = Join-Path $env:RUNNER_TEMP "kenshi_deps"
+          git clone --depth 1 https://github.com/BFrizzleFoShizzle/KenshiLib_Examples_deps.git $deps
+          Push-Location $deps
+          git lfs pull
+          if (Test-Path "boost_1_60_0\boost.zip") {
+            tar -xf "boost_1_60_0\boost.zip" --directory "boost_1_60_0"
+          }
+          $lib = Get-Item "KenshiLib\Libraries\KenshiLib.lib"
+          if ($lib.Length -lt 10000) {
+            throw "KenshiLib.lib looks like an LFS pointer ($($lib.Length) bytes)"
+          }
+          Write-Host "KenshiLib.lib size: $($lib.Length)"
+          if (-not (Test-Path "boost_1_60_0\boost")) {
+            throw "Boost headers missing after extract"
+          }
+          Pop-Location
+          "KENSHI_DEPS=$deps" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
+            "-DKENSHILIB_DIR=$env:KENSHI_DEPS\KenshiLib" `
+            "-DBOOST_INCLUDE_DIR=$env:KENSHI_DEPS\boost_1_60_0" `
+            -DLIMBVIGOR_FORCE_GAME_BUILD=ON `
+            -DLIMBVIGOR_BUILD_TESTS=OFF
+
+      - name: Build Release
+        run: cmake --build build --config Release --parallel
+
+      - name: Stage install folder
+        shell: pwsh
+        run: |
+          $dll = Get-ChildItem -Path build -Recurse -Filter LimbVigor.dll | Select-Object -First 1
+          if (-not $dll) { throw "LimbVigor.dll not found" }
+          Write-Host "Built: $($dll.FullName) ($($dll.Length) bytes)"
+          New-Item -ItemType Directory -Force -Path dist_mod/LimbVigor | Out-Null
+          Copy-Item $dll.FullName dist_mod/LimbVigor/LimbVigor.dll
+          Copy-Item kenshi_mod/config.ini dist_mod/LimbVigor/
+          Copy-Item kenshi_mod/LimbVigor.cfg dist_mod/LimbVigor/
+          Copy-Item kenshi_mod/RE_Kenshi.json dist_mod/LimbVigor/
+          Copy-Item kenshi_mod/INSTALL.txt dist_mod/LimbVigor/
+          Copy-Item testdoc/BUGTEST.md dist_mod/LimbVigor/
+          Get-ChildItem dist_mod/LimbVigor | Format-Table Name, Length
+
+      - name: Upload LimbVigor-mod
+        uses: actions/upload-artifact@v4
+        with:
+          name: LimbVigor-mod
+          path: dist_mod/LimbVigor/
+          if-no-files-found: error
