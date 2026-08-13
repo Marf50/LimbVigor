@@ -49,18 +49,6 @@ static void ReadName(MyGUI::Widget* w, char* out, int outsz)
     LV_EXCEPT { out[0] = 0; }
 }
 
-static void ReadSkin(MyGUI::Widget* w, char* out, int outsz)
-{
-    out[0] = 0;
-    if (!w) return;
-    LV_TRY
-    {
-        const std::string& raw = w->getSkinName();
-        ReadStr(raw, out, outsz);
-    }
-    LV_EXCEPT { out[0] = 0; }
-}
-
 static int SkinForbidden(const char* skin)
 {
     return skin && std::strcmp(skin, "ProgressBar") == 0;
@@ -345,14 +333,10 @@ static int BuildHud()
     g_blood = blood;
     g_onLayer = 0;
 
-    char bloodSkin[48] = {};
     MyGUI::IntCoord slot(10, 10, 176, 16);
 
     if (blood)
     {
-        ReadSkin(blood, bloodSkin, 48);
-        if (SkinForbidden(bloodSkin))
-            bloodSkin[0] = 0;
         LV_TRY
         {
             MyGUI::IntCoord abs = blood->getAbsoluteCoord();
@@ -387,8 +371,7 @@ static int BuildHud()
 
     // Text first — numbers must show even if the fill widgets fail.
     g_label = MakeText(g_host, row, "LimbVigorTxt");
-    g_track = MakeWidget(g_host, row,
-        bloodSkin[0] ? bloodSkin : "Kenshi_GenericTextBox", "LimbVigorTrack");
+    g_track = MakeWidget(g_host, row, "Kenshi_GenericTextBox", "LimbVigorTrack");
     if (!g_label && !g_track) return 0;
     if (g_track) ArmTooltip(g_track);
     if (g_label)
@@ -414,8 +397,7 @@ static int BuildHud()
     MyGUI::IntCoord row2 = row;
     row2.top += slot.height + 4;
     g_label2 = MakeText(g_host, row2, "LimbVigorTxt2");
-    g_track2 = MakeWidget(g_host, row2,
-        bloodSkin[0] ? bloodSkin : "Kenshi_GenericTextBox", "LimbVigorTrack2");
+    g_track2 = MakeWidget(g_host, row2, "Kenshi_GenericTextBox", "LimbVigorTrack2");
     if (g_track2)
     {
         ArmTooltip(g_track2);
