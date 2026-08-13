@@ -57,6 +57,7 @@ if(_GAME)
 
   target_compile_definitions(LimbVigor PRIVATE
     _WINDOWS _USRDLL UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN
+    _CRT_SECURE_NO_WARNINGS
     $<$<CONFIG:Release>:NDEBUG>
   )
 

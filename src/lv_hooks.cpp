@@ -7,7 +7,6 @@
 #if defined(LIMBVIGOR_IDE)
 #include "stubs/kenshi_ide_stubs.h"
 #else
-#define WIN32_LEAN_AND_MEAN
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif

@@ -12,7 +12,6 @@
 #ifndef _UNICODE
 #define _UNICODE
 #endif
-#define WIN32_LEAN_AND_MEAN
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -312,11 +311,10 @@ int LvRestoreLimb(MedicalSystem* med, int limbId)
 
 int LvHasSplint(Character* me)
 {
-    if (!me) return 0;
-    int has = 0;
-    LV_TRY { has = me->hasSimilarItem(ITEM_MEDRIGGING) ? 1 : 0; }
-    LV_EXCEPT { has = 0; }
-    return has;
+    // Splints are applied through applyDoctoring (hooked). We do not
+    // scan the backpack — hasSimilarItem takes itemType, not ItemFunction.
+    (void)me;
+    return 0;
 }
 
 int LvItemLooksLikeCatalyst(Item* item)
