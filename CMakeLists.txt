@@ -27,6 +27,7 @@ set(LV_SRC
   src/lv_game.cpp
   src/lv_hooks.cpp
   src/lv_hud.cpp
+  src/lv_parts.cpp
 )
 
 add_library(LimbVigor SHARED ${LV_SRC})
@@ -117,7 +118,7 @@ set_target_properties(LimbVigor PROPERTIES
 )
 
 if(LIMBVIGOR_BUILD_TESTS)
-  add_executable(lv_sim_test src/lv_sim_test.cpp src/lv_config.cpp src/lv_sim.cpp)
-  target_include_directories(lv_sim_test PRIVATE "${CMAKE_SOURCE_DIR}/src")
+  add_executable(lv_sim_test src/lv_sim_test.cpp src/lv_config.cpp src/lv_sim.cpp src/lv_parts.cpp)
+  target_include_directories(lv_sim_test PRIVATE "${CMAKE_SOURCE_DIR}/src" "${CMAKE_SOURCE_DIR}/src/stubs")
   target_compile_definitions(lv_sim_test PRIVATE LIMBVIGOR_IDE=1)
 endif()

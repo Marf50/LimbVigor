@@ -4,6 +4,7 @@
 #include "lv_game.h"
 #include "lv_persist.h"
 #include "lv_hud.h"
+#include "lv_parts.h"
 
 #if defined(LIMBVIGOR_IDE)
 #include "stubs/kenshi_ide_stubs.h"
@@ -191,6 +192,10 @@ static void DriveTick(MedicalSystem* med, float frameTime)
         CharSnap* live = Bind(med);
         if (live && live->race != RACE_SKELETON && live->race != RACE_ANIMAL)
         {
+            // Slot the matching growth part before the sim paints the
+            // socket WHOLE at 100%. Uses the game-read limb kinds.
+            LvSyncGrowthParts(med, live);
+
             TickResult r;
             LvTick(live, dtHours, &r);
             LvMarkDirty();
@@ -200,8 +205,17 @@ static void DriveTick(MedicalSystem* med, float frameTime)
 
             if (r.speech[0]) LvSay(who, r.speech);
 
+            if (r.stageChanged >= 0 && r.stageChanged < LIMB_COUNT)
+            {
+                const int st = r.stageValue;
+                if (st >= 0 && st < LV_PART_COUNT)
+                    LvEquipGrowthPart(med, r.stageChanged, st);
+            }
+
             // LvTick paints the socket WHOLE for the simulator. The game
-            // may still have a stump at -15 — re-read and actually restore.
+            // may still have a stump / growth part — re-read and restore
+            // original flesh at ~22%. If that fails, put the knitting
+            // part back so the socket is not a −15 hole.
             if (r.restored >= 0 && r.restored < LIMB_COUNT && live->restoreLock <= 0.f)
             {
                 const int limb = r.restored;
@@ -222,7 +236,8 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                     live->limbs[limb] = LIMB_KIND_STUMP;
                     live->progress[limb] = 100.f;
                     live->restoreLock = 20.f / secPerHour;
-                    LvLogf("LimbVigor: restore deferred on %s %s — will retry",
+                    LvEquipGrowthPart(med, limb, LV_PART_KNITTING);
+                    LvLogf("LimbVigor: restore deferred on %s %s — knitting part stays",
                         live->name, LvLimbLabel((LimbId)limb));
                 }
                 else

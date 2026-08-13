@@ -66,6 +66,7 @@ jobs:
       - name: Stage install folder
         shell: pwsh
         run: |
+          python tools/write_parts_mod.py --out-dir kenshi_mod
           $dll = Get-ChildItem -Path build -Recurse -Filter LimbVigor.dll | Select-Object -First 1
           if (-not $dll) { throw "LimbVigor.dll not found" }
           Write-Host "Built: $($dll.FullName) ($($dll.Length) bytes)"

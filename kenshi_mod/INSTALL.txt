@@ -47,13 +47,14 @@ Humans need toughness 40 and Field Medic 25, or a used Splint Kit.
 Skeletons never.
 
 A stump stages: dormant → budding → forming → knitting → whole.
-v1.6 — the missing-limb restore
---------------------------------
-If a stump hit 100% and the bar stayed at -15, that was a bug:
-the sim marked the limb "whole" before setLimb ran, so the game
-never put the flesh back. This build restores for real, retries
-if the stump is still there, and logs flesh/state so we can see
-it. Keep LimbVigor.progress — Boop's left leg is already at 100%.
+Each stage is a real limb part (open I, look at the socket).
+Stats start terrible and get closer to flesh as it knits.
+At 100% the plugin tries to put original flesh back at ~22% HP.
+If that fails, the knitting part stays in the socket so you
+are not left staring at −15.
+
+Keep LimbVigor.progress — existing growth numbers are reused.
+Overwrite LimbVigor.mod as well as the DLL (the parts live in the .mod).
 
 
 Replace the old DLL

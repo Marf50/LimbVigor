@@ -61,6 +61,7 @@ public:
     LimbState states[4] = {};
     Item* items[4] = {};
     LimbState getState(Limb) const { return LIMB_ORIGINAL; }
+    Item* getLimb(Limb) const { return nullptr; }
     void setLimb(Limb, LimbState, Item*) {}
 };
 

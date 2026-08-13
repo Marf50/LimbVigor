@@ -1,6 +1,7 @@
 #include "lv_game.h"
 #include "lv_config.h"
 #include "lv_sim.h"
+#include "lv_parts.h"
 #include "lv_msvcstr.h"
 
 #if defined(LIMBVIGOR_IDE)
@@ -187,11 +188,28 @@ static LimbKind ReadLimb(MedicalSystem* med, int slot)
     MedicalSystem::HealthPartStatus* part = nullptr;
     LV_TRY { part = med->getPart(kGameLimb[slot]); }
     LV_EXCEPT { part = nullptr; }
+
+    // Our growth parts occupy the socket like a prosthetic. Treat them as
+    // a stump so the sim keeps growing instead of stopping.
+    Item* worn = nullptr;
+    LV_TRY
+    {
+        RobotLimbs* robots = med->robotLimbs;
+        if (robots) worn = robots->getLimb(kGameLimb[slot]);
+    }
+    LV_EXCEPT { worn = nullptr; }
+    if (worn && LvIsGrowthPart(worn))
+        return LIMB_KIND_STUMP;
+
     if (part)
     {
         LV_TRY
         {
-            if (part->isRobotic()) return LIMB_KIND_PROSTHETIC;
+            if (part->isRobotic())
+            {
+                // Growth parts report robotic. Name-check already ran.
+                return LIMB_KIND_PROSTHETIC;
+            }
             LimbState ps = part->getRobotLimbState();
             if (ps == LIMB_REPLACED) return LIMB_KIND_PROSTHETIC;
             if (ps == LIMB_STUMP) return LIMB_KIND_STUMP;
@@ -297,13 +315,22 @@ int LvRestoreLimb(MedicalSystem* med, int limbId)
     LvLogf("LimbVigor: restore %s — state %d part %d flesh %.1f/%.0f robotic %d",
         LvLimbLabel((LimbId)limbId), (int)before, (int)partState, flesh, mx, robotic);
 
-    if (robotic && partState == LIMB_REPLACED)
+    Item* worn = nullptr;
+    LV_TRY
+    {
+        RobotLimbs* robots = med->robotLimbs;
+        if (robots) worn = robots->getLimb(limb);
+    }
+    LV_EXCEPT { worn = nullptr; }
+    const int ours = worn && LvIsGrowthPart(worn) ? 1 : 0;
+
+    if (robotic && partState == LIMB_REPLACED && !ours)
     {
         LvLogf("LimbVigor: refuse restore %s — prosthetic occupies the socket",
             LvLimbLabel((LimbId)limbId));
         return 0;
     }
-    if (before == LIMB_REPLACED)
+    if (before == LIMB_REPLACED && !ours)
     {
         LvLogf("LimbVigor: refuse restore %s — replaced", LvLimbLabel((LimbId)limbId));
         return 0;
@@ -328,9 +355,13 @@ int LvRestoreLimb(MedicalSystem* med, int limbId)
     }
 
     int ok = 0;
-    if (before == LIMB_STUMP || before == LIMB_CRUSHED
-     || partState == LIMB_STUMP || partState == LIMB_CRUSHED)
+    if (ours || before == LIMB_STUMP || before == LIMB_CRUSHED
+     || partState == LIMB_STUMP || partState == LIMB_CRUSHED
+     || partState == LIMB_REPLACED)
     {
+        if (ours)
+            LvClearGrowthPart(med, limbId);
+
         RobotLimbs* robots = nullptr;
         LV_TRY { robots = med->robotLimbs; }
         LV_EXCEPT { robots = nullptr; }

@@ -1,8 +1,10 @@
 # Limb Vigor
 
-A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic characters can grow a lost limb back. The resource sits on the **STATS medical panel, under Blood**.
+A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic characters can grow a lost limb back. The resource sits on the **selected-character HUD, under Blood**.
 
-This is not a feast-from-hunger hack and not a MyGUI overlay. Three official KenshiLib hooks, the same numbers as the field-manual bench.
+Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting, then the plugin tries to put original flesh back at ~22% HP.
+
+This is not a feast-from-hunger hack. Three official KenshiLib hooks, the same numbers as the field-manual bench.
 
 | Race | Resource | When it grows | Open air |
 | --- | --- | --- | --- |
@@ -11,9 +13,9 @@ This is not a feast-from-hunger hack and not a MyGUI overlay. Three official Ken
 | Human | Vigor | Toughness 40 **and** Field Medic 25, **or** a used Splint Kit | ~6 days |
 | Skeleton | — | Never | — |
 
-A bed roughly halves the time. One stump at a time, legs first. The new limb is original flesh at ~22% of that part’s max HP. A prosthetic occupies the socket and blocks growth; progress is kept.
+A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.5: real HUD bar under Blood (the red bar on the selected-character HUD, not the C sheet). Hover for the race rule and time. Works with Dark UI by cloning Blood's widget.
+v1.7: stages are LimbReplacement parts (stats + I-key), slotted the same way robot limbs are. `setLimb(ORIGINAL)` is only the last step. HUD bar under Blood (not the C sheet). Hover for the race rule and time. Dark UI ok.
 
 ## Get the DLL
 
@@ -39,7 +41,7 @@ Only documented KenshiLib methods. No inventory windows, no MyGUI, no save-load 
 
 Addresses come from `KenshiLib::GetRealAddress`. The RVAs printed in the official headers are a fallback only.
 
-Limb restore uses `RobotLimbs::setLimb(ORIGINAL)` and `MedicalSystem::setRobotLimbItem`. Progress is a sidecar file (`LimbVigor.progress`) next to the DLL — we do not hook `MedicalSystem::load`.
+Limb restore slots a growth part via `RobotLimbs::setLimb(REPLACED, item)` and `MedicalSystem::setRobotLimbItem`, created from LimbVigor.mod GameData (Economy limb as visual fallback). At 100% it tries original flesh. Progress is a sidecar file (`LimbVigor.progress`) next to the DLL — we do not hook `MedicalSystem::load`.
 
 ## Layout
 
@@ -50,6 +52,7 @@ src/lv_game.cpp       race, limbs, HUD strings
 src/lv_hooks.cpp      the three hooks
 src/lv_config.cpp     LimbVigor.cfg / config.ini
 src/lv_persist.cpp    LimbVigor.progress
+src/lv_parts.cpp       growth-stage LimbReplacement catalog + equip
 src/lv_sim_test.cpp   headless checks (also run in CI)
 ```
 

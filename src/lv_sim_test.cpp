@@ -1,5 +1,6 @@
 #include "lv_sim.h"
 #include "lv_config.h"
+#include "lv_parts.h"
 
 #include <cstdio>
 #include <cstring>
@@ -141,6 +142,23 @@ int main()
         LvEtaText(&c, eta, 96);
         Expect(std::strstr(eta, "Splint") != nullptr || std::strstr(eta, "toughness") != nullptr,
             "blocked human ETA explains why");
+    }
+
+    {
+        Expect(LvPartStageFromProgress(0.f) == LV_PART_STUMP, "0% is stump");
+        Expect(LvPartStageFromProgress(24.f) == LV_PART_STUMP, "24% is stump");
+        Expect(LvPartStageFromProgress(25.f) == LV_PART_BUDDING, "25% is budding");
+        Expect(LvPartStageFromProgress(49.f) == LV_PART_BUDDING, "49% is budding");
+        Expect(LvPartStageFromProgress(50.f) == LV_PART_FORMING, "50% is forming");
+        Expect(LvPartStageFromProgress(75.f) == LV_PART_KNITTING, "75% is knitting");
+        Expect(LvPartStageFromProgress(99.f) == LV_PART_KNITTING, "99% is knitting");
+        const LvPartDef* p = LvPartFor(LIMB_LEFT_LEG, LV_PART_BUDDING);
+        Expect(p && std::strstr(p->name, "LV ") == p->name, "left-leg budding is named LV");
+        Expect(p && std::strstr(p->stringId, "lv-") == p->stringId, "stringId is lv-");
+        Expect(LvPartFor(LIMB_RIGHT_ARM, LV_PART_KNITTING) != nullptr, "right-arm knitting exists");
+        Expect(LvPartFor(-1, 0) == nullptr, "bad limb rejected");
+        Expect(LvPartSlotForLimb(LIMB_LEFT_ARM) == 0, "left arm FCS slot 0");
+        Expect(LvPartSlotForLimb(LIMB_RIGHT_LEG) == 3, "right leg FCS slot 3");
     }
 
     if (g_fail)

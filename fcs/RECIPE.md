@@ -1,8 +1,12 @@
-# FCS companion — Limb Vigor (optional)
+# FCS companion — Limb Vigor
 
-The plugin runs with **zero** FCS changes. Do this only if you want named drugs on shelves.
+`LimbVigor.mod` already contains 16 `LimbReplacement` records
+(stump / budding / forming / knitting × four sockets). Do not
+duplicate those by hand — `tools/write_parts_mod.py` is the source.
 
-Create a new mod named `Limb Vigor`. Load `gamedata.base` + your file.
+Optional extra: named drugs on shelves.
+
+Create a new mod named `Limb Vigor Drugs` if you want shop items. Load `gamedata.base` + your file.
 
 Duplicate **Splint Kit** three times. Keep the same item function (doctoring / first aid family). The plugin name-matches these words: `splint`, `regrowth`, `stimulant`, `growth kit`, `ichor`, `bone-knit`, `marrow`.
 

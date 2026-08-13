@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready — HUD bar under Blood (Dark UI ok). Hover for the rule.");
+        LvLog("LimbVigor: ready — growth stages are real parts (I-key limb slot). HUD bar under Blood.");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }
