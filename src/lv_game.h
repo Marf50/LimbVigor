@@ -24,6 +24,7 @@ void      LvReadSnap(MedicalSystem* med, CharSnap* io);
 int       LvRestoreLimb(MedicalSystem* med, int limbId);
 int       LvHasSplint(Character* me);
 void      LvSay(Character* me, const char* text);
+int       LvIsPlayerSquad(Character* me);
 void      LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap);
 int       LvReadMsvcString(const void* strObj, char* out, int outsz);
 int       LvItemLooksLikeCatalyst(Item* item);

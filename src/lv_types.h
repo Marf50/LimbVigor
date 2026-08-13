@@ -46,6 +46,7 @@ struct CharSnap
     int      inBed;
     int      inCombat;
     float    catalystHours;
+    int      seen;              // 1 after first live snapshot — do not treat as a fresh cut
     char     lastBlock[96];
     char     name[48];
 };

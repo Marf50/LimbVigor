@@ -43,6 +43,11 @@ Shek need toughness 20 or a used Splint Kit.
 Humans need toughness 40 and Field Medic 25, or a used Splint Kit.
 Skeletons never.
 
+If the game crashed on load before: this build no longer talks to
+town NPCs, does not call character speech, and leaves the medical
+bar off. Growth still runs for your squad. After a clean load, set
+EnableHud=1 in config.ini if you want the bar back.
+
 If the game crashes on load: set EnableHud=0 in config.ini and try again.
 Speech can be turned off with EnableSpeech=0.
 

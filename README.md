@@ -13,6 +13,8 @@ This is not a feast-from-hunger hack and not a MyGUI overlay. Three official Ken
 
 A bed roughly halves the time. One stump at a time, legs first. The new limb is original flesh at ~22% of that part’s max HP. A prosthetic occupies the socket and blocks growth; progress is kept.
 
+v1.2 does not talk to town NPCs and does not call character speech (that crashed World’s End on load). The medical bar is off until `EnableHud=1` after a clean load.
+
 ## Get the DLL
 
 GitHub Actions compiles `LimbVigor.dll` when I trigger it (not on every push). The last good zip is on [Releases](https://github.com/Marf50/LimbVigor/releases).

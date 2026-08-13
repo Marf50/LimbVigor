@@ -34,6 +34,18 @@ static void (*orig_medGui)(MedicalSystem*, DatapanelGUI*) = nullptr;
 static bool (*orig_doctor)(MedicalSystem*, float, Item*, float, Character*) = nullptr;
 
 static int g_inTick = 0;
+static unsigned g_warmStart = 0;
+
+static int WarmedUp()
+{
+#if defined(_WIN32) && !defined(LIMBVIGOR_IDE)
+    unsigned now = GetTickCount();
+    if (!g_warmStart) g_warmStart = now;
+    return (now - g_warmStart) >= 5000u ? 1 : 0;
+#else
+    return 1;
+#endif
+}
 
 static int IsDead(MedicalSystem* med)
 {
@@ -57,9 +69,15 @@ static CharSnap* Bind(MedicalSystem* med)
     LvReadSnap(med, &tmp);
     if (!tmp.name[0]) std::snprintf(tmp.name, sizeof(tmp.name), "%s", "?");
 
+    // Never persist unnamed / failed-name reads as one shared "?" slot.
+    if (tmp.name[0] == '?' && tmp.name[1] == 0)
+        return nullptr;
+
     CharSnap* live = LvPersistFind(tmp.name, 1);
     if (!live) return nullptr;
 
+    const int firstSeen = !live->seen;
+    live->seen = 1;
     live->race = tmp.race;
     live->toughness = tmp.toughness;
     live->medic = tmp.medic;
@@ -74,27 +92,26 @@ static CharSnap* Bind(MedicalSystem* med)
     {
         const LimbKind was = live->limbs[i];
         live->limbs[i] = tmp.limbs[i];
-        // Fresh amputation — reset that slot's growth.
+        if (firstSeen) continue;
+        // Only a WHOLE → STUMP transition after we have already seen them.
         if ((tmp.limbs[i] == LIMB_KIND_STUMP || tmp.limbs[i] == LIMB_KIND_CRUSHED)
             && was == LIMB_KIND_WHOLE)
         {
             live->progress[i] = 0.f;
             live->lastStage[i] = -1;
             LvMarkDirty();
-            Character* me = LvCharFromMed(med);
             if (tmp.race == RACE_HIVE)
-                LvSay(me, "The stump itches. Hemolymph will try to knit it.");
+                LvSay(nullptr, "The stump itches. Hemolymph will try to knit it.");
             else if (tmp.race == RACE_SHEK)
-                LvSay(me, "The bone remembers. Survive. Stay fed.");
+                LvSay(nullptr, "The bone remembers. Survive. Stay fed.");
             else if (tmp.race == RACE_SKELETON)
-                LvSay(me, "A machine does not grow flesh. Find a replacement.");
+                LvSay(nullptr, "A machine does not grow flesh. Find a replacement.");
             else
-                LvSay(me, "Flesh does not grow back on its own. You need a splint — or to have earned it.");
+                LvSay(nullptr, "Flesh does not grow back on its own. You need a splint — or to have earned it.");
         }
         if (tmp.limbs[i] == LIMB_KIND_WHOLE && was != LIMB_KIND_WHOLE
             && live->progress[i] < 99.f)
         {
-            // Game restored it (prosthetic removed / vanilla). Drop our bar.
             live->progress[i] = 0.f;
             live->lastStage[i] = -1;
         }
@@ -105,8 +122,12 @@ static CharSnap* Bind(MedicalSystem* med)
 static void DriveTick(MedicalSystem* med, float frameTime)
 {
     if (!med || !LvCfg().enableHooks) return;
+    if (!WarmedUp()) return;
     if (IsDead(med)) return;
     if (g_inTick) return;
+
+    Character* who = LvCharFromMed(med);
+    if (!LvIsPlayerSquad(who)) return;
 
     float secPerHour = LvCfg().secondsPerGameHour;
     if (secPerHour < 1.f) secPerHour = 53.33f;
@@ -141,8 +162,10 @@ static void DriveTick(MedicalSystem* med, float frameTime)
             LvTick(live, dtHours, &r);
             LvMarkDirty();
 
-            Character* me = LvCharFromMed(med);
-            if (r.speech[0]) LvSay(me, r.speech);
+            static int onceTick = 0;
+            if (!onceTick) { LvLog("LimbVigor: first player-squad tick"); onceTick = 1; }
+
+            if (r.speech[0]) LvSay(who, r.speech);
 
             if (r.restored >= 0)
             {
@@ -180,6 +203,9 @@ static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
 {
     if (orig_medGui) orig_medGui(self, panel);
     if (!self || !panel || !LvCfg().enableHud) return;
+    if (!WarmedUp()) return;
+    Character* who = LvCharFromMed(self);
+    if (!LvIsPlayerSquad(who)) return;
     LV_TRY
     {
         CharSnap* live = Bind(self);
@@ -189,6 +215,7 @@ static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
     {
         static int once = 0;
         if (!once) { LvErr("LimbVigor: HUD SEH — turning HUD off"); once = 1; }
+        LvDisableHud();
     }
 }
 

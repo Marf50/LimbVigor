@@ -10,7 +10,7 @@
 #endif
 
 static LvConfig g_cfg = {
-    1, 1, 1, 1,
+    1, 0, 0, 1,
     100.f,
     5.0f, 1.5f, 0.6f,
     6.0f, 14.0f, 8.0f,
@@ -51,6 +51,11 @@ void LvErr(const char* msg)
 #endif
 }
 
+void LvDisableHud()
+{
+    g_cfg.enableHud = 0;
+}
+
 void LvLogf(const char* fmt, ...)
 {
     if (!g_cfg.debugLog || !fmt) return;
@@ -74,27 +79,35 @@ void LvLoadConfig(const char* pluginDir)
 {
     if (pluginDir) LvSetPluginDir(pluginDir);
 
-    char path[300];
+    const char* tries[6];
+    char a[300], b[300];
+    int n = 0;
     if (g_dir[0])
-        std::snprintf(path, sizeof(path), "%s\\LimbVigor.cfg", g_dir);
-    else
-        std::snprintf(path, sizeof(path), "LimbVigor.cfg");
-
-    FILE* f = std::fopen(path, "r");
-    if (!f)
     {
-        // also try config.ini next to the DLL (mods/LimbVigor/ layout)
-        if (g_dir[0])
-            std::snprintf(path, sizeof(path), "%s\\config.ini", g_dir);
-        else
-            std::snprintf(path, sizeof(path), "config.ini");
-        f = std::fopen(path, "r");
+        std::snprintf(a, sizeof(a), "%s\\config.ini", g_dir);
+        std::snprintf(b, sizeof(b), "%s\\LimbVigor.cfg", g_dir);
+        tries[n++] = a;
+        tries[n++] = b;
+    }
+    tries[n++] = "mods\\LimbVigor\\config.ini";
+    tries[n++] = "mods\\LimbVigor\\LimbVigor.cfg";
+    tries[n++] = "config.ini";
+    tries[n++] = "LimbVigor.cfg";
+
+    FILE* f = nullptr;
+    const char* used = nullptr;
+    for (int i = 0; i < n && !f; ++i)
+    {
+        f = std::fopen(tries[i], "r");
+        if (f) used = tries[i];
     }
     if (!f)
     {
-        LvLog("LimbVigor: no config — using defaults");
+        LvLog("LimbVigor: no config — safe defaults (HUD off, speech off)");
         return;
     }
+    LvLog("LimbVigor: config loaded");
+    if (used) LvLog(used);
 
     char line[512];
     while (std::fgets(line, sizeof(line), f))
@@ -153,6 +166,4 @@ void LvLoadConfig(const char* pluginDir)
     if (g_cfg.restoredFlesh > 0.8f) g_cfg.restoredFlesh = 0.8f;
     if (g_cfg.catalystHours < 1.f) g_cfg.catalystHours = 1.f;
     if (g_cfg.bedGrowthMult < 1.f) g_cfg.bedGrowthMult = 1.f;
-
-    LvLog("LimbVigor: config loaded");
 }

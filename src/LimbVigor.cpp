@@ -17,5 +17,5 @@ LV_EXPORT void startPlugin()
     LvGameInit();
     LvPersistLoad();
     LvInstallHooks();
-    LvLog("LimbVigor: ready — medical panel shows Hemolymph / Battle-heat / Vigor under Blood");
+    LvLog("LimbVigor: ready — squad only, speech off, HUD off until EnableHud=1");
 }

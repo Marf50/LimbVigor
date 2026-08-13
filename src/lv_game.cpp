@@ -103,15 +103,23 @@ void LvGameInit()
     g_gameReady = 1;
 
 #if !defined(LIMBVIGOR_IDE)
+    // Prefer GetRealAddress — unique overloads only. Hardcoded RVA is last resort.
+    intptr_t prog = KenshiLib::GetRealAddress(&DatapanelGUI::setLineProgress);
+    intptr_t key  = 0;
     void* base = ExeBase();
     if (base)
     {
         unsigned char* b = (unsigned char*)base;
-        g_setLineKey  = (FnSetLineKey)(b + kRvaSetLineKey);
-        g_setLineBar  = (FnSetLineBar)(b + kRvaSetLineBar);
-        g_setLineProg = (FnSetLineProg)(b + kRvaSetLineProg);
+        if (prog) g_setLineProg = (FnSetLineProg)prog;
+        else      g_setLineProg = (FnSetLineProg)(b + kRvaSetLineProg);
+        // setLine is overloaded — GetRealAddress is unreliable. Leave null.
+        // We do not call the overloaded setLine overloads; progress line only.
+        (void)key;
+        (void)kRvaSetLineKey;
+        (void)kRvaSetLineBar;
+        g_setLineKey = nullptr;
+        g_setLineBar = nullptr;
     }
-    // Prefer KenshiLib resolution for non-overloaded methods (used in hooks).
     LvLog("LimbVigor: game helpers ready");
 #endif
 }
@@ -123,6 +131,18 @@ Character* LvCharFromMed(MedicalSystem* med)
     LV_TRY { me = med->me; }
     LV_EXCEPT { me = nullptr; }
     return me;
+}
+
+int LvIsPlayerSquad(Character* me)
+{
+    if (!me) return 0;
+    int yes = 0;
+    LV_TRY { yes = me->isWithThePlayer() ? 1 : 0; }
+    LV_EXCEPT { yes = 0; }
+    if (yes) return 1;
+    LV_TRY { yes = me->isPlayerCharacter() ? 1 : 0; }
+    LV_EXCEPT { yes = 0; }
+    return yes;
 }
 
 int LvReadMsvcString(const void* strObj, char* out, int outsz)
@@ -340,15 +360,11 @@ int LvItemLooksLikeCatalyst(Item* item)
 
 void LvSay(Character* me, const char* text)
 {
-    if (!me || !text || !text[0] || !LvCfg().enableSpeech) return;
-    GameStr gs;
-    GameStrSet(&gs, text);
-    LV_TRY
-    {
-        const std::string& ref = *reinterpret_cast<const std::string*>(&gs);
-        me->say_WithARepeatLimiter(ref);
-    }
-    LV_EXCEPT {}
+    // Do not call Character::say — that takes a VS2010 std::string.
+    // A VS2022 string (or a guessed GameStr) crashes the process.
+    // Player-facing info is the medical panel; this just logs.
+    (void)me;
+    if (text && text[0]) LvLog(text);
 }
 
 static int PanelCategory(DatapanelGUI* panel)
