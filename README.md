@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-This is not a feast-from-hunger hack. Three official KenshiLib hooks, the same numbers as the field-manual bench.
+This is not a feast-from-hunger hack. Medical tick, HUD, I-key tooltip, same numbers as the field-manual bench.
 
 | Race | Resource | When it grows | Open air |
 | --- | --- | --- | --- |
@@ -15,7 +15,7 @@ This is not a feast-from-hunger hack. Three official KenshiLib hooks, the same n
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.8.1: HUD bar under Blood. Finds `5_Blood` (Kenshi prefixes names). Uses Blood's own skin + `Kenshi_TextboxStandardText`. Never the missing `ProgressBar` skin that crashed v1.7.1. Caption on the bar is the tooltip.
+v1.8.3: HUD widgets that you can actually see. findWidgetT for Blood — never walk names, never ProgressBar. Overlay lives on Kenshi's **Middle** layer (not MyGUI's "Main") so Dark UI cannot clip it. Caption is always on the bar. Hover tooltip + I-key tooltip show Hemolymph / stage / time. C is backup.
 
 ## Get the DLL
 
@@ -31,13 +31,15 @@ See [kenshi_mod/INSTALL.txt](kenshi_mod/INSTALL.txt).
 
 ## What is hooked
 
-Only documented KenshiLib methods. No inventory windows, no MyGUI, no save-load hook.
+Documented KenshiLib methods plus a small MyGUI overlay of Kenshi skins.
 
 | Hook | Why |
 | --- | --- |
 | `MedicalSystem::medicalUpdate` | Tick vigor and growth |
-| `MedicalSystem::getMedicalGUIData` | Lines next to Blood on STATS |
+| `MedicalSystem::getMedicalGUIData` | Lines next to Blood on STATS (backup) |
 | `MedicalSystem::applyDoctoring` | Splint Kit / stimulant starts the catalyst |
+| `InventoryItemBase::getTooltipData1` | Live Hemolymph / stage / time on the I-key LV part |
+| MyGUI overlay on layer `Middle` | Left HUD bars under Blood |
 
 Addresses come from `KenshiLib::GetRealAddress`. The RVAs printed in the official headers are a fallback only.
 
@@ -49,11 +51,11 @@ Limb restore slots a growth part via `RobotLimbs::setLimb(REPLACED, item)` and `
 src/LimbVigor.cpp     startPlugin
 src/lv_sim.cpp        the numbers (no game types)
 src/lv_game.cpp       race, limbs, STATS strings
-src/lv_hooks.cpp      the three hooks
+src/lv_hooks.cpp      medical + I-key tooltip hooks
 src/lv_config.cpp     LimbVigor.cfg / config.ini
 src/lv_persist.cpp    LimbVigor.progress
 src/lv_parts.cpp      growth-stage LimbReplacement catalog + equip
-src/lv_hud.cpp        empty — MyGUI overlay removed after v1.7.1 crash
+src/lv_hud.cpp        selected-character HUD under Blood + hover tooltip
 src/lv_sim_test.cpp   headless checks (also run in CI)
 ```
 

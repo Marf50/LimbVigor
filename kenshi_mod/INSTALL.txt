@@ -30,18 +30,20 @@ already has Blood and the body-part bars.
      with the number written on it (82 / 100)
   2. If they have a stump, a third bar: left leg  budding  32%
   3. A line under that is the tooltip: time left + race rule
-     (always visible — you do not have to hover)
+     (always visible — you do not have to hover). Hover the bar
+     for the same text. Open I and hover the LV part — live numbers.
 
-Dark UI is fine. Kenshi names Blood something like "5_Blood".
-We search that suffix, then clone Blood's own skin. We never
-create a widget with the missing "ProgressBar" skin (that is
-what crashed v1.7.1).
+v1.8.3 does not walk widget names (those come back empty) and
+does not create a "ProgressBar" skin (that crashed v1.7.1).
+It looks up Blood with findWidgetT("5_Blood" …) and pins a
+Middle-layer overlay under it. If Blood is missing the same
+panel still appears on the left stack.
 
 Open I: the socket is LV Stump / Budding / Forming / Knitting /
-Grown. Hover that item for the stage description.
+Grown. Hover that item for Hemolymph / stage / hours left.
 
 C still has a backup list (Hemolymph / Regrowth / Time / How)
-if the overlay cannot find Blood.
+if you want the STATS window.
 
 Hive grows if fed and bandaged.
 Shek need toughness 20 or a used Splint Kit.
@@ -58,4 +60,4 @@ Quit Kenshi. Overwrite Kenshi/mods/LimbVigor/LimbVigor.dll and
 config.ini. Keep LimbVigor.progress. Launch.
 
 If it crashes, set EnableHud=0 and send the last 40 LimbVigor
-lines from RE_Kenshi_log.txt (we need the HUD scan names).
+lines from RE_Kenshi_log.txt.

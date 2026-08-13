@@ -47,35 +47,35 @@ static const int kFcsSlot[LIMB_COUNT] = {
 static const LvPartDef kParts[LIMB_COUNT][LV_PART_COUNT] = {
     // RIGHT LEG
     {
-        { "LV Stump Right Leg",    "lv-stump-r-leg", "A raw stump. Almost no push-off.",           "Economy Leg (right)", 3,  30.f, 0.15f, 0.20f, 0.10f, 1.f, 1.f, 1.f, 1.f, 0.4f },
-        { "LV Budding Right Leg",  "lv-bud-r-leg",   "Flesh is budding on the stump.",             "Economy Leg (right)", 3,  45.f, 0.35f, 0.40f, 0.25f, 1.f, 1.f, 1.f, 1.f, 0.8f },
-        { "LV Forming Right Leg",  "lv-form-r-leg",  "Bone and tendon are finding their shape.",   "Economy Leg (right)", 3,  65.f, 0.60f, 0.65f, 0.50f, 1.f, 1.f, 1.f, 1.f, 1.4f },
-        { "LV Knitting Right Leg", "lv-knit-r-leg",  "Almost a leg. Soft. Do not kick anyone.",    "Economy Leg (right)", 3,  85.f, 0.85f, 0.85f, 0.75f, 1.f, 1.f, 1.f, 1.f, 2.0f },
-        { "LV Grown Right Leg",    "lv-grown-r-leg", "A new leg. Soft. Yours.",                    "Economy Leg (right)", 3, 100.f, 1.00f, 1.00f, 1.00f, 1.f, 1.f, 1.f, 1.f, 2.4f },
+        { "LV Stump Right Leg",    "lv-stump-r-leg", "A raw stump. Almost no push-off. Left HUD under Blood shows Hemolymph / Vigor and hours left — hover this slot for the live numbers.",           "Economy Leg (right)", 3,  30.f, 0.15f, 0.20f, 0.10f, 1.f, 1.f, 1.f, 1.f, 0.4f },
+        { "LV Budding Right Leg",  "lv-bud-r-leg",   "Flesh is budding on the stump. Hover this part: tooltip tracks resource, percent, and time. Same bar sits under Blood.",             "Economy Leg (right)", 3,  45.f, 0.35f, 0.40f, 0.25f, 1.f, 1.f, 1.f, 1.f, 0.8f },
+        { "LV Forming Right Leg",  "lv-form-r-leg",  "Bone and tendon are finding their shape. Hover for live Hemolymph / Vigor, stage percent, and hours left. HUD under Blood matches.",   "Economy Leg (right)", 3,  65.f, 0.60f, 0.65f, 0.50f, 1.f, 1.f, 1.f, 1.f, 1.4f },
+        { "LV Knitting Right Leg", "lv-knit-r-leg",  "Almost a leg. Soft. Do not kick anyone. Hover this slot or the left HUD bar under Blood for time remaining.",    "Economy Leg (right)", 3,  85.f, 0.85f, 0.85f, 0.75f, 1.f, 1.f, 1.f, 1.f, 2.0f },
+        { "LV Grown Right Leg",    "lv-grown-r-leg", "A new leg. Soft. Yours. This is the finished limb — not a robot part. The HUD bar under Blood will idle until the next stump.",                    "Economy Leg (right)", 3, 100.f, 1.00f, 1.00f, 1.00f, 1.f, 1.f, 1.f, 1.f, 2.4f },
     },
     // LEFT LEG
     {
-        { "LV Stump Left Leg",    "lv-stump-l-leg", "A raw stump. Almost no push-off.",           "Economy Leg (left)", 2,  30.f, 0.15f, 0.20f, 0.10f, 1.f, 1.f, 1.f, 1.f, 0.4f },
-        { "LV Budding Left Leg",  "lv-bud-l-leg",   "Flesh is budding on the stump.",             "Economy Leg (left)", 2,  45.f, 0.35f, 0.40f, 0.25f, 1.f, 1.f, 1.f, 1.f, 0.8f },
-        { "LV Forming Left Leg",  "lv-form-l-leg",  "Bone and tendon are finding their shape.",   "Economy Leg (left)", 2,  65.f, 0.60f, 0.65f, 0.50f, 1.f, 1.f, 1.f, 1.f, 1.4f },
-        { "LV Knitting Left Leg", "lv-knit-l-leg",  "Almost a leg. Soft. Do not kick anyone.",    "Economy Leg (left)", 2,  85.f, 0.85f, 0.85f, 0.75f, 1.f, 1.f, 1.f, 1.f, 2.0f },
-        { "LV Grown Left Leg",    "lv-grown-l-leg", "A new leg. Soft. Yours.",                    "Economy Leg (left)", 2, 100.f, 1.00f, 1.00f, 1.00f, 1.f, 1.f, 1.f, 1.f, 2.4f },
+        { "LV Stump Left Leg",    "lv-stump-l-leg", "A raw stump. Almost no push-off. Left HUD under Blood shows Hemolymph / Vigor and hours left — hover this slot for the live numbers.",           "Economy Leg (left)", 2,  30.f, 0.15f, 0.20f, 0.10f, 1.f, 1.f, 1.f, 1.f, 0.4f },
+        { "LV Budding Left Leg",  "lv-bud-l-leg",   "Flesh is budding on the stump. Hover this part: tooltip tracks resource, percent, and time. Same bar sits under Blood.",             "Economy Leg (left)", 2,  45.f, 0.35f, 0.40f, 0.25f, 1.f, 1.f, 1.f, 1.f, 0.8f },
+        { "LV Forming Left Leg",  "lv-form-l-leg",  "Bone and tendon are finding their shape. Hover for live Hemolymph / Vigor, stage percent, and hours left. HUD under Blood matches.",   "Economy Leg (left)", 2,  65.f, 0.60f, 0.65f, 0.50f, 1.f, 1.f, 1.f, 1.f, 1.4f },
+        { "LV Knitting Left Leg", "lv-knit-l-leg",  "Almost a leg. Soft. Do not kick anyone. Hover this slot or the left HUD bar under Blood for time remaining.",    "Economy Leg (left)", 2,  85.f, 0.85f, 0.85f, 0.75f, 1.f, 1.f, 1.f, 1.f, 2.0f },
+        { "LV Grown Left Leg",    "lv-grown-l-leg", "A new leg. Soft. Yours. This is the finished limb — not a robot part. The HUD bar under Blood will idle until the next stump.",                    "Economy Leg (left)", 2, 100.f, 1.00f, 1.00f, 1.00f, 1.f, 1.f, 1.f, 1.f, 2.4f },
     },
     // RIGHT ARM
     {
-        { "LV Stump Right Arm",    "lv-stump-r-arm", "A raw stump. The hand is a memory.",         "Economy Arm (right)", 1,  30.f, 1.f, 1.f, 0.10f, 0.15f, 0.20f, 0.15f, 0.10f, 0.3f },
-        { "LV Budding Right Arm",  "lv-bud-r-arm",   "Fingers are suggestions, not facts.",        "Economy Arm (right)", 1,  45.f, 1.f, 1.f, 0.25f, 0.35f, 0.40f, 0.30f, 0.25f, 0.6f },
-        { "LV Forming Right Arm",  "lv-form-r-arm",  "A forearm you can almost trust.",            "Economy Arm (right)", 1,  65.f, 1.f, 1.f, 0.50f, 0.60f, 0.70f, 0.55f, 0.50f, 1.1f },
-        { "LV Knitting Right Arm", "lv-knit-r-arm",  "Almost a hand. Soft. Do not make a fist.",   "Economy Arm (right)", 1,  85.f, 1.f, 1.f, 0.75f, 0.85f, 0.90f, 0.80f, 0.80f, 1.6f },
-        { "LV Grown Right Arm",    "lv-grown-r-arm", "A new arm. Soft. Yours.",                    "Economy Arm (right)", 1, 100.f, 1.f, 1.f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.9f },
+        { "LV Stump Right Arm",    "lv-stump-r-arm", "A raw stump. The hand is a memory. Left HUD under Blood shows Hemolymph / Vigor and hours left — hover this slot for the live numbers.",         "Economy Arm (right)", 1,  30.f, 1.f, 1.f, 0.10f, 0.15f, 0.20f, 0.15f, 0.10f, 0.3f },
+        { "LV Budding Right Arm",  "lv-bud-r-arm",   "Fingers are suggestions, not facts. Hover this part: tooltip tracks resource, percent, and time. Same bar sits under Blood.",        "Economy Arm (right)", 1,  45.f, 1.f, 1.f, 0.25f, 0.35f, 0.40f, 0.30f, 0.25f, 0.6f },
+        { "LV Forming Right Arm",  "lv-form-r-arm",  "A forearm you can almost trust. Hover for live Hemolymph / Vigor, stage percent, and hours left. HUD under Blood matches.",            "Economy Arm (right)", 1,  65.f, 1.f, 1.f, 0.50f, 0.60f, 0.70f, 0.55f, 0.50f, 1.1f },
+        { "LV Knitting Right Arm", "lv-knit-r-arm",  "Almost a hand. Soft. Do not make a fist. Hover this slot or the left HUD bar under Blood for time remaining.",   "Economy Arm (right)", 1,  85.f, 1.f, 1.f, 0.75f, 0.85f, 0.90f, 0.80f, 0.80f, 1.6f },
+        { "LV Grown Right Arm",    "lv-grown-r-arm", "A new arm. Soft. Yours. This is the finished limb — not a robot part. The HUD bar under Blood will idle until the next stump.",                    "Economy Arm (right)", 1, 100.f, 1.f, 1.f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.9f },
     },
     // LEFT ARM
     {
-        { "LV Stump Left Arm",    "lv-stump-l-arm", "A raw stump. The hand is a memory.",         "Economy Arm (left)", 0,  30.f, 1.f, 1.f, 0.10f, 0.15f, 0.20f, 0.15f, 0.10f, 0.3f },
-        { "LV Budding Left Arm",  "lv-bud-l-arm",   "Fingers are suggestions, not facts.",        "Economy Arm (left)", 0,  45.f, 1.f, 1.f, 0.25f, 0.35f, 0.40f, 0.30f, 0.25f, 0.6f },
-        { "LV Forming Left Arm",  "lv-form-l-arm",  "A forearm you can almost trust.",            "Economy Arm (left)", 0,  65.f, 1.f, 1.f, 0.50f, 0.60f, 0.70f, 0.55f, 0.50f, 1.1f },
-        { "LV Knitting Left Arm", "lv-knit-l-arm",  "Almost a hand. Soft. Do not make a fist.",   "Economy Arm (left)", 0,  85.f, 1.f, 1.f, 0.75f, 0.85f, 0.90f, 0.80f, 0.80f, 1.6f },
-        { "LV Grown Left Arm",    "lv-grown-l-arm", "A new arm. Soft. Yours.",                    "Economy Arm (left)", 0, 100.f, 1.f, 1.f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.9f },
+        { "LV Stump Left Arm",    "lv-stump-l-arm", "A raw stump. The hand is a memory. Left HUD under Blood shows Hemolymph / Vigor and hours left — hover this slot for the live numbers.",         "Economy Arm (left)", 0,  30.f, 1.f, 1.f, 0.10f, 0.15f, 0.20f, 0.15f, 0.10f, 0.3f },
+        { "LV Budding Left Arm",  "lv-bud-l-arm",   "Fingers are suggestions, not facts. Hover this part: tooltip tracks resource, percent, and time. Same bar sits under Blood.",        "Economy Arm (left)", 0,  45.f, 1.f, 1.f, 0.25f, 0.35f, 0.40f, 0.30f, 0.25f, 0.6f },
+        { "LV Forming Left Arm",  "lv-form-l-arm",  "A forearm you can almost trust. Hover for live Hemolymph / Vigor, stage percent, and hours left. HUD under Blood matches.",            "Economy Arm (left)", 0,  65.f, 1.f, 1.f, 0.50f, 0.60f, 0.70f, 0.55f, 0.50f, 1.1f },
+        { "LV Knitting Left Arm", "lv-knit-l-arm",  "Almost a hand. Soft. Do not make a fist. Hover this slot or the left HUD bar under Blood for time remaining.",   "Economy Arm (left)", 0,  85.f, 1.f, 1.f, 0.75f, 0.85f, 0.90f, 0.80f, 0.80f, 1.6f },
+        { "LV Grown Left Arm",    "lv-grown-l-arm", "A new arm. Soft. Yours. This is the finished limb — not a robot part. The HUD bar under Blood will idle until the next stump.",                    "Economy Arm (left)", 0, 100.f, 1.f, 1.f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.9f },
     },
 };
 

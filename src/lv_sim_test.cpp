@@ -145,6 +145,23 @@ int main()
     }
 
     {
+        CharSnap c = Hive();
+        c.progress[LIMB_RIGHT_LEG] = 30.f;
+        c.vigor = 42.f;
+        char bar1[96], bar2[96], tip[220], hover[256];
+        float f1 = 0.f, f2 = 0.f;
+        LvHudLines(&c, bar1, 96, &f1, bar2, 96, &f2, tip, 220);
+        Expect(std::strstr(bar1, "Hemolymph") != nullptr, "HUD bar 1 names Hemolymph");
+        Expect(std::strstr(bar1, "42") != nullptr, "HUD bar 1 shows vigor");
+        Expect(std::strstr(bar2, "right leg") != nullptr, "HUD bar 2 names the stump");
+        Expect(std::strstr(bar2, "budding") != nullptr, "HUD bar 2 shows stage");
+        Expect(tip[0] != 0, "HUD tooltip line is never empty");
+        LvItemTooltipText(&c, hover, 256);
+        Expect(std::strstr(hover, "Hemolymph") != nullptr, "I-key tooltip has Hemolymph");
+        Expect(std::strstr(hover, "budding") != nullptr, "I-key tooltip has stage");
+    }
+
+    {
         Expect(LvPartStageFromProgress(0.f) == LV_PART_STUMP, "0% is stump");
         Expect(LvPartStageFromProgress(24.f) == LV_PART_STUMP, "24% is stump");
         Expect(LvPartStageFromProgress(25.f) == LV_PART_BUDDING, "25% is budding");

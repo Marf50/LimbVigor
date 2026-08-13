@@ -23,6 +23,7 @@
 
 #include <cstring>
 #include <cstdio>
+#include <cstddef>
 
 #if defined(_MSC_VER)
 #define LV_TRY    __try
@@ -35,6 +36,7 @@
 static void (*orig_medUpdate)(MedicalSystem*, float) = nullptr;
 static void (*orig_medGui)(MedicalSystem*, DatapanelGUI*) = nullptr;
 static bool (*orig_doctor)(MedicalSystem*, float, Item*, float, Character*) = nullptr;
+static void (*orig_tip1)(InventoryItemBase*, void*) = nullptr;
 
 static CharSnap g_hudSnap;
 static int      g_hudHave = 0;
@@ -324,6 +326,81 @@ static bool hook_doctor(MedicalSystem* self, float skill, Item* equipment, float
     return ok;
 }
 
+// StringPair: vtable + s1@0x8 + s2@0x30 + float@0x58. Ogre/MSVC vector = 3 pointers.
+static int WriteGameStrInPlace(void* strObj, const char* text)
+{
+    if (!strObj || !text) return 0;
+    char* p = (char*)strObj;
+    size_t cap = 0;
+    std::memcpy(&cap, p + 24, sizeof(cap));
+    if (cap < 24 || cap > (size_t)1 << 16) return 0;
+    size_t n = std::strlen(text);
+    if (n > cap) n = cap;
+    if (n < 8) return 0;
+    char* src = nullptr;
+    if (cap > 15)
+        std::memcpy(&src, p, sizeof(src));
+    else
+        src = p;
+    if (!src) return 0;
+    std::memcpy(src, text, n);
+    src[n] = 0;
+    std::memcpy(p + 16, &n, sizeof(n));
+    return 1;
+}
+
+static void RewriteTooltipLines(void* linesVec, const char* text)
+{
+    if (!linesVec || !text || !text[0]) return;
+    struct OgVec { char* first; char* last; char* end; };
+    OgVec* v = (OgVec*)linesVec;
+    if (!v->first || !v->last || v->last <= v->first) return;
+    const ptrdiff_t bytes = v->last - v->first;
+    if (bytes < 0x50 || bytes > 0x60 * 24) return;
+    static const int kSizes[] = { 0x60, 0x68, 0x58, 0x70, 0 };
+    int pair = 0;
+    for (int i = 0; kSizes[i]; ++i)
+    {
+        if (bytes % kSizes[i] == 0)
+        {
+            const int n = (int)(bytes / kSizes[i]);
+            if (n > 0 && n < 28) { pair = kSizes[i]; break; }
+        }
+    }
+    if (!pair) return;
+
+    char* best = nullptr;
+    size_t bestCap = 0;
+    for (char* p = v->first; p + pair <= v->last; p += pair)
+    {
+        char* s2 = p + 0x30;
+        size_t cap = 0;
+        std::memcpy(&cap, s2 + 24, sizeof(cap));
+        if (cap > bestCap && cap >= 24 && cap < (size_t)1 << 16)
+        {
+            bestCap = cap;
+            best = s2;
+        }
+    }
+    if (best)
+        WriteGameStrInPlace(best, text);
+}
+
+static void hook_tip1(InventoryItemBase* self, void* lines)
+{
+    if (orig_tip1) orig_tip1(self, lines);
+    if (!self || !lines) return;
+    LV_TRY
+    {
+        if (!LvIsGrowthPart((Item*)self)) return;
+        if (!g_hudHave) return;
+        char text[256];
+        LvItemTooltipText(&g_hudSnap, text, (int)sizeof(text));
+        if (text[0]) RewriteTooltipLines(lines, text);
+    }
+    LV_EXCEPT {}
+}
+
 static int HookOne(const char* label, intptr_t addr, void* detour, void** orig)
 {
 #if defined(LIMBVIGOR_IDE)
@@ -362,6 +439,7 @@ void LvInstallHooks()
     intptr_t med = KenshiLib::GetRealAddress(&MedicalSystem::medicalUpdate);
     intptr_t gui = KenshiLib::GetRealAddress(&MedicalSystem::getMedicalGUIData);
     intptr_t doc = KenshiLib::GetRealAddress(&MedicalSystem::applyDoctoring);
+    intptr_t tip = KenshiLib::GetRealAddress(&InventoryItemBase::getTooltipData1);
 
     void* base = nullptr;
     {
@@ -372,9 +450,11 @@ void LvInstallHooks()
     if (!med && base) med = (intptr_t)((unsigned char*)base + 0x651880);
     if (!gui && base) gui = (intptr_t)((unsigned char*)base + 0x889140);
     if (!doc && base) doc = (intptr_t)((unsigned char*)base + 0x649280);
+    if (!tip && base) tip = (intptr_t)((unsigned char*)base + 0x7ACED0);
 
     HookOne("LimbVigor: medicalUpdate", med, (void*)hook_medUpdate, (void**)&orig_medUpdate);
     HookOne("LimbVigor: getMedicalGUIData", gui, (void*)hook_medGui, (void**)&orig_medGui);
     HookOne("LimbVigor: applyDoctoring (splint)", doc, (void*)hook_doctor, (void**)&orig_doctor);
+    HookOne("LimbVigor: item tooltip (I-key hover)", tip, (void*)hook_tip1, (void**)&orig_tip1);
 #endif
 }

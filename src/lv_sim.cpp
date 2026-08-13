@@ -190,6 +190,94 @@ void LvEtaText(const CharSnap* c, char* out, int outsz)
         std::snprintf(out, (size_t)outsz, c->inBed ? "~%.1f days in this bed." : "~%.1f days walking. Bed is 2x.", h / 24.f);
 }
 
+void LvHudLines(const CharSnap* c,
+    char* bar1, int n1, float* fill1,
+    char* bar2, int n2, float* fill2,
+    char* tip, int nt)
+{
+    if (fill1) *fill1 = 0.f;
+    if (fill2) *fill2 = 0.f;
+    if (bar1 && n1 > 0) bar1[0] = 0;
+    if (bar2 && n2 > 0) bar2[0] = 0;
+    if (tip && nt > 0) tip[0] = 0;
+    if (!c) return;
+
+    if (c->race == RACE_SKELETON)
+    {
+        if (bar1 && n1 > 0)
+            std::snprintf(bar1, (size_t)n1, "Limb Vigor  frames do not grow");
+        if (tip && nt > 0)
+            std::snprintf(tip, (size_t)nt, "%s", LvRaceHint(RACE_SKELETON));
+        return;
+    }
+    if (c->race == RACE_ANIMAL)
+    {
+        if (bar1 && n1 > 0)
+            std::snprintf(bar1, (size_t)n1, "Limb Vigor  this body cannot grow");
+        if (tip && nt > 0)
+            std::snprintf(tip, (size_t)nt, "%s", LvRaceHint(RACE_ANIMAL));
+        return;
+    }
+
+    const char* res = LvResourceName(c->race);
+    if (!res || !res[0]) res = "Vigor";
+    const float maxv = LvCfg().maxVigor > 0.f ? LvCfg().maxVigor : 100.f;
+    if (fill1) *fill1 = c->vigor / maxv;
+    if (bar1 && n1 > 0)
+        std::snprintf(bar1, (size_t)n1, "%s  %.0f / %.0f", res, c->vigor, maxv);
+
+    const int stump = LvFirstStump(c);
+    char eta[96];
+    LvEtaText(c, eta, (int)sizeof(eta));
+
+    if (stump >= 0)
+    {
+        char why[96];
+        const int ok = LvEligible(c, why, (int)sizeof(why));
+        if (fill2) *fill2 = ok ? (c->progress[stump] / 100.f) : 0.f;
+        if (bar2 && n2 > 0)
+        {
+            if (ok)
+                std::snprintf(bar2, (size_t)n2, "%s  %s  %.0f%%",
+                    LvLimbLabel((LimbId)stump),
+                    LvStageName(c->progress[stump]),
+                    c->progress[stump]);
+            else
+                std::snprintf(bar2, (size_t)n2, "%s  %s",
+                    LvLimbLabel((LimbId)stump), why);
+        }
+        if (tip && nt > 0)
+            std::snprintf(tip, (size_t)nt, "%s  %s", eta, LvRaceHint(c->race));
+    }
+    else if (c->catalystHours > 0.f)
+    {
+        if (bar2 && n2 > 0)
+            std::snprintf(bar2, (size_t)n2, "splint  %.0fh left", c->catalystHours);
+        if (fill2) *fill2 = c->catalystHours / (LvCfg().catalystHours > 0.f ? LvCfg().catalystHours : 20.f);
+        if (tip && nt > 0)
+            std::snprintf(tip, (size_t)nt, "%s", LvRaceHint(c->race));
+    }
+    else if (tip && nt > 0)
+    {
+        std::snprintf(tip, (size_t)nt, "%s", LvRaceHint(c->race));
+    }
+}
+
+void LvItemTooltipText(const CharSnap* c, char* out, int outsz)
+{
+    if (!out || outsz < 8) return;
+    out[0] = 0;
+    if (!c) return;
+
+    char bar1[96], bar2[96], tip[192];
+    float a = 0.f, b = 0.f;
+    LvHudLines(c, bar1, (int)sizeof(bar1), &a, bar2, (int)sizeof(bar2), &b, tip, (int)sizeof(tip));
+    if (bar2[0])
+        std::snprintf(out, (size_t)outsz, "%s. %s. %s", bar1, bar2, tip);
+    else
+        std::snprintf(out, (size_t)outsz, "%s. %s", bar1, tip);
+}
+
 void LvClearResult(TickResult* out)
 {
     if (!out) return;

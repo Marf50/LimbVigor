@@ -2,15 +2,16 @@
 
 Throwaway save. Tick the box. Write the last STATS-panel line and anything in `RE_Kenshi_log.txt`.
 
-**Where to look:** select a squad member. Left HUD under Blood: Hemolymph / Battle-heat / Vigor bar with the number on it. Stump adds a second bar + a tooltip line under it. Open **I** and hover the LV part. C is a backup list only.
+**Where to look:** select a squad member. Left HUD under Blood: Hemolymph / Battle-heat / Vigor bar with the number on it. Hover the bar — tooltip is the same text as the line under it (time + race rule). Stump adds a second bar. Open **I** and hover the LV part — tooltip has live resource / % / time. C is a backup list.
 
 Every ~15s the log prints `LimbVigor: Boop  Hemolymph 38/100  left leg 4% dormant stump`.
 
 Send the notes back and the plugin gets patched.
 
-- [ ] **Loads a save.** World's End / any town. No crash. RE_Kenshi_log shows `LimbVigor: first player-squad tick` after a few seconds. Must NOT dump HUD widgets or create ProgressBar.
-- [ ] **STATS panel.** Select a squad member with a stump. Blood list shows the resource bar and a Regrowth / Time / How line. Not the portrait strip.
-- [ ] **I-key tooltip.** Open inventory. Socket says `LV Stump/Budding/Forming/Knitting/Grown …`. Hover it — description matches the stage.
+- [ ] **Loads a save.** World's End / any town. No crash. RE_Kenshi_log shows `LimbVigor: ready v1.8.3` then `first player-squad tick`. Must NOT create a widget with skin `ProgressBar`. `HUD found` / `HUD host layer` / `HUD bars ready` is good.
+- [ ] **Left HUD widgets.** Select a squad member. Under Blood: resource bar with the number on it. You can read it without hovering. Hover it — tooltip matches the line under the bar.
+- [ ] **STATS panel.** C still lists Hemolymph / Regrowth / Time. Backup only.
+- [ ] **I-key tooltip.** Open inventory. Socket says `LV Stump/Budding/Forming/Knitting/Grown …`. Hover it — description has Hemolymph / stage / time, not a silent Economy limb blurb.
 - [ ] **Heartbeat.** After ~15s, RE_Kenshi_log.txt has a `LimbVigor: <name>  Hemolymph …` line. It must NOT spam `restored limb 0` every frame.
 - [ ] **New game.** Same — no crash at the first medical panel.
 - [ ] **Shows in the Mods list.** `Kenshi/mods/LimbVigor/LimbVigor.mod` exists. Launcher lists LimbVigor. Enable it after RE_Kenshi.
@@ -28,7 +29,7 @@ Send the notes back and the plugin gets patched.
 - [ ] **Grown is the limb.** At 100% the I-key slot should say `LV Grown …`, not −15 and not original flesh. Send the log either way. Boop's already-100% left leg should become Grown on load.
 - [ ] **Save / load.** Grow to ~40%, save, quit, load. Numbers persist (LimbVigor.progress).
 - [ ] **Squad.** Player + hired hive + hired shek, each selected shows their own STATS lines.
-- [ ] **Dark UI.** STATS lines still appear. Game does not crash on load.
+- [ ] **Dark UI.** Overlay still appears under Blood (Middle layer). Game does not crash on load.
 
 ## Notes
 

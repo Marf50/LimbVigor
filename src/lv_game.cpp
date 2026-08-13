@@ -470,6 +470,10 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     const int cat = 0;
     GameStr key, right;
 
+    char bar1[96], bar2[96], tip[220];
+    float f1 = 0.f, f2 = 0.f;
+    LvHudLines(snap, bar1, (int)sizeof(bar1), &f1, bar2, (int)sizeof(bar2), &f2, tip, (int)sizeof(tip));
+
     if (snap->race == RACE_SKELETON)
     {
         GameStrSet(&key, "Limb Vigor");
@@ -483,51 +487,21 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     if (snap->race == RACE_ANIMAL) return;
 
     const char* res = LvResourceName(snap->race);
-    char buf[112];
-    const float fill = (LvCfg().maxVigor > 0.f) ? (snap->vigor / LvCfg().maxVigor) : 0.f;
-    std::snprintf(buf, sizeof(buf), "%.0f / %.0f", snap->vigor, LvCfg().maxVigor);
+    char num[48];
+    std::snprintf(num, sizeof(num), "%.0f / %.0f", snap->vigor, LvCfg().maxVigor);
     GameStrSet(&key, res && res[0] ? res : "Vigor");
-    GameStrSet(&right, buf);
-    LV_TRY { g_setLineProg(panel, &key, cat, fill, &right, true); }
+    GameStrSet(&right, num);
+    LV_TRY { g_setLineProg(panel, &key, cat, f1, &right, true); }
     LV_EXCEPT {}
 
-    const int stump = LvFirstStump(snap);
-    if (stump >= 0)
+    if (bar2[0])
     {
-        char why[96];
-        const int ok = LvEligible(snap, why, (int)sizeof(why));
-        if (!ok)
-            std::snprintf(buf, sizeof(buf), "%s — %s", LvLimbLabel((LimbId)stump), why);
-        else
-            std::snprintf(buf, sizeof(buf), "%s  %s  %.0f%%",
-                LvLimbLabel((LimbId)stump),
-                LvStageName(snap->progress[stump]),
-                snap->progress[stump]);
         GameStrSet(&key, "Regrowth");
-        GameStrSet(&right, buf);
-        const float p = ok ? (snap->progress[stump] / 100.f) : 0.f;
-        LV_TRY { g_setLineProg(panel, &key, cat, p, &right, false); }
+        GameStrSet(&right, bar2);
+        LV_TRY { g_setLineProg(panel, &key, cat, f2, &right, true); }
         LV_EXCEPT {}
+    }
 
-        char eta[96];
-        LvEtaText(snap, eta, (int)sizeof(eta));
-        AddTextLine(panel, cat, "Time", eta);
-        if (!ok && why[0])
-            AddTextLine(panel, cat, "Need", why);
-        AddTextLine(panel, cat, "How", LvRaceHint(snap->race));
-        AddTextLine(panel, cat, "Look", "Open I — the socket is an LV part. Hover it.");
-    }
-    else if (snap->catalystHours > 0.f)
-    {
-        std::snprintf(buf, sizeof(buf), "splint  %.0fh left", snap->catalystHours);
-        GameStrSet(&key, "Regrowth");
-        GameStrSet(&right, buf);
-        LV_TRY { g_setLineProg(panel, &key, cat, 0.f, &right, false); }
-        LV_EXCEPT {}
-        AddTextLine(panel, cat, "How", LvRaceHint(snap->race));
-    }
-    else
-    {
-        AddTextLine(panel, cat, "How", LvRaceHint(snap->race));
-    }
+    AddTextLine(panel, cat, "Time", tip);
+    AddTextLine(panel, cat, "Look", "Hover this line, the left HUD bar, or the I-key LV part.");
 }
