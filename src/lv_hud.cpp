@@ -3,6 +3,7 @@
 #include "lv_sim.h"
 
 #include <cstring>
+#include <cstdio>
 
 #if defined(LIMBVIGOR_IDE)
 
@@ -13,43 +14,34 @@ void LvHudInstall() {}
 
 #else
 
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <Windows.h>
 #include <Debug.h>
 #include <core/Functions.h>
+#include <kenshi/gui/TitleScreen.h>
 #include <mygui/MyGUI.h>
 #include <mygui/MyGUI_Gui.h>
 #include <mygui/MyGUI_Window.h>
 #include <mygui/MyGUI_Button.h>
 
-// TitleScreen::_CONSTRUCTOR  (KenshiLib TitleScreen.h)
-// Same address KillButton hooks. UI thread, MyGUI is alive, skins loaded.
-static const int kRvaTitleCtor = 0x917740;
-
+// Snapshot written on the game thread, read on the UI thread.
 static CharSnap g_snap;
 static volatile int g_have = 0;
 static volatile int g_ingame = 0;
 static volatile int g_ready = 0;
 
 static MyGUI::Window* g_win = nullptr;
-static MyGUI::Button* g_l1 = nullptr;
-static MyGUI::Button* g_l2 = nullptr;
-static MyGUI::Button* g_l3 = nullptr;
+static MyGUI::Button* g_btn = nullptr;
+static char g_last[256];
 static int g_painted = 0;
 
-static void SetCap(MyGUI::Button* b, const char* s, int show)
-{
-    if (!b) return;
-    try { b->setVisible(show ? true : false); }
-    catch (...) {}
-    if (!show || !s) return;
-    try { b->setCaption(s); }
-    catch (...) {}
-}
+static TitleScreen* (*Title_orig)(TitleScreen*) = nullptr;
 
-// Runs on the MyGUI / render thread. Widgets already exist.
 static void OnFrame(float)
 {
-    if (!g_win) return;
+    if (!g_win || !g_btn) return;
     if (!g_have || !g_ingame || !LvCfg().enableHud)
     {
         try { g_win->setVisible(false); }
@@ -57,31 +49,43 @@ static void OnFrame(float)
         return;
     }
 
-    char bar1[96], bar2[96], tip[220];
+    char bar1[96], bar2[96], tip[160];
     float f1 = 0.f, f2 = 0.f;
     LvHudLines(&g_snap, bar1, (int)sizeof(bar1), &f1,
                bar2, (int)sizeof(bar2), &f2,
                tip, (int)sizeof(tip));
 
+    char text[256];
+    if (bar2[0])
+        std::snprintf(text, sizeof(text), "%s  |  %s", bar1, bar2);
+    else
+        std::snprintf(text, sizeof(text), "%s", bar1);
+
+    if (std::strcmp(g_last, text) == 0)
+    {
+        try { g_win->setVisible(true); }
+        catch (...) {}
+        return;
+    }
+    std::snprintf(g_last, sizeof(g_last), "%s", text);
+
     try { g_win->setVisible(true); }
     catch (...) {}
-    SetCap(g_l1, bar1, 1);
-    SetCap(g_l2, bar2[0] ? bar2 : "", bar2[0] ? 1 : 0);
-    SetCap(g_l3, tip, tip[0] ? 1 : 0);
+    try { g_btn->setCaption(text); }
+    catch (...) {}
 
     if (!g_painted)
     {
         g_painted = 1;
-        LvLogf("LimbVigor: HUD painted  %s", bar1);
+        LvLogf("LimbVigor: HUD painted  %s", text);
     }
 }
 
-static void* (*Title_orig)(void*) = nullptr;
-
-// Exact KillButton shape: create the window here, never from a game tick.
-static void* Title_hook(void* self)
+// KillButton shape. GetRealAddress — never a raw RVA.
+// One window, one button. No getClientWidget children beyond that.
+static TitleScreen* Title_hook(TitleScreen* self)
 {
-    void* ts = Title_orig ? Title_orig(self) : self;
+    TitleScreen* ts = Title_orig ? Title_orig(self) : self;
     if (g_ready) return ts;
     if (!LvCfg().enableHud) return ts;
 
@@ -98,7 +102,7 @@ static void* Title_hook(void* self)
     {
         g_win = gui->createWidgetReal<MyGUI::Window>(
             "Kenshi_WindowCX",
-            0.012f, 0.30f, 0.20f, 0.16f,
+            0.012f, 0.32f, 0.22f, 0.10f,
             MyGUI::Align::Left | MyGUI::Align::Top,
             "Window",
             "LimbVigorWin");
@@ -121,59 +125,37 @@ static void* Title_hook(void* self)
 
     try
     {
-        g_l1 = client->createWidgetReal<MyGUI::Button>(
-            "Kenshi_Button1", 0.04f, 0.08f, 0.92f, 0.26f,
-            MyGUI::Align::HStretch | MyGUI::Align::Top, "LimbVigorL1");
-        if (g_l1) g_l1->setCaption("Limb Vigor");
+        g_btn = client->createWidgetReal<MyGUI::Button>(
+            "Kenshi_Button1",
+            0.04f, 0.10f, 0.92f, 0.80f,
+            MyGUI::Align::Stretch,
+            "LimbVigorBtn");
+        if (g_btn) g_btn->setCaption("Limb Vigor");
     }
-    catch (...) { g_l1 = nullptr; }
-    try
-    {
-        g_l2 = client->createWidgetReal<MyGUI::Button>(
-            "Kenshi_Button1", 0.04f, 0.38f, 0.92f, 0.26f,
-            MyGUI::Align::HStretch | MyGUI::Align::Top, "LimbVigorL2");
-    }
-    catch (...) { g_l2 = nullptr; }
-    try
-    {
-        g_l3 = client->createWidgetReal<MyGUI::Button>(
-            "Kenshi_Button1", 0.04f, 0.68f, 0.92f, 0.26f,
-            MyGUI::Align::HStretch | MyGUI::Align::Top, "LimbVigorL3");
-    }
-    catch (...) { g_l3 = nullptr; }
+    catch (...) { g_btn = nullptr; }
 
     try { g_win->setVisible(false); }
     catch (...) {}
 
-    try
-    {
-        gui->eventFrameStart += MyGUI::newDelegate(OnFrame);
-    }
-    catch (...)
-    {
-        LvErr("LimbVigor: frame delegate failed — window stays hidden until I-key");
-    }
+    try { gui->eventFrameStart += MyGUI::newDelegate(OnFrame); }
+    catch (...) { LvErr("LimbVigor: frame delegate failed"); }
 
     g_ready = 1;
-    LvLog("LimbVigor: HUD created at title screen (KillButton path)");
+    LvLog("LimbVigor: HUD created at title screen");
     return ts;
 }
 
 void LvHudInstall()
 {
-    void* base = nullptr;
-    HMODULE exe = GetModuleHandleA(nullptr);
-    if (!exe) exe = GetModuleHandleA("kenshi_x64.exe");
-    if (!exe) exe = GetModuleHandleA("kenshi_GOG_x64.exe");
-    if (exe) base = (void*)exe;
-    if (!base)
+    intptr_t addr = KenshiLib::GetRealAddress(&TitleScreen::_CONSTRUCTOR);
+    if (!addr)
     {
-        LvErr("LimbVigor: no exe base — HUD skipped");
+        LvErr("LimbVigor: TitleScreen::_CONSTRUCTOR not in KenshiLib — HUD off");
         return;
     }
-    void* addr = (void*)((unsigned char*)base + kRvaTitleCtor);
-    if (KenshiLib::SUCCESS != KenshiLib::AddHook(addr, (void*)Title_hook, (void**)&Title_orig))
-        LvErr("LimbVigor: TitleScreen hook failed");
+    if (KenshiLib::SUCCESS != KenshiLib::AddHook(
+            (void*)addr, (void*)Title_hook, (void**)&Title_orig))
+        LvErr("LimbVigor: TitleScreen hook failed — HUD off, game continues");
     else
         LvLog("LimbVigor: TitleScreen HUD");
 }

@@ -8,7 +8,7 @@ Every ~15s the log prints `LimbVigor: Boop  Hemolymph 38/100  left leg 4% dorman
 
 Send the notes back and the plugin gets patched.
 
-- [ ] **Loads a save.** World's End / any town. No crash. RE_Kenshi_log shows `ready v1.8.6` then `HUD created at title screen` (on the menu, before you load) then `HUD painted` after you load. Must NOT create anything from the medical tick. Must NOT log `HUD window up (KillButton skin`.
+- [ ] **Loads a save.** World's End / any town. No crash. RE_Kenshi_log shows `ready v1.8.7` then `TitleScreen HUD` then `HUD created at title screen` (on the menu) then `HUD painted` after you load. Must NOT log `Error enabling hook`. Must NOT log `TitleScreen hook failed`. Limb swaps wait ~25s (`first player-squad tick`).
 - [ ] **Left HUD widgets.** Select a squad member. Under Blood: resource bar with the number on it. You can read it without hovering. Hover it — tooltip matches the line under the bar.
 - [ ] **STATS panel.** C still lists Hemolymph / Regrowth / Time. Backup only.
 - [ ] **I-key tooltip.** Open inventory. Socket says `LV Stump/Budding/Forming/Knitting/Grown …`. Hover it — description has Hemolymph / stage / time, not a silent Economy limb blurb.

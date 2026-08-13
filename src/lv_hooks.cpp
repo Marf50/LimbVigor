@@ -49,7 +49,7 @@ static int WarmedUp()
 #if defined(_WIN32) && !defined(LIMBVIGOR_IDE)
     unsigned now = GetTickCount();
     if (!g_warmStart) g_warmStart = now;
-    return (now - g_warmStart) >= 5000u ? 1 : 0;
+    return (now - g_warmStart) >= 25000u ? 1 : 0;
 #else
     return 1;
 #endif
