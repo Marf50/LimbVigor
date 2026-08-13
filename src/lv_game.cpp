@@ -97,9 +97,6 @@ void LvGameInit()
     g_gameReady = 1;
 
 #if !defined(LIMBVIGOR_IDE)
-    // GetRealAddress ONLY on KenshiLib-exported stubs.
-    // say_WithARepeatLimiter is NOT a stub — calling GetRealAddress on it
-    // asserts ("address is in your own module") and kills the process.
     intptr_t prog = KenshiLib::GetRealAddress(&DatapanelGUI::setLineProgress);
     void* base = ExeBase();
     if (prog)
@@ -140,7 +137,6 @@ static int CharName(Character* me, char* out, int outsz)
 {
     if (!me || !out) return 0;
     out[0] = 0;
-    // RootObject name is a VS2010 string at +0x18 on Character.
     LV_TRY { return GameStrRead((const char*)(const void*)me + 0x18, out, outsz); }
     LV_EXCEPT { return 0; }
 }
@@ -276,54 +272,55 @@ int LvRestoreLimb(MedicalSystem* med, int limbId)
     LimbState before = LIMB_ORIGINAL;
     LV_TRY { before = med->getLimbState(limb); }
     LV_EXCEPT { before = LIMB_ORIGINAL; }
-    if (before == LIMB_ORIGINAL) return 1;
-    if (before == LIMB_REPLACED) return 0;
-    if (before != LIMB_STUMP && before != LIMB_CRUSHED)
-    {
-        LvLogf("LimbVigor: refuse restore limb %d — state %d is not a stump", limbId, (int)before);
-        return 0;
-    }
 
     MedicalSystem::HealthPartStatus* part = nullptr;
     LV_TRY { part = med->getPart(limb); }
     LV_EXCEPT { part = nullptr; }
 
-    // A real stump has ~0 flesh. If this part still has health it is
-    // attached — never call setRobotLimbItem(nullptr) on it.
-    // v1.2 did that every tick and ripped off legs at 65/75.
+    float flesh = 0.f;
+    float mx = 100.f;
+    int robotic = 0;
+    LimbState partState = LIMB_ORIGINAL;
     if (part)
     {
-        float flesh = 0.f;
-        float mx = 100.f;
         LV_TRY
         {
             mx = part->_maxHealth;
             flesh = part->flesh;
+            robotic = part->isRobotic() ? 1 : 0;
+            partState = part->getRobotLimbState();
         }
         LV_EXCEPT { flesh = 0.f; }
         if (mx < 1.f || mx > 10000.f) mx = 100.f;
-        if (flesh > mx * 0.08f)
-        {
-            LvLogf("LimbVigor: refuse restore limb %d — flesh %.0f/%.0f still attached",
-                limbId, flesh, mx);
-            return 1;
-        }
     }
 
-    RobotLimbs* robots = nullptr;
-    LV_TRY { robots = med->robotLimbs; }
-    LV_EXCEPT { robots = nullptr; }
-    if (!robots) return 0;
+    LvLogf("LimbVigor: restore %s — state %d part %d flesh %.1f/%.0f robotic %d",
+        LvLimbLabel((LimbId)limbId), (int)before, (int)partState, flesh, mx, robotic);
 
-    // Flesh first — a 0-HP part can immediately re-sever after setLimb.
+    if (robotic && partState == LIMB_REPLACED)
+    {
+        LvLogf("LimbVigor: refuse restore %s — prosthetic occupies the socket",
+            LvLimbLabel((LimbId)limbId));
+        return 0;
+    }
+    if (before == LIMB_REPLACED)
+    {
+        LvLogf("LimbVigor: refuse restore %s — replaced", LvLimbLabel((LimbId)limbId));
+        return 0;
+    }
+
+    // Attached healthy flesh — do not rip it off.
+    if (flesh > mx * 0.08f && before == LIMB_ORIGINAL && partState == LIMB_ORIGINAL)
+        return 1;
+
+    const float start = (mx * LvCfg().restoredFlesh > 1.f)
+        ? mx * LvCfg().restoredFlesh
+        : mx * 0.22f;
+
     if (part)
     {
         LV_TRY
         {
-            float mx = part->_maxHealth;
-            if (mx < 1.f || mx > 10000.f) mx = 100.f;
-            float start = mx * LvCfg().restoredFlesh;
-            if (start < 1.f) start = mx * 0.22f;
             part->flesh = start;
             part->updateDerivedHealths();
         }
@@ -331,22 +328,33 @@ int LvRestoreLimb(MedicalSystem* med, int limbId)
     }
 
     int ok = 0;
-    LV_TRY
+    if (before == LIMB_STUMP || before == LIMB_CRUSHED
+     || partState == LIMB_STUMP || partState == LIMB_CRUSHED)
     {
-        robots->setLimb(limb, LIMB_ORIGINAL, nullptr);
-        med->setRobotLimbItem(limb, nullptr, true);
+        RobotLimbs* robots = nullptr;
+        LV_TRY { robots = med->robotLimbs; }
+        LV_EXCEPT { robots = nullptr; }
+        if (robots)
+        {
+            LV_TRY
+            {
+                robots->setLimb(limb, LIMB_ORIGINAL, nullptr);
+                ok = 1;
+            }
+            LV_EXCEPT { ok = 0; }
+        }
+        LV_TRY { med->setRobotLimbItem(limb, nullptr, true); }
+        LV_EXCEPT {}
+    }
+    else
+    {
         ok = 1;
     }
-    LV_EXCEPT { ok = 0; }
 
     if (part)
     {
         LV_TRY
         {
-            float mx = part->_maxHealth;
-            if (mx < 1.f || mx > 10000.f) mx = 100.f;
-            float start = mx * LvCfg().restoredFlesh;
-            if (start < 1.f) start = mx * 0.22f;
             part->flesh = start;
             part->updateDerivedHealths();
         }
@@ -358,11 +366,22 @@ int LvRestoreLimb(MedicalSystem* med, int limbId)
     LV_TRY { med->updateStats(); }
     LV_EXCEPT {}
 
-    LimbState after = LIMB_STUMP;
+    LimbState after = before;
+    float afterFlesh = flesh;
     LV_TRY { after = med->getLimbState(limb); }
     LV_EXCEPT {}
-    if (after == LIMB_ORIGINAL) return 1;
-    if (after == LIMB_STUMP || after == LIMB_CRUSHED) return 0;
+    if (part)
+    {
+        LV_TRY { afterFlesh = part->flesh; }
+        LV_EXCEPT {}
+    }
+    LvLogf("LimbVigor: restore %s after — state %d flesh %.1f (wrote %.1f)",
+        LvLimbLabel((LimbId)limbId), (int)after, afterFlesh, start);
+
+    if (after == LIMB_STUMP || after == LIMB_CRUSHED)
+        return 0;
+    if (afterFlesh > 0.f)
+        return 1;
     return ok;
 }
 
@@ -378,7 +397,7 @@ int LvItemLooksLikeCatalyst(Item* item)
     GameData* data = nullptr;
     LV_TRY { std::memcpy(&data, (const char*)(const void*)item + 0x10, sizeof(data)); }
     LV_EXCEPT { data = nullptr; }
-    if (!data) return 1; // applyDoctoring already succeeded — treat as catalyst
+    if (!data) return 0;
     const char* base = (const char*)(const void*)data;
     if (GameStrContainsI(base + 0x28, "splint")
      || GameStrContainsI(base + 0x28, "stimulant")
@@ -394,8 +413,6 @@ int LvItemLooksLikeCatalyst(Item* item)
 
 void LvSay(Character* me, const char* text)
 {
-    // Character::say is not a KenshiLib stub. GetRealAddress on it
-    // asserts and crashes the game. Keep messages on the STATS panel + log.
     (void)me;
     if (text && text[0]) LvLog(text);
 }

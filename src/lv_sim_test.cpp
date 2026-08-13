@@ -109,6 +109,10 @@ int main()
         LvTick(&c, 1.f, &r);
         Expect(r.restored == LIMB_RIGHT_LEG, "completing tick reports the stump");
         Expect(c.limbs[LIMB_RIGHT_LEG] == LIMB_KIND_WHOLE, "completing tick marks the limb whole");
+        Expect(c.lastStage[LIMB_RIGHT_LEG] == 4, "completing tick announces once");
+        TickResult r2;
+        LvTick(&c, 1.f, &r2);
+        Expect(r2.speech[0] == 0, "second complete tick stays quiet");
     }
 
     {

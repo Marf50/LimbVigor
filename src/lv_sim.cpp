@@ -321,16 +321,20 @@ void LvTick(CharSnap* c, float dtHours, TickResult* out)
 
     if (c->progress[target] >= 100.f && c->restoreLock <= 0.f)
     {
-        // Mark whole for the simulator. The game hook keeps 100% until
-        // setLimb actually sticks; Bind will not treat that as a new cut.
+        // Simulator marks the socket whole. The game hook re-reads the
+        // real limb and only then calls setLimb. Do not wipe progress here.
         c->limbs[target] = LIMB_KIND_WHOLE;
         c->progress[target] = 100.f;
         if (out)
         {
             out->restored = target;
-            std::snprintf(out->speech, sizeof(out->speech),
-                "The %s is whole again. Weak. Mine.",
-                LvLimbLabel((LimbId)target));
+            if (c->lastStage[target] != 4)
+            {
+                c->lastStage[target] = 4;
+                std::snprintf(out->speech, sizeof(out->speech),
+                    "The %s is ready. Putting the flesh back.",
+                    LvLimbLabel((LimbId)target));
+            }
         }
     }
 }

@@ -47,7 +47,14 @@ Humans need toughness 40 and Field Medic 25, or a used Splint Kit.
 Skeletons never.
 
 A stump stages: dormant → budding → forming → knitting → whole.
-The new limb is original flesh at ~22% HP. First-aid it.
+v1.6 — the missing-limb restore
+--------------------------------
+If a stump hit 100% and the bar stayed at -15, that was a bug:
+the sim marked the limb "whole" before setLimb ran, so the game
+never put the flesh back. This build restores for real, retries
+if the stump is still there, and logs flesh/state so we can see
+it. Keep LimbVigor.progress — Boop's left leg is already at 100%.
+
 
 Replace the old DLL
 -------------------
