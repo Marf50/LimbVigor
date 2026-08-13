@@ -26,6 +26,7 @@ set(LV_SRC
   src/lv_persist.cpp
   src/lv_game.cpp
   src/lv_hooks.cpp
+  src/lv_hud.cpp
 )
 
 add_library(LimbVigor SHARED ${LV_SRC})
@@ -42,6 +43,10 @@ if(DEFINED ENV{BOOST_INCLUDE_DIR} AND NOT DEFINED BOOST_INCLUDE_DIR)
   set(BOOST_INCLUDE_DIR "$ENV{BOOST_INCLUDE_DIR}")
 endif()
 
+if(DEFINED ENV{KENSHILIB_DEPS_DIR} AND NOT DEFINED KENSHILIB_DEPS_DIR)
+  set(KENSHILIB_DEPS_DIR "$ENV{KENSHILIB_DEPS_DIR}")
+endif()
+
 if(_GAME)
   if(NOT KENSHILIB_DIR OR NOT EXISTS "${KENSHILIB_DIR}/Include/Debug.h")
     message(FATAL_ERROR "KENSHILIB_DIR missing Include/Debug.h (got '${KENSHILIB_DIR}')")
@@ -51,6 +56,9 @@ if(_GAME)
     "${CMAKE_SOURCE_DIR}/src"
     "${KENSHILIB_DIR}/Include"
   )
+  if(KENSHILIB_DEPS_DIR)
+    target_include_directories(LimbVigor PRIVATE "${KENSHILIB_DEPS_DIR}")
+  endif()
   if(BOOST_INCLUDE_DIR AND EXISTS "${BOOST_INCLUDE_DIR}/boost")
     target_include_directories(LimbVigor PRIVATE "${BOOST_INCLUDE_DIR}")
   endif()
@@ -80,6 +88,12 @@ if(_GAME)
 
   target_link_directories(LimbVigor PRIVATE "${KENSHI_LIB_DIR}")
   target_link_libraries(LimbVigor PRIVATE KenshiLib)
+  if(EXISTS "${KENSHI_LIB_DIR}/MyGUIEngine_x64.lib")
+    target_link_libraries(LimbVigor PRIVATE MyGUIEngine_x64)
+    message(STATUS "GAME BUILD: MyGUIEngine_x64 linked")
+  else()
+    message(WARNING "MyGUIEngine_x64.lib not in ${KENSHI_LIB_DIR} — HUD bar needs it")
+  endif()
   message(STATUS "GAME BUILD: KenshiLib ${_libsize} bytes")
 else()
   message(STATUS "IDE MODE: stubs — not a game DLL")

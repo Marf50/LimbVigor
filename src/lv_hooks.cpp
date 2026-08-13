@@ -3,6 +3,7 @@
 #include "lv_sim.h"
 #include "lv_game.h"
 #include "lv_persist.h"
+#include "lv_hud.h"
 
 #if defined(LIMBVIGOR_IDE)
 #include "stubs/kenshi_ide_stubs.h"
@@ -252,7 +253,11 @@ static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
     LV_TRY
     {
         CharSnap* live = Bind(self);
-        if (live) LvPaintHud(self, panel, live);
+        if (live)
+        {
+            LvHudPaint(live);
+            LvPaintHud(self, panel, live);
+        }
     }
     LV_EXCEPT
     {

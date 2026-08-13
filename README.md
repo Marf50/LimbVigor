@@ -13,7 +13,7 @@ This is not a feast-from-hunger hack and not a MyGUI overlay. Three official Ken
 
 A bed roughly halves the time. One stump at a time, legs first. The new limb is original flesh at ~22% of that part’s max HP. A prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.4.1: STATS panel under Blood shows Hemolymph / Regrowth / **Time** / **How**. Speech bubbles are off — KenshiLib has no stub for `Character::say` and calling GetRealAddress on it crashes at load. How/Time carry the same info.
+v1.5: real HUD bar under Blood (the red bar on the selected-character HUD, not the C sheet). Hover for the race rule and time. Works with Dark UI by cloning Blood's widget.
 
 ## Get the DLL
 

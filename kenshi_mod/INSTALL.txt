@@ -23,21 +23,23 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the bars are
 ------------------
-This is NOT a bar on the portrait strip. Open the character STATS
-panel — the same list that already shows Blood and Hunger.
+Blood is the red bar on the selected-character HUD — the left
+stack under the body-part health, not the C character sheet.
 
-  1. Click the character (Boop, Plop, …)
-  2. Open STATS (default key C, or the stats tab on the side panel)
-  3. Under Blood you should see:
-       Hemolymph / Battle-heat / Vigor     (the resource bar)
-       Regrowth   left leg  budding  4%
-       Time       ~36h on the road. Bed is 2x.
-       How        Hive: hemolymph knits on its own...
+C is the status / skills window. It has no Blood. Hovering Blood
+does nothing in vanilla; our tooltip is on the NEW bar.
 
-Speech is on the STATS lines (Time / How), not bubbles. Cut / stage
-/ finish still print to RE_Kenshi_log.txt.
+  1. Click a squad member so they are selected
+  2. Look at the left HUD, under Blood
+  3. You should see a second bar: Hemolymph / Battle-heat / Vigor
+  4. If they have a stump, a third bar: Regrowth
+  5. Hover either bar for the race rule and time left
 
-If STATS crashes, set EnableHud=0. Growth still runs.
+Dark UI is supported. We clone Blood's slot (same parent, same
+size) so the bar uses the same skin Dark UI already applied.
+If Blood cannot be found by name, the bar sits in a fixed left
+slot and RE_Kenshi_log.txt dumps HUD widget names so we can
+lock onto Dark UI's exact Blood widget.
 
 Hive grows if fed and bandaged.
 Shek need toughness 20 or a used Splint Kit.

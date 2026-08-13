@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready — STATS panel under Blood (Hemolymph / Regrowth / Time / How)");
+        LvLog("LimbVigor: ready — HUD bar under Blood (Dark UI ok). Hover for the rule.");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

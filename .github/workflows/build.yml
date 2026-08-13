@@ -55,6 +55,7 @@ jobs:
         run: |
           cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
             "-DKENSHILIB_DIR=$env:KENSHI_DEPS\KenshiLib" `
+            "-DKENSHILIB_DEPS_DIR=$env:KENSHI_DEPS" `
             "-DBOOST_INCLUDE_DIR=$env:KENSHI_DEPS\boost_1_60_0" `
             -DLIMBVIGOR_FORCE_GAME_BUILD=ON `
             -DLIMBVIGOR_BUILD_TESTS=OFF
