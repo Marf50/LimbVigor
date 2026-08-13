@@ -15,7 +15,7 @@ This is not a feast-from-hunger hack. Medical tick, HUD, I-key tooltip, same num
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.8.3: HUD widgets that you can actually see. findWidgetT for Blood — never walk names, never ProgressBar. Overlay lives on Kenshi's **Middle** layer (not MyGUI's "Main") so Dark UI cannot clip it. Caption is always on the bar. Hover tooltip + I-key tooltip show Hemolymph / stage / time. C is backup.
+v1.8.4: HUD widgets that you can actually see. findWidgetT for Blood — never walk names, never ProgressBar. Overlay lives on Kenshi's **Middle** layer (not MyGUI's "Main") so Dark UI cannot clip it. Caption is always on the bar. Hover tooltip + I-key tooltip show Hemolymph / stage / time. C is backup. I-key hook uses the documented Item RVA — never `GetRealAddress` on a virtual (that crashed v1.8.3 on launch).
 
 ## Get the DLL
 

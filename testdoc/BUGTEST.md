@@ -8,7 +8,7 @@ Every ~15s the log prints `LimbVigor: Boop  Hemolymph 38/100  left leg 4% dorman
 
 Send the notes back and the plugin gets patched.
 
-- [ ] **Loads a save.** World's End / any town. No crash. RE_Kenshi_log shows `LimbVigor: ready v1.8.3` then `first player-squad tick`. Must NOT create a widget with skin `ProgressBar`. `HUD found` / `HUD host layer` / `HUD bars ready` is good.
+- [ ] **Loads a save.** World's End / any town. No crash. RE_Kenshi_log shows `LimbVigor: ready v1.8.4` then `first player-squad tick`. Must NOT assert `GetRealAddress` / `LimbVigor.dll+`. Must NOT create a widget with skin `ProgressBar`. `HUD found` / `HUD host layer` / `HUD bars ready` is good.
 - [ ] **Left HUD widgets.** Select a squad member. Under Blood: resource bar with the number on it. You can read it without hovering. Hover it — tooltip matches the line under the bar.
 - [ ] **STATS panel.** C still lists Hemolymph / Regrowth / Time. Backup only.
 - [ ] **I-key tooltip.** Open inventory. Socket says `LV Stump/Budding/Forming/Knitting/Grown …`. Hover it — description has Hemolymph / stage / time, not a silent Economy limb blurb.

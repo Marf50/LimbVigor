@@ -33,11 +33,13 @@ already has Blood and the body-part bars.
      (always visible — you do not have to hover). Hover the bar
      for the same text. Open I and hover the LV part — live numbers.
 
-v1.8.3 does not walk widget names (those come back empty) and
+v1.8.4 does not walk widget names (those come back empty) and
 does not create a "ProgressBar" skin (that crashed v1.7.1).
 It looks up Blood with findWidgetT("5_Blood" …) and pins a
 Middle-layer overlay under it. If Blood is missing the same
-panel still appears on the left stack.
+panel still appears on the left stack. The I-key tooltip is
+hooked by documented RVA — GetRealAddress is never called on
+a virtual (that crashed v1.8.3 the instant the plugin loaded).
 
 Open I: the socket is LV Stump / Budding / Forming / Knitting /
 Grown. Hover that item for Hemolymph / stage / hours left.

@@ -439,22 +439,34 @@ void LvInstallHooks()
     intptr_t med = KenshiLib::GetRealAddress(&MedicalSystem::medicalUpdate);
     intptr_t gui = KenshiLib::GetRealAddress(&MedicalSystem::getMedicalGUIData);
     intptr_t doc = KenshiLib::GetRealAddress(&MedicalSystem::applyDoctoring);
-    intptr_t tip = KenshiLib::GetRealAddress(&InventoryItemBase::getTooltipData1);
 
     void* base = nullptr;
     {
         HMODULE exe = GetModuleHandleA(nullptr);
         if (!exe) exe = GetModuleHandleA("kenshi_x64.exe");
+        if (!exe) exe = GetModuleHandleA("kenshi_GOG_x64.exe");
         if (exe) base = (void*)exe;
     }
     if (!med && base) med = (intptr_t)((unsigned char*)base + 0x651880);
     if (!gui && base) gui = (intptr_t)((unsigned char*)base + 0x889140);
     if (!doc && base) doc = (intptr_t)((unsigned char*)base + 0x649280);
-    if (!tip && base) tip = (intptr_t)((unsigned char*)base + 0x7ACED0);
 
     HookOne("LimbVigor: medicalUpdate", med, (void*)hook_medUpdate, (void**)&orig_medUpdate);
     HookOne("LimbVigor: getMedicalGUIData", gui, (void*)hook_medGui, (void**)&orig_medGui);
     HookOne("LimbVigor: applyDoctoring (splint)", doc, (void*)hook_doctor, (void**)&orig_doctor);
-    HookOne("LimbVigor: item tooltip (I-key hover)", tip, (void*)hook_tip1, (void**)&orig_tip1);
+
+    // NEVER GetRealAddress on InventoryItemBase::getTooltipData1.
+    // It is virtual. The compiler emits a thunk in LimbVigor.dll, KenshiLib
+    // asserts "Incorrect address … LimbVigor.dll+0x????" and the game dies
+    // at plugin load (v1.8.3 crash). Use the documented Item override RVA.
+    if (base)
+    {
+        intptr_t tip = (intptr_t)((unsigned char*)base + 0x7A8E30);
+        HookOne("LimbVigor: item tooltip (I-key hover)", tip, (void*)hook_tip1, (void**)&orig_tip1);
+    }
+    else
+    {
+        LvLog("LimbVigor: no exe base — I-key tooltip skipped, HUD still runs");
+    }
 #endif
 }
