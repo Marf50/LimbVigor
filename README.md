@@ -20,7 +20,8 @@ GitHub Actions compiles `LimbVigor.dll` when I trigger it (not on every push). T
 1. Open [Actions](https://github.com/Marf50/LimbVigor/actions)
 2. Latest green **Build LimbVigor.dll** run
 3. Download the **LimbVigor-mod** artifact
-4. Extract into `Kenshi/mods/LimbVigor/`
+4. Extract the `LimbVigor` folder into `Kenshi/mods/` so `LimbVigor.mod` sits next to `LimbVigor.dll`
+5. Enable **LimbVigor** on Kenshi’s Mods tab (it will not appear without the `.mod` file)
 
 See [kenshi_mod/INSTALL.txt](kenshi_mod/INSTALL.txt).
 

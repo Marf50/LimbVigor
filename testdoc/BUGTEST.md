@@ -4,6 +4,7 @@ Throwaway save. Tick the box. Write the last medical-panel line and anything in 
 
 Send the notes back and the plugin gets patched.
 
+- [ ] **Shows in the Mods list.** `Kenshi/mods/LimbVigor/LimbVigor.mod` exists. Launcher lists LimbVigor. Enable it after RE_Kenshi.
 - [ ] **Hive knits without a kit.** Worker, lost leg, bandaged, fed. Hemolymph under Blood. Stages over ~2.5 days.
 - [ ] **Human blocked.** Greenlander, low stats, no splint. Vigor fills. Growth does not start. Speech + panel say why.
 - [ ] **Splint unlocks a human.** Apply Splint Kit as doctoring. “The splint takes.” Growth starts for ~20h.

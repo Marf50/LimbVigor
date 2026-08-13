@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModData>
+  <id>0</id>
+  <mod>LimbVigor.mod</mod>
+  <title>Limb Vigor</title>
+  <tags>
+    <string>Gameplay</string>
+    <string>Races</string>
+  </tags>
+  <visibility>0</visibility>
+  <lastUpdate>2026-08-13</lastUpdate>
+</ModData>

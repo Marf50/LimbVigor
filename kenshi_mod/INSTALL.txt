@@ -4,18 +4,28 @@ Limb Vigor — install
 Needs: Kenshi 64-bit + RE_Kenshi
 https://www.nexusmods.com/kenshi/mods/847
 
-1. Download the LimbVigor-mod artifact from GitHub Actions
-   (or a Release zip if one exists).
-2. Extract so you have:
+1. Download LimbVigor-INSTALL.zip from
+   https://github.com/Marf50/LimbVigor/releases/latest
+2. Extract the LimbVigor folder into Kenshi/mods/ so you have:
 
+   Kenshi/mods/LimbVigor/LimbVigor.mod
+   Kenshi/mods/LimbVigor/_LimbVigor.info
    Kenshi/mods/LimbVigor/LimbVigor.dll
    Kenshi/mods/LimbVigor/RE_Kenshi.json
    Kenshi/mods/LimbVigor/config.ini
 
-3. Enable RE_Kenshi. If the launcher lists Limb Vigor, enable it too.
-4. Optional backup: in Plugins_x64.cfg, after Plugin=RE_Kenshi add
-   Plugin=LimbVigor
-   and copy LimbVigor.dll next to kenshi_x64.exe.
+   The folder name and the .mod name must match. Kenshi will not list
+   a plugin-only folder.
+
+3. Start Kenshi. On the launcher Mods tab, enable:
+     RE_Kenshi
+     LimbVigor
+   Put LimbVigor after RE_Kenshi. Launch.
+
+Already have the old folder without a .mod?
+Drop LimbVigor.mod and _LimbVigor.info into that same folder, then
+enable LimbVigor on the Mods tab. The DLL does not load unless the
+mod is ticked — RE_Kenshi only starts plugins from enabled mods.
 
 What you should see
 -------------------

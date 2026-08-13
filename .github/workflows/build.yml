@@ -70,6 +70,8 @@ jobs:
           Write-Host "Built: $($dll.FullName) ($($dll.Length) bytes)"
           New-Item -ItemType Directory -Force -Path dist_mod/LimbVigor | Out-Null
           Copy-Item $dll.FullName dist_mod/LimbVigor/LimbVigor.dll
+          Copy-Item kenshi_mod/LimbVigor.mod dist_mod/LimbVigor/
+          Copy-Item kenshi_mod/_LimbVigor.info dist_mod/LimbVigor/
           Copy-Item kenshi_mod/config.ini dist_mod/LimbVigor/
           Copy-Item kenshi_mod/LimbVigor.cfg dist_mod/LimbVigor/
           Copy-Item kenshi_mod/RE_Kenshi.json dist_mod/LimbVigor/
