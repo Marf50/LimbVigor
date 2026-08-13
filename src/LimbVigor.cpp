@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready — stump/budding/forming/knitting/grown are real I-key parts. HUD under Blood.");
+        LvLog("LimbVigor: ready — STATS (C) shows Hemolymph/Vigor under Blood. I-key shows growth parts.");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

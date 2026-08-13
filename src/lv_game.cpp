@@ -512,7 +512,10 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
         char eta[96];
         LvEtaText(snap, eta, (int)sizeof(eta));
         AddTextLine(panel, cat, "Time", eta);
+        if (!ok && why[0])
+            AddTextLine(panel, cat, "Need", why);
         AddTextLine(panel, cat, "How", LvRaceHint(snap->race));
+        AddTextLine(panel, cat, "Look", "Open I — the socket is an LV part. Hover it.");
     }
     else if (snap->catalystHours > 0.f)
     {

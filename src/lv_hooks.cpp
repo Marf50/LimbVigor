@@ -3,7 +3,6 @@
 #include "lv_sim.h"
 #include "lv_game.h"
 #include "lv_persist.h"
-#include "lv_hud.h"
 #include "lv_parts.h"
 
 #if defined(LIMBVIGOR_IDE)
@@ -281,7 +280,6 @@ static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
         CharSnap* live = Bind(self);
         if (live)
         {
-            LvHudPaint(live);
             LvPaintHud(self, panel, live);
         }
     }

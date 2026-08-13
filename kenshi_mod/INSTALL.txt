@@ -21,25 +21,25 @@ https://www.nexusmods.com/kenshi/mods/847
      LimbVigor
    Put LimbVigor after RE_Kenshi. Launch.
 
-Where the bars are
-------------------
-Blood is the red bar on the selected-character HUD — the left
-stack under the body-part health, not the C character sheet.
+Where the information is
+------------------------
+There is no extra bar on the portrait strip. That overlay crashed
+Kenshi (missing ProgressBar skin + Dark UI). v1.8 does not create
+any MyGUI widgets.
 
-C is the status / skills window. It has no Blood. Hovering Blood
-does nothing in vanilla; our tooltip is on the NEW bar.
-
-  1. Click a squad member so they are selected
-  2. Look at the left HUD, under Blood
-  3. You should see a second bar: Hemolymph / Battle-heat / Vigor
-  4. If they have a stump, a third bar: Regrowth
-  5. Hover either bar for the race rule and time left
-
-Dark UI is supported. We clone Blood's slot (same parent, same
-size) so the bar uses the same skin Dark UI already applied.
-If Blood cannot be found by name, the bar sits in a fixed left
-slot and RE_Kenshi_log.txt dumps HUD widget names so we can
-lock onto Dark UI's exact Blood widget.
+1. Select a squad member
+2. Open STATS (default key C) — the same list that already has Blood
+   and Hunger
+3. Under Blood you should see:
+     Hemolymph / Battle-heat / Vigor     38 / 100
+     Regrowth     left leg  budding  32%     (only if they have a stump)
+     Time         ~18h on the road. Bed is 2x.
+     Need         (only if growth is blocked — tells you why)
+     How          Hive: hemolymph knits on its own...
+     Look         Open I — the socket is an LV part. Hover it.
+4. Open inventory (I). The missing-limb socket is a real item:
+     LV Stump / Budding / Forming / Knitting / Grown
+   Hover that item — that is the tooltip.
 
 Hive grows if fed and bandaged.
 Shek need toughness 20 or a used Splint Kit.
@@ -61,5 +61,8 @@ Replace the old DLL
 -------------------
 Quit Kenshi. Overwrite Kenshi/mods/LimbVigor/LimbVigor.dll and
 config.ini. Keep LimbVigor.progress (your growth save). Launch.
+
+If it still crashes, set EnableHud=0 in config.ini and send
+RE_Kenshi_log.txt — last 40 LimbVigor lines.
 
 Bug notes go in testdoc/BUGTEST.md — send them back and we patch.

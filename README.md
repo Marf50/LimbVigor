@@ -1,6 +1,8 @@
 # Limb Vigor
 
-A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic characters can grow a lost limb back. The resource sits on the **selected-character HUD, under Blood**.
+A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic characters can grow a lost limb back.
+
+Player info is on the **STATS list (key C), under Blood** — Hemolymph / Battle-heat / Vigor, plus Regrowth / Time / How. Hover the **I-key** socket for the stage tooltip. There is no extra portrait-strip bar: v1.7.1 created MyGUI `ProgressBar` widgets and crashed Kenshi on save load (missing skin + Dark UI + VS2010 ABI).
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
@@ -15,7 +17,7 @@ This is not a feast-from-hunger hack. Three official KenshiLib hooks, the same n
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.7: stages are LimbReplacement parts (stats + I-key), slotted the same way robot limbs are. At 100% a **Grown** part stays in the socket. HUD bar under Blood (not the C sheet). Hover for the race rule and time. Dark UI ok.
+v1.8: no MyGUI widgets. STATS (C) + I-key only.
 
 ## Get the DLL
 
@@ -36,7 +38,7 @@ Only documented KenshiLib methods. No inventory windows, no MyGUI, no save-load 
 | Hook | Why |
 | --- | --- |
 | `MedicalSystem::medicalUpdate` | Tick vigor and growth |
-| `MedicalSystem::getMedicalGUIData` | Bar next to Blood |
+| `MedicalSystem::getMedicalGUIData` | Lines next to Blood on STATS |
 | `MedicalSystem::applyDoctoring` | Splint Kit / stimulant starts the catalyst |
 
 Addresses come from `KenshiLib::GetRealAddress`. The RVAs printed in the official headers are a fallback only.
@@ -48,11 +50,12 @@ Limb restore slots a growth part via `RobotLimbs::setLimb(REPLACED, item)` and `
 ```
 src/LimbVigor.cpp     startPlugin
 src/lv_sim.cpp        the numbers (no game types)
-src/lv_game.cpp       race, limbs, HUD strings
+src/lv_game.cpp       race, limbs, STATS strings
 src/lv_hooks.cpp      the three hooks
 src/lv_config.cpp     LimbVigor.cfg / config.ini
 src/lv_persist.cpp    LimbVigor.progress
-src/lv_parts.cpp       growth-stage LimbReplacement catalog + equip
+src/lv_parts.cpp      growth-stage LimbReplacement catalog + equip
+src/lv_hud.cpp        empty — MyGUI overlay removed after v1.7.1 crash
 src/lv_sim_test.cpp   headless checks (also run in CI)
 ```
 
@@ -77,5 +80,3 @@ cmake -S . -B build-test
 cmake --build build-test --target lv_sim_test
 ./build-test/lv_sim_test
 ```
-
-KenshiLib is GPLv3, so this plugin is GPLv3. Kenshi itself is Lo-Fi Games’.
