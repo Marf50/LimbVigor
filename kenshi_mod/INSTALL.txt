@@ -21,48 +21,41 @@ https://www.nexusmods.com/kenshi/mods/847
      LimbVigor
    Put LimbVigor after RE_Kenshi. Launch.
 
-Where the information is
-------------------------
-There is no extra bar on the portrait strip. That overlay crashed
-Kenshi (missing ProgressBar skin + Dark UI). v1.8 does not create
-any MyGUI widgets.
+Where the bars and tooltips are
+-------------------------------
+Select a squad member. Look at the left HUD — the same stack that
+already has Blood and the body-part bars.
 
-1. Select a squad member
-2. Open STATS (default key C) — the same list that already has Blood
-   and Hunger
-3. Under Blood you should see:
-     Hemolymph / Battle-heat / Vigor     38 / 100
-     Regrowth     left leg  budding  32%     (only if they have a stump)
-     Time         ~18h on the road. Bed is 2x.
-     Need         (only if growth is blocked — tells you why)
-     How          Hive: hemolymph knits on its own...
-     Look         Open I — the socket is an LV part. Hover it.
-4. Open inventory (I). The missing-limb socket is a real item:
-     LV Stump / Budding / Forming / Knitting / Grown
-   Hover that item — that is the tooltip.
+  1. A second bar under Blood: Hemolymph / Battle-heat / Vigor
+     with the number written on it (82 / 100)
+  2. If they have a stump, a third bar: left leg  budding  32%
+  3. A line under that is the tooltip: time left + race rule
+     (always visible — you do not have to hover)
+
+Dark UI is fine. Kenshi names Blood something like "5_Blood".
+We search that suffix, then clone Blood's own skin. We never
+create a widget with the missing "ProgressBar" skin (that is
+what crashed v1.7.1).
+
+Open I: the socket is LV Stump / Budding / Forming / Knitting /
+Grown. Hover that item for the stage description.
+
+C still has a backup list (Hemolymph / Regrowth / Time / How)
+if the overlay cannot find Blood.
 
 Hive grows if fed and bandaged.
 Shek need toughness 20 or a used Splint Kit.
 Humans need toughness 40 and Field Medic 25, or a used Splint Kit.
 Skeletons never.
 
-A stump stages: dormant → budding → forming → knitting → grown.
-Each stage is a real limb part (open I, look at the socket).
-Stats start terrible and get closer to flesh as it knits.
-At 100% the socket gets **LV Grown …** — that is the new limb.
-We do not peel it to try original flesh (that left people at −15).
-
 Keep LimbVigor.progress — existing growth numbers are reused.
-Overwrite LimbVigor.mod as well as the DLL (the parts live in the .mod).
-If a stump is already at 100%, load in and open I: it should become LV Grown.
+Overwrite LimbVigor.mod as well as the DLL.
 
 
 Replace the old DLL
 -------------------
 Quit Kenshi. Overwrite Kenshi/mods/LimbVigor/LimbVigor.dll and
-config.ini. Keep LimbVigor.progress (your growth save). Launch.
+config.ini. Keep LimbVigor.progress. Launch.
 
-If it still crashes, set EnableHud=0 in config.ini and send
-RE_Kenshi_log.txt — last 40 LimbVigor lines.
-
-Bug notes go in testdoc/BUGTEST.md — send them back and we patch.
+If it crashes, set EnableHud=0 and send the last 40 LimbVigor
+lines from RE_Kenshi_log.txt (we need the HUD scan names).

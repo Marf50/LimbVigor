@@ -3,6 +3,7 @@
 #include "lv_sim.h"
 #include "lv_game.h"
 #include "lv_persist.h"
+#include "lv_hud.h"
 #include "lv_parts.h"
 
 #if defined(LIMBVIGOR_IDE)
@@ -34,6 +35,9 @@
 static void (*orig_medUpdate)(MedicalSystem*, float) = nullptr;
 static void (*orig_medGui)(MedicalSystem*, DatapanelGUI*) = nullptr;
 static bool (*orig_doctor)(MedicalSystem*, float, Item*, float, Character*) = nullptr;
+
+static CharSnap g_hudSnap;
+static int      g_hudHave = 0;
 
 static int g_inTick = 0;
 static unsigned g_warmStart = 0;
@@ -107,7 +111,6 @@ static CharSnap* Bind(MedicalSystem* med)
     LvReadSnap(med, &tmp);
     if (!tmp.name[0]) std::snprintf(tmp.name, sizeof(tmp.name), "%s", "?");
 
-    // Never persist unnamed / failed-name reads as one shared "?" slot.
     if (tmp.name[0] == '?' && tmp.name[1] == 0)
         return nullptr;
 
@@ -134,8 +137,6 @@ static CharSnap* Bind(MedicalSystem* med)
         live->limbs[i] = tmp.limbs[i];
         if (firstSeen) continue;
 
-        // Finished growth but the game still reports a stump: do not treat
-        // as a fresh cut and do not wipe 100% progress.
         if ((tmp.limbs[i] == LIMB_KIND_STUMP || tmp.limbs[i] == LIMB_KIND_CRUSHED)
             && was == LIMB_KIND_WHOLE)
         {
@@ -162,7 +163,6 @@ static CharSnap* Bind(MedicalSystem* med)
             }
             else if (live->progress[i] < 99.f && live->progress[i] > 0.f)
             {
-                // Prosthetic or vanilla heal mid-growth — keep the number.
             }
         }
     }
@@ -191,8 +191,6 @@ static void DriveTick(MedicalSystem* med, float frameTime)
         CharSnap* live = Bind(med);
         if (live && live->race != RACE_SKELETON && live->race != RACE_ANIMAL)
         {
-            // Slot the matching growth part before the sim paints the
-            // socket WHOLE at 100%. Uses the game-read limb kinds.
             LvSyncGrowthParts(med, live);
 
             TickResult r;
@@ -211,9 +209,6 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                     LvEquipGrowthPart(med, r.stageChanged, st);
             }
 
-            // LvTick paints the socket WHOLE for the simulator. The game
-            // still has a growth part in the hole. Slot the Grown part —
-            // that IS the restored limb. Do not peel it for original flesh.
             if (r.restored >= 0 && r.restored < LIMB_COUNT && live->restoreLock <= 0.f)
             {
                 const int limb = r.restored;
@@ -250,6 +245,16 @@ static void DriveTick(MedicalSystem* med, float frameTime)
             }
 
             Heartbeat(live);
+
+            int selected = 0;
+            LV_TRY { selected = who->isPlayerCharacter() ? 1 : 0; }
+            LV_EXCEPT { selected = 0; }
+            if (selected || !g_hudHave)
+            {
+                g_hudSnap = *live;
+                g_hudHave = 1;
+                LvHudNote(live);
+            }
         }
         LvPersistSave(0);
     }
@@ -280,14 +285,17 @@ static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
         CharSnap* live = Bind(self);
         if (live)
         {
+            g_hudSnap = *live;
+            g_hudHave = 1;
+            LvHudNote(live);
+            LvHudPaint(live);
             LvPaintHud(self, panel, live);
         }
     }
     LV_EXCEPT
     {
         static int once = 0;
-        if (!once) { LvErr("LimbVigor: HUD SEH — turning HUD off"); once = 1; }
-        LvDisableHud();
+        if (!once) { LvErr("LimbVigor: HUD SEH — STATS off, overlay may still run"); once = 1; }
     }
 }
 
@@ -355,7 +363,6 @@ void LvInstallHooks()
     intptr_t gui = KenshiLib::GetRealAddress(&MedicalSystem::getMedicalGUIData);
     intptr_t doc = KenshiLib::GetRealAddress(&MedicalSystem::applyDoctoring);
 
-    // Documented RVAs from KenshiLib headers, only if GetRealAddress fails.
     void* base = nullptr;
     {
         HMODULE exe = GetModuleHandleA(nullptr);

@@ -1,8 +1,6 @@
 # Limb Vigor
 
-A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic characters can grow a lost limb back.
-
-Player info is on the **STATS list (key C), under Blood** — Hemolymph / Battle-heat / Vigor, plus Regrowth / Time / How. Hover the **I-key** socket for the stage tooltip. There is no extra portrait-strip bar: v1.7.1 created MyGUI `ProgressBar` widgets and crashed Kenshi on save load (missing skin + Dark UI + VS2010 ABI).
+A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic characters can grow a lost limb back. The resource sits on the **selected-character HUD, under Blood**.
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
@@ -17,7 +15,7 @@ This is not a feast-from-hunger hack. Three official KenshiLib hooks, the same n
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.8: no MyGUI widgets. STATS (C) + I-key only.
+v1.8.1: HUD bar under Blood. Finds `5_Blood` (Kenshi prefixes names). Uses Blood's own skin + `Kenshi_TextboxStandardText`. Never the missing `ProgressBar` skin that crashed v1.7.1. Caption on the bar is the tooltip.
 
 ## Get the DLL
 

@@ -2,7 +2,7 @@
 
 Throwaway save. Tick the box. Write the last STATS-panel line and anything in `RE_Kenshi_log.txt`.
 
-**Where to look:** click the character, open STATS (key C). Under Blood: Hemolymph / Battle-heat / Vigor, plus a Regrowth / Time / How line if they have a stump. Open **I** and hover the LV part in the socket — that is the tooltip. There is no extra bar on the portrait strip (that overlay crashed on load in v1.7.1).
+**Where to look:** select a squad member. Left HUD under Blood: Hemolymph / Battle-heat / Vigor bar with the number on it. Stump adds a second bar + a tooltip line under it. Open **I** and hover the LV part. C is a backup list only.
 
 Every ~15s the log prints `LimbVigor: Boop  Hemolymph 38/100  left leg 4% dormant stump`.
 

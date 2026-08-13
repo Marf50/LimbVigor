@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready — STATS (C) shows Hemolymph/Vigor under Blood. I-key shows growth parts.");
+        LvLog("LimbVigor: ready — HUD bar under Blood (Hemolymph / Regrowth). I-key parts. STATS (C) backup.");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

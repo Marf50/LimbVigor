@@ -89,8 +89,12 @@ if(_GAME)
 
   target_link_directories(LimbVigor PRIVATE "${KENSHI_LIB_DIR}")
   target_link_libraries(LimbVigor PRIVATE KenshiLib)
-  # Do not link MyGUIEngine. Creating widgets from a VS2022 plugin
-  # crashed Kenshi on save load (v1.7.1). STATS uses setLineProgress.
+  if(EXISTS "${KENSHI_LIB_DIR}/MyGUIEngine_x64.lib")
+    target_link_libraries(LimbVigor PRIVATE MyGUIEngine_x64)
+    message(STATUS "GAME BUILD: MyGUIEngine_x64 linked")
+  else()
+    message(WARNING "MyGUIEngine_x64.lib not in ${KENSHI_LIB_DIR}")
+  endif()
   message(STATUS "GAME BUILD: KenshiLib ${_libsize} bytes")
 else()
   message(STATUS "IDE MODE: stubs — not a game DLL")

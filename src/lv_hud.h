@@ -2,7 +2,7 @@
 
 #include "lv_types.h"
 
-// Intentionally empty. Selected-character overlay bars crashed Kenshi
-// (missing ProgressBar skin + Dark UI + MyGUI ABI). GUI is STATS + I-key.
+// Selected-character HUD: own bar under Blood + always-visible caption.
 void LvHudPaint(const CharSnap* snap);
 void LvHudHide();
+void LvHudNote(const CharSnap* snap); // snapshot + attach UI-thread paint
