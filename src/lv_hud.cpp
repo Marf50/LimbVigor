@@ -6,13 +6,10 @@
 #include <cstdio>
 #include <cstring>
 
-#if defined(_MSC_VER)
-#define LV_TRY    __try
-#define LV_EXCEPT __except (EXCEPTION_EXECUTE_HANDLER)
-#else
-#define LV_TRY    if (true)
-#define LV_EXCEPT if (false)
-#endif
+// C++ try/catch here — MSVC forbids __try in functions that construct objects.
+// Access violations are caught by the getMedicalGUIData hook SEH.
+#define LV_TRY    try
+#define LV_EXCEPT catch (...)
 
 #if defined(LIMBVIGOR_IDE)
 
