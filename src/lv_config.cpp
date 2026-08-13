@@ -10,7 +10,7 @@
 #endif
 
 static LvConfig g_cfg = {
-    1, 0, 0, 1,
+    1, 1, 0, 1,
     100.f,
     5.0f, 1.5f, 0.6f,
     6.0f, 14.0f, 8.0f,
@@ -103,7 +103,7 @@ void LvLoadConfig(const char* pluginDir)
     }
     if (!f)
     {
-        LvLog("LimbVigor: no config — safe defaults (HUD off, speech off)");
+        LvLog("LimbVigor: no config — HUD on, speech off");
         return;
     }
     LvLog("LimbVigor: config loaded");

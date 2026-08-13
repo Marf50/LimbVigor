@@ -14,41 +14,43 @@ https://www.nexusmods.com/kenshi/mods/847
    Kenshi/mods/LimbVigor/RE_Kenshi.json
    Kenshi/mods/LimbVigor/config.ini
 
-   The folder name and the .mod name must match. Kenshi will not list
-   a plugin-only folder.
+   The folder name and the .mod name must match.
 
 3. Start Kenshi. On the launcher Mods tab, enable:
      RE_Kenshi
      LimbVigor
    Put LimbVigor after RE_Kenshi. Launch.
 
-Already have the old folder without a .mod?
-Drop LimbVigor.mod and _LimbVigor.info into that same folder, then
-enable LimbVigor on the Mods tab. The DLL does not load unless the
-mod is ticked — RE_Kenshi only starts plugins from enabled mods.
+Where the bars are
+------------------
+This is NOT a bar on the portrait strip. Open the character STATS
+panel — the same list that already shows Blood and Hunger.
 
-What you should see
--------------------
-Open a character medical panel. Under Blood:
-  Hive        — Hemolymph bar
-  Shek        — Battle-heat bar
-  Human       — Vigor bar
-  Skeleton    — “Frames do not grow flesh.”
+  1. Click the character (Boop, Plop, …)
+  2. Open STATS (default key C, or the stats tab on the side panel)
+  3. Under Blood you should see:
+       Hive        — Hemolymph   38 / 100
+       Shek        — Battle-heat …
+       Human       — Vigor …
+       plus a Regrowth line if they have a stump
 
-A stump stages: dormant → budding → forming → knitting → whole.
-The new limb is original flesh at ~22% HP. First-aid it.
+Every ~15 seconds RE_Kenshi_log.txt also prints a heartbeat:
+  LimbVigor: Boop  Hemolymph 38/100  left leg 4% dormant stump
+
+If the STATS panel crashes, set EnableHud=0 in config.ini and use
+the log. Growth still runs.
 
 Hive grows if fed and bandaged.
 Shek need toughness 20 or a used Splint Kit.
 Humans need toughness 40 and Field Medic 25, or a used Splint Kit.
 Skeletons never.
 
-If the game crashed on load before: this build no longer talks to
-town NPCs, does not call character speech, and leaves the medical
-bar off. Growth still runs for your squad. After a clean load, set
-EnableHud=1 in config.ini if you want the bar back.
+A stump stages: dormant → budding → forming → knitting → whole.
+The new limb is original flesh at ~22% HP. First-aid it.
 
-If the game crashes on load: set EnableHud=0 in config.ini and try again.
-Speech can be turned off with EnableSpeech=0.
+Replace the old DLL
+-------------------
+Quit Kenshi. Overwrite Kenshi/mods/LimbVigor/LimbVigor.dll and
+config.ini. Keep LimbVigor.progress (your growth save). Launch.
 
 Bug notes go in testdoc/BUGTEST.md — send them back and we patch.

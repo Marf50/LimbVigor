@@ -41,8 +41,6 @@
 
 // Official documented RVAs from KenshiLib headers (not guessed).
 // Used only when GetRealAddress cannot pick an overload.
-static const intptr_t kRvaSetLineKey  = 0x6FD4B0;
-static const intptr_t kRvaSetLineBar  = 0x6FDFE0;
 static const intptr_t kRvaSetLineProg = 0x6FCF00;
 
 static const RobotLimbs::Limb kGameLimb[LIMB_COUNT] = {
@@ -52,12 +50,8 @@ static const RobotLimbs::Limb kGameLimb[LIMB_COUNT] = {
     RobotLimbs::LEFT_ARM
 };
 
-typedef void* (*FnSetLineKey)(DatapanelGUI*, const GameStr*, const GameStr*, const GameStr*, int, bool, bool);
-typedef void* (*FnSetLineBar)(DatapanelGUI*, const GameStr*, const GameStr*, float, int);
 typedef void* (*FnSetLineProg)(DatapanelGUI*, const GameStr*, int, float, const GameStr*, bool);
 
-static FnSetLineKey  g_setLineKey  = nullptr;
-static FnSetLineBar  g_setLineBar  = nullptr;
 static FnSetLineProg g_setLineProg = nullptr;
 static int           g_gameReady   = 0;
 
@@ -103,24 +97,13 @@ void LvGameInit()
     g_gameReady = 1;
 
 #if !defined(LIMBVIGOR_IDE)
-    // Prefer GetRealAddress — unique overloads only. Hardcoded RVA is last resort.
     intptr_t prog = KenshiLib::GetRealAddress(&DatapanelGUI::setLineProgress);
-    intptr_t key  = 0;
     void* base = ExeBase();
-    if (base)
-    {
-        unsigned char* b = (unsigned char*)base;
-        if (prog) g_setLineProg = (FnSetLineProg)prog;
-        else      g_setLineProg = (FnSetLineProg)(b + kRvaSetLineProg);
-        // setLine is overloaded — GetRealAddress is unreliable. Leave null.
-        // We do not call the overloaded setLine overloads; progress line only.
-        (void)key;
-        (void)kRvaSetLineKey;
-        (void)kRvaSetLineBar;
-        g_setLineKey = nullptr;
-        g_setLineBar = nullptr;
-    }
-    LvLog("LimbVigor: game helpers ready");
+    if (prog)
+        g_setLineProg = (FnSetLineProg)prog;
+    else if (base)
+        g_setLineProg = (FnSetLineProg)((unsigned char*)base + kRvaSetLineProg);
+    LvLog(g_setLineProg ? "LimbVigor: game helpers ready" : "LimbVigor: no setLineProgress — HUD will stay empty");
 #endif
 }
 
@@ -285,12 +268,38 @@ void LvReadSnap(MedicalSystem* med, CharSnap* io)
 int LvRestoreLimb(MedicalSystem* med, int limbId)
 {
     if (!med || limbId < 0 || limbId >= LIMB_COUNT) return 0;
+    const RobotLimbs::Limb limb = kGameLimb[limbId];
+
+    LimbState before = LIMB_STUMP;
+    LV_TRY { before = med->getLimbState(limb); }
+    LV_EXCEPT { before = LIMB_STUMP; }
+    if (before == LIMB_ORIGINAL) return 1;
+    if (before == LIMB_REPLACED) return 0; // do not rip off a prosthetic
+
+    MedicalSystem::HealthPartStatus* part = nullptr;
+    LV_TRY { part = med->getPart(limb); }
+    LV_EXCEPT { part = nullptr; }
+
+    // Flesh first — a 0-HP part can immediately re-sever after setLimb.
+    if (part)
+    {
+        LV_TRY
+        {
+            float mx = part->_maxHealth;
+            if (mx < 1.f || mx > 10000.f) mx = 100.f;
+            float start = mx * LvCfg().restoredFlesh;
+            if (start < 1.f) start = mx * 0.22f;
+            part->flesh = start;
+            part->updateDerivedHealths();
+        }
+        LV_EXCEPT {}
+    }
+
     RobotLimbs* robots = nullptr;
     LV_TRY { robots = med->robotLimbs; }
     LV_EXCEPT { robots = nullptr; }
     if (!robots) return 0;
 
-    const RobotLimbs::Limb limb = kGameLimb[limbId];
     int ok = 0;
     LV_TRY
     {
@@ -300,9 +309,6 @@ int LvRestoreLimb(MedicalSystem* med, int limbId)
     }
     LV_EXCEPT { ok = 0; }
 
-    MedicalSystem::HealthPartStatus* part = nullptr;
-    LV_TRY { part = med->getPart(limb); }
-    LV_EXCEPT { part = nullptr; }
     if (part)
     {
         LV_TRY
@@ -326,13 +332,12 @@ int LvRestoreLimb(MedicalSystem* med, int limbId)
     LV_TRY { after = med->getLimbState(limb); }
     LV_EXCEPT {}
     if (after == LIMB_ORIGINAL) return 1;
+    if (after == LIMB_STUMP || after == LIMB_CRUSHED) return 0;
     return ok;
 }
 
 int LvHasSplint(Character* me)
 {
-    // Splints are applied through applyDoctoring (hooked). We do not
-    // scan the backpack — hasSimilarItem takes itemType, not ItemFunction.
     (void)me;
     return 0;
 }
@@ -340,7 +345,6 @@ int LvHasSplint(Character* me)
 int LvItemLooksLikeCatalyst(Item* item)
 {
     if (!item) return 0;
-    // Item name lives on its GameData. Try a few documented layouts.
     GameData* data = nullptr;
     LV_TRY { std::memcpy(&data, (const char*)(const void*)item + 0x10, sizeof(data)); }
     LV_EXCEPT { data = nullptr; }
@@ -361,106 +365,64 @@ int LvItemLooksLikeCatalyst(Item* item)
 void LvSay(Character* me, const char* text)
 {
     // Do not call Character::say — that takes a VS2010 std::string.
-    // A VS2022 string (or a guessed GameStr) crashes the process.
-    // Player-facing info is the medical panel; this just logs.
+    // Player-facing info is the medical panel + RE_Kenshi_log.txt.
     (void)me;
     if (text && text[0]) LvLog(text);
-}
-
-static int PanelCategory(DatapanelGUI* panel)
-{
-    if (!panel) return 0;
-    int cat = 0;
-    LV_TRY { std::memcpy(&cat, (const char*)(const void*)panel + 0xB0, 4); }
-    LV_EXCEPT { cat = 0; }
-    if (cat < 0 || cat > 16) cat = 0;
-    return cat;
 }
 
 void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
 {
     if (!med || !panel || !snap || !LvCfg().enableHud) return;
-    if (!g_setLineKey && !g_setLineBar && !g_setLineProg) return;
+    if (!g_setLineProg) return;
 
-    const int cat = PanelCategory(panel);
-    GameStr key, a, b;
+    // getMedicalGUIData fills the STATS / medical list. Category 0 is Blood.
+    const int cat = 0;
+    GameStr key, right;
 
     if (snap->race == RACE_SKELETON)
     {
-        GameStrSet(&key, "lv_res");
-        GameStrSet(&a, "Limb Vigor");
-        GameStrSet(&b, "Frames do not grow flesh.");
-        if (g_setLineKey)
-        {
-            LV_TRY { g_setLineKey(panel, &key, &a, &b, cat, false, false); }
-            LV_EXCEPT {}
-        }
+        GameStrSet(&key, "Limb Vigor");
+        GameStrSet(&right, "Frames do not grow flesh.");
+        LV_TRY { g_setLineProg(panel, &key, cat, 0.f, &right, false); }
+        LV_EXCEPT {}
         return;
     }
 
     if (snap->race == RACE_ANIMAL) return;
 
     const char* res = LvResourceName(snap->race);
-    char right[80];
+    char buf[96];
     const float fill = (LvCfg().maxVigor > 0.f) ? (snap->vigor / LvCfg().maxVigor) : 0.f;
-    std::snprintf(right, sizeof(right), "%.0f / %.0f", snap->vigor, LvCfg().maxVigor);
-
-    GameStrSet(&key, "lv_res");
-    GameStrSet(&a, res);
-    GameStrSet(&b, right);
-    if (g_setLineProg)
-    {
-        LV_TRY { g_setLineProg(panel, &key, cat, fill, &b, true); }
-        LV_EXCEPT {}
-    }
-    else if (g_setLineBar)
-    {
-        LV_TRY { g_setLineBar(panel, &a, &b, fill, cat); }
-        LV_EXCEPT {}
-    }
-    else if (g_setLineKey)
-    {
-        LV_TRY { g_setLineKey(panel, &key, &a, &b, cat, false, false); }
-        LV_EXCEPT {}
-    }
+    std::snprintf(buf, sizeof(buf), "%.0f / %.0f", snap->vigor, LvCfg().maxVigor);
+    GameStrSet(&key, res && res[0] ? res : "Vigor");
+    GameStrSet(&right, buf);
+    LV_TRY { g_setLineProg(panel, &key, cat, fill, &right, true); }
+    LV_EXCEPT {}
 
     const int stump = LvFirstStump(snap);
-    GameStrSet(&key, "lv_grow");
     if (stump >= 0)
     {
         char why[96];
         const int ok = LvEligible(snap, why, (int)sizeof(why));
-        char left[40], r2[96];
-        std::snprintf(left, sizeof(left), "%s", LvLimbLabel((LimbId)stump));
         if (!ok)
-            std::snprintf(r2, sizeof(r2), "%s", why);
+            std::snprintf(buf, sizeof(buf), "%s — %s", LvLimbLabel((LimbId)stump), why);
         else
-            std::snprintf(r2, sizeof(r2), "%s  %.0f%%",
-                LvStageName(snap->progress[stump]), snap->progress[stump]);
-        GameStrSet(&a, left);
-        GameStrSet(&b, r2);
-        if (g_setLineKey)
-        {
-            LV_TRY { g_setLineKey(panel, &key, &a, &b, cat, false, false); }
-            LV_EXCEPT {}
-        }
-        if (ok && g_setLineProg)
-        {
-            GameStrSet(&key, "lv_prog");
-            const float p = snap->progress[stump] / 100.f;
-            LV_TRY { g_setLineProg(panel, &key, cat, p, &b, false); }
-            LV_EXCEPT {}
-        }
+            std::snprintf(buf, sizeof(buf), "%s  %s  %.0f%%",
+                LvLimbLabel((LimbId)stump),
+                LvStageName(snap->progress[stump]),
+                snap->progress[stump]);
+        GameStrSet(&key, "Regrowth");
+        GameStrSet(&right, buf);
+        const float p = ok ? (snap->progress[stump] / 100.f) : 0.f;
+        LV_TRY { g_setLineProg(panel, &key, cat, p, &right, false); }
+        LV_EXCEPT {}
     }
     else if (snap->catalystHours > 0.f)
     {
-        GameStrSet(&a, "Splint");
-        std::snprintf(right, sizeof(right), "%.0fh remaining", snap->catalystHours);
-        GameStrSet(&b, right);
-        if (g_setLineKey)
-        {
-            LV_TRY { g_setLineKey(panel, &key, &a, &b, cat, false, false); }
-            LV_EXCEPT {}
-        }
+        std::snprintf(buf, sizeof(buf), "splint  %.0fh left", snap->catalystHours);
+        GameStrSet(&key, "Regrowth");
+        GameStrSet(&right, buf);
+        LV_TRY { g_setLineProg(panel, &key, cat, 0.f, &right, false); }
+        LV_EXCEPT {}
     }
 }

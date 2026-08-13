@@ -13,5 +13,6 @@ int  LvAnyStump(const CharSnap* c);
 int  LvFirstStump(const CharSnap* c); // LimbId or -1
 int  LvEligible(const CharSnap* c, char* why, int whySize);
 
+void LvClearResult(TickResult* out); // restored / stageChanged = -1
 void LvTick(CharSnap* c, float dtHours, TickResult* out);
 void LvApplyCatalyst(CharSnap* c, TickResult* out);

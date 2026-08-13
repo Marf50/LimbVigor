@@ -20,6 +20,7 @@
 #endif
 
 #include <cstring>
+#include <cstdio>
 
 #if defined(_MSC_VER)
 #define LV_TRY    __try
@@ -47,6 +48,15 @@ static int WarmedUp()
 #endif
 }
 
+static unsigned NowMs()
+{
+#if defined(_WIN32) && !defined(LIMBVIGOR_IDE)
+    return GetTickCount();
+#else
+    return 0;
+#endif
+}
+
 static int IsDead(MedicalSystem* med)
 {
     if (!med) return 1;
@@ -59,6 +69,33 @@ static int IsDead(MedicalSystem* med)
         LV_EXCEPT { d = 0; }
     }
     return d;
+}
+
+static void Heartbeat(CharSnap* live)
+{
+    if (!live || !LvCfg().debugLog) return;
+    const unsigned now = NowMs();
+    if (live->lastLogMs && now && (now - live->lastLogMs) < 15000u) return;
+    live->lastLogMs = now ? now : 1;
+
+    const int stump = LvFirstStump(live);
+    char why[96];
+    const int ok = LvEligible(live, why, (int)sizeof(why));
+    if (stump < 0)
+    {
+        LvLogf("LimbVigor: %s  %s %.0f/%.0f  no stump",
+            live->name, LvResourceName(live->race), live->vigor, LvCfg().maxVigor);
+        return;
+    }
+    LvLogf("LimbVigor: %s  %s %.0f/%.0f  %s %.0f%% %s%s",
+        live->name,
+        LvResourceName(live->race),
+        live->vigor, LvCfg().maxVigor,
+        LvLimbLabel((LimbId)stump),
+        live->progress[stump],
+        LvStageName(live->progress[stump]),
+        ok ? "" : "  BLOCKED");
+    if (!ok && why[0]) LvLog(why);
 }
 
 static CharSnap* Bind(MedicalSystem* med)
@@ -93,10 +130,14 @@ static CharSnap* Bind(MedicalSystem* med)
         const LimbKind was = live->limbs[i];
         live->limbs[i] = tmp.limbs[i];
         if (firstSeen) continue;
-        // Only a WHOLE → STUMP transition after we have already seen them.
+
+        // Finished growth but the game still reports a stump: do not treat
+        // as a fresh cut and do not wipe 100% progress.
         if ((tmp.limbs[i] == LIMB_KIND_STUMP || tmp.limbs[i] == LIMB_KIND_CRUSHED)
             && was == LIMB_KIND_WHOLE)
         {
+            if (live->progress[i] >= 99.f)
+                continue;
             live->progress[i] = 0.f;
             live->lastStage[i] = -1;
             LvMarkDirty();
@@ -109,11 +150,17 @@ static CharSnap* Bind(MedicalSystem* med)
             else
                 LvSay(nullptr, "Flesh does not grow back on its own. You need a splint — or to have earned it.");
         }
-        if (tmp.limbs[i] == LIMB_KIND_WHOLE && was != LIMB_KIND_WHOLE
-            && live->progress[i] < 99.f)
+        if (tmp.limbs[i] == LIMB_KIND_WHOLE && was != LIMB_KIND_WHOLE)
         {
-            live->progress[i] = 0.f;
-            live->lastStage[i] = -1;
+            if (live->progress[i] >= 99.f)
+            {
+                live->progress[i] = 0.f;
+                live->lastStage[i] = -1;
+            }
+            else if (live->progress[i] < 99.f && live->progress[i] > 0.f)
+            {
+                // Prosthetic or vanilla heal mid-growth — keep the number.
+            }
         }
     }
     return live;
@@ -141,24 +188,7 @@ static void DriveTick(MedicalSystem* med, float frameTime)
         CharSnap* live = Bind(med);
         if (live && live->race != RACE_SKELETON && live->race != RACE_ANIMAL)
         {
-            // Unused splint in the pack still unlocks a blocked human/shek.
-            if (live->catalystHours <= 0.f)
-            {
-                Character* me = LvCharFromMed(med);
-                if (LvHasSplint(me) && LvAnyStump(live))
-                {
-                    char why[96];
-                    if (!LvEligible(live, why, (int)sizeof(why)))
-                    {
-                        TickResult cat = {};
-                        LvApplyCatalyst(live, &cat);
-                        LvMarkDirty();
-                        if (cat.speech[0]) LvSay(me, cat.speech);
-                    }
-                }
-            }
-
-            TickResult r = {};
+            TickResult r;
             LvTick(live, dtHours, &r);
             LvMarkDirty();
 
@@ -167,20 +197,27 @@ static void DriveTick(MedicalSystem* med, float frameTime)
 
             if (r.speech[0]) LvSay(who, r.speech);
 
-            if (r.restored >= 0)
+            // restored is -1 unless a stump actually hit 100%. Never treat 0 as "yes".
+            if (r.restored >= 0 && r.restored < LIMB_COUNT && live->restoreLock <= 0.f)
             {
-                if (!LvRestoreLimb(med, r.restored))
+                const int limb = r.restored;
+                if (!LvRestoreLimb(med, limb))
                 {
-                    // Keep progress just under done so we retry next ticks.
-                    live->limbs[r.restored] = LIMB_KIND_STUMP;
-                    live->progress[r.restored] = 99.5f;
-                    LvLog("LimbVigor: restore deferred — will retry");
+                    live->limbs[limb] = LIMB_KIND_STUMP;
+                    live->progress[limb] = 99.5f;
+                    live->restoreLock = 20.f / secPerHour; // ~20 real seconds
+                    LvLogf("LimbVigor: restore deferred on %s limb %d — will retry", live->name, limb);
                 }
                 else
                 {
-                    LvLogf("LimbVigor: restored limb %d on %s", r.restored, live->name);
+                    live->limbs[limb] = LIMB_KIND_WHOLE;
+                    live->progress[limb] = 0.f;
+                    live->lastStage[limb] = -1;
+                    LvLogf("LimbVigor: restored limb %d on %s", limb, live->name);
                 }
             }
+
+            Heartbeat(live);
         }
         LvPersistSave(0);
     }
@@ -231,7 +268,7 @@ static bool hook_doctor(MedicalSystem* self, float skill, Item* equipment, float
         {
             if (LvItemLooksLikeCatalyst(equipment) || equipment)
             {
-                TickResult cat = {};
+                TickResult cat;
                 LvApplyCatalyst(live, &cat);
                 LvMarkDirty();
                 Character* me = LvCharFromMed(self);

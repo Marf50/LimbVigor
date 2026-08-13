@@ -1,6 +1,6 @@
 # Limb Vigor
 
-A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic characters can grow a lost limb back. The resource sits on the **medical panel, under Blood**.
+A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic characters can grow a lost limb back. The resource sits on the **STATS medical panel, under Blood**.
 
 This is not a feast-from-hunger hack and not a MyGUI overlay. Three official KenshiLib hooks, the same numbers as the field-manual bench.
 
@@ -13,7 +13,7 @@ This is not a feast-from-hunger hack and not a MyGUI overlay. Three official Ken
 
 A bed roughly halves the time. One stump at a time, legs first. The new limb is original flesh at ~22% of that part’s max HP. A prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.2 does not talk to town NPCs and does not call character speech (that crashed World’s End on load). The medical bar is off until `EnableHud=1` after a clean load.
+v1.3: HUD is on. Click the character, open **STATS** (the list with Blood). You should see Hemolymph / Battle-heat / Vigor and a Regrowth line. Speech is still off (VS2010 string ABI). `RE_Kenshi_log.txt` prints a heartbeat every 15s so we can bug-test without staring at the panel.
 
 ## Get the DLL
 

@@ -47,6 +47,8 @@ struct CharSnap
     int      inCombat;
     float    catalystHours;
     int      seen;              // 1 after first live snapshot — do not treat as a fresh cut
+    float    restoreLock;       // game-hours to wait before retrying a failed restore
+    unsigned lastLogMs;
     char     lastBlock[96];
     char     name[48];
 };
@@ -54,7 +56,7 @@ struct CharSnap
 struct TickResult
 {
     int  grew;
-    int  restored;          // LimbId or -1
+    int  restored;          // LimbId or -1 (never 0-init this)
     int  stageChanged;      // LimbId or -1
     int  stageValue;        // 0..4
     int  blockedNew;

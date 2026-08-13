@@ -123,9 +123,17 @@ int LvEligible(const CharSnap* c, char* why, int whySize)
     return 0;
 }
 
+void LvClearResult(TickResult* out)
+{
+    if (!out) return;
+    std::memset(out, 0, sizeof(*out));
+    out->restored = -1;
+    out->stageChanged = -1;
+}
+
 void LvApplyCatalyst(CharSnap* c, TickResult* out)
 {
-    if (out) std::memset(out, 0, sizeof(*out));
+    LvClearResult(out);
     if (!c) return;
     if (c->race == RACE_SKELETON || c->race == RACE_ANIMAL) return;
     c->catalystHours = LvCfg().catalystHours;
@@ -139,7 +147,7 @@ void LvApplyCatalyst(CharSnap* c, TickResult* out)
 
 void LvTick(CharSnap* c, float dtHours, TickResult* out)
 {
-    if (out) std::memset(out, 0, sizeof(*out));
+    LvClearResult(out);
     if (!c || dtHours <= 0.f) return;
     if (dtHours > 2.f) dtHours = 2.f;
 
@@ -147,6 +155,11 @@ void LvTick(CharSnap* c, float dtHours, TickResult* out)
     {
         c->catalystHours -= dtHours;
         if (c->catalystHours < 0.f) c->catalystHours = 0.f;
+    }
+    if (c->restoreLock > 0.f)
+    {
+        c->restoreLock -= dtHours;
+        if (c->restoreLock < 0.f) c->restoreLock = 0.f;
     }
 
     if (c->race == RACE_SKELETON || c->race == RACE_ANIMAL)
@@ -239,11 +252,12 @@ void LvTick(CharSnap* c, float dtHours, TickResult* out)
         }
     }
 
-    if (c->progress[target] >= 100.f)
+    if (c->progress[target] >= 100.f && c->restoreLock <= 0.f)
     {
+        // Mark whole for the simulator. The game hook keeps 100% until
+        // setLimb actually sticks; Bind will not treat that as a new cut.
         c->limbs[target] = LIMB_KIND_WHOLE;
-        c->progress[target] = 0.f;
-        c->lastStage[target] = -1;
+        c->progress[target] = 100.f;
         if (out)
         {
             out->restored = target;
