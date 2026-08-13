@@ -30,10 +30,11 @@ left of the screen (same place as the portrait / Blood stack).
   2. Line 2 (if a stump): left leg  budding  32%
   3. Line 3: time left + race rule (always visible)
 
-v1.8.5 uses the official KillButton UI recipe (Kenshi_WindowCX
-on layer Window). v1.8.4's cloned bars died the moment they
-were created. Open I and hover the LV part for the same numbers.
-C is a backup list.
+v1.8.6 creates that window on the title screen (the only
+MyGUI moment RE_Kenshi documents as safe) and only updates
+the numbers after you load in. v1.8.5 built it from the
+medical tick and the game died the moment the window existed.
+Open I and hover the LV part for the same numbers. C is a backup.
 
 Open I: the socket is LV Stump / Budding / Forming / Knitting /
 Grown. Hover that item for Hemolymph / stage / hours left.

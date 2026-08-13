@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.8.5 — HUD is a KillButton-style window on the left. No frame delegate.");
+        LvLog("LimbVigor: ready v1.8.6 — HUD is created on the title screen (UI thread), like KillButton.");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

@@ -15,7 +15,7 @@ This is not a feast-from-hunger hack. Medical tick, HUD, I-key tooltip, same num
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.8.5: HUD is a small **Limb Vigor** window on the left (same recipe as RE_Kenshi's KillButton example — `Kenshi_WindowCX` on layer `Window`, `setCaption` with a C string). v1.8.4 created bars then died on the MyGUI frame callback. No frame delegate, no `findWidgetT`, no ProgressBar. I-key + STATS still there.
+v1.8.6: HUD is created on the **title screen** (UI thread) — same path as RE_Kenshi's KillButton. v1.8.5 created the window from the medical tick (game thread) and died the moment it existed. Medical tick only writes a snapshot now. I-key + STATS still there.
 
 ## Get the DLL
 

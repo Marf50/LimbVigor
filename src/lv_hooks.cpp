@@ -256,7 +256,6 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                 g_hudSnap = *live;
                 g_hudHave = 1;
                 LvHudNote(live);
-                LvHudPaint(live);
             }
         }
         LvPersistSave(0);
@@ -291,7 +290,6 @@ static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
             g_hudSnap = *live;
             g_hudHave = 1;
             LvHudNote(live);
-            LvHudPaint(live);
             LvPaintHud(self, panel, live);
         }
     }
@@ -455,6 +453,8 @@ void LvInstallHooks()
     HookOne("LimbVigor: medicalUpdate", med, (void*)hook_medUpdate, (void**)&orig_medUpdate);
     HookOne("LimbVigor: getMedicalGUIData", gui, (void*)hook_medGui, (void**)&orig_medGui);
     HookOne("LimbVigor: applyDoctoring (splint)", doc, (void*)hook_doctor, (void**)&orig_doctor);
+
+    LvHudInstall();
 
     // NEVER GetRealAddress on InventoryItemBase::getTooltipData1.
     // It is virtual. The compiler emits a thunk in LimbVigor.dll, KenshiLib

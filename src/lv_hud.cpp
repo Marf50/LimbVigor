@@ -2,7 +2,6 @@
 #include "lv_config.h"
 #include "lv_sim.h"
 
-#include <cstdio>
 #include <cstring>
 
 #if defined(LIMBVIGOR_IDE)
@@ -10,180 +9,191 @@
 void LvHudPaint(const CharSnap* snap) { (void)snap; }
 void LvHudHide() {}
 void LvHudNote(const CharSnap* snap) { (void)snap; }
+void LvHudInstall() {}
 
 #else
 
 #include <Windows.h>
+#include <Debug.h>
+#include <core/Functions.h>
 #include <mygui/MyGUI.h>
 #include <mygui/MyGUI_Gui.h>
 #include <mygui/MyGUI_Window.h>
 #include <mygui/MyGUI_Button.h>
-#include <mygui/MyGUI_TextBox.h>
 
-// KillButton (official RE_Kenshi example) creates a Kenshi_WindowCX on
-// layer "Window" and calls setCaption("...") with a C string. That is the
-// only MyGUI pattern proven not to take the game down. v1.8.4 cloned
-// skins onto Middle from a frame-start delegate; the log died the instant
-// the widgets existed. No delegates, no findWidgetT, no GameStr, no
-// ProgressBar, no setUserString.
+// TitleScreen::_CONSTRUCTOR  (KenshiLib TitleScreen.h)
+// Same address KillButton hooks. UI thread, MyGUI is alive, skins loaded.
+static const int kRvaTitleCtor = 0x917740;
 
-static MyGUI::Window*  g_win   = nullptr;
-static MyGUI::Button*  g_line1 = nullptr;
-static MyGUI::Button*  g_line2 = nullptr;
-static MyGUI::Button*  g_line3 = nullptr;
-static int             g_failed = 0;
-static int             g_tries  = 0;
-static int             g_skip   = 0;
-static int             g_logged = 0;
+static CharSnap g_snap;
+static volatile int g_have = 0;
+static volatile int g_ingame = 0;
+static volatile int g_ready = 0;
 
-static int Alive(MyGUI::Widget* w)
+static MyGUI::Window* g_win = nullptr;
+static MyGUI::Button* g_l1 = nullptr;
+static MyGUI::Button* g_l2 = nullptr;
+static MyGUI::Button* g_l3 = nullptr;
+static int g_painted = 0;
+
+static void SetCap(MyGUI::Button* b, const char* s, int show)
 {
-    if (!w) return 0;
-    int ok = 0;
-    try { (void)w->getVisible(); ok = 1; }
-    catch (...) { ok = 0; }
-    return ok;
+    if (!b) return;
+    try { b->setVisible(show ? true : false); }
+    catch (...) {}
+    if (!show || !s) return;
+    try { b->setCaption(s); }
+    catch (...) {}
 }
 
-static void Clear()
+// Runs on the MyGUI / render thread. Widgets already exist.
+static void OnFrame(float)
 {
-    g_win = nullptr;
-    g_line1 = nullptr;
-    g_line2 = nullptr;
-    g_line3 = nullptr;
+    if (!g_win) return;
+    if (!g_have || !g_ingame || !LvCfg().enableHud)
+    {
+        try { g_win->setVisible(false); }
+        catch (...) {}
+        return;
+    }
+
+    char bar1[96], bar2[96], tip[220];
+    float f1 = 0.f, f2 = 0.f;
+    LvHudLines(&g_snap, bar1, (int)sizeof(bar1), &f1,
+               bar2, (int)sizeof(bar2), &f2,
+               tip, (int)sizeof(tip));
+
+    try { g_win->setVisible(true); }
+    catch (...) {}
+    SetCap(g_l1, bar1, 1);
+    SetCap(g_l2, bar2[0] ? bar2 : "", bar2[0] ? 1 : 0);
+    SetCap(g_l3, tip, tip[0] ? 1 : 0);
+
+    if (!g_painted)
+    {
+        g_painted = 1;
+        LvLogf("LimbVigor: HUD painted  %s", bar1);
+    }
 }
 
-static int BuildHud()
+static void* (*Title_orig)(void*) = nullptr;
+
+// Exact KillButton shape: create the window here, never from a game tick.
+static void* Title_hook(void* self)
 {
+    void* ts = Title_orig ? Title_orig(self) : self;
+    if (g_ready) return ts;
+    if (!LvCfg().enableHud) return ts;
+
     MyGUI::Gui* gui = nullptr;
     try { gui = MyGUI::Gui::getInstancePtr(); }
     catch (...) { gui = nullptr; }
-    if (!gui) return 0;
+    if (!gui)
+    {
+        LvErr("LimbVigor: no MyGUI at title screen");
+        return ts;
+    }
 
-    MyGUI::Window* win = nullptr;
     try
     {
-        win = gui->createWidgetReal<MyGUI::Window>(
+        g_win = gui->createWidgetReal<MyGUI::Window>(
             "Kenshi_WindowCX",
             0.012f, 0.30f, 0.20f, 0.16f,
             MyGUI::Align::Left | MyGUI::Align::Top,
             "Window",
             "LimbVigorWin");
     }
-    catch (...) { win = nullptr; }
-    if (!win) return 0;
+    catch (...) { g_win = nullptr; }
 
-    try { win->setCaption("Limb Vigor"); }
+    if (!g_win)
+    {
+        LvErr("LimbVigor: title window create failed");
+        return ts;
+    }
+
+    try { g_win->setCaption("Limb Vigor"); }
     catch (...) {}
 
     MyGUI::Widget* client = nullptr;
-    try { client = win->getClientWidget(); }
+    try { client = g_win->getClientWidget(); }
     catch (...) { client = nullptr; }
-    if (!client) client = win;
+    if (!client) client = g_win;
 
     try
     {
-        g_line1 = client->createWidgetReal<MyGUI::Button>(
+        g_l1 = client->createWidgetReal<MyGUI::Button>(
             "Kenshi_Button1", 0.04f, 0.08f, 0.92f, 0.26f,
-            MyGUI::Align::Top | MyGUI::Align::HStretch, "LimbVigorL1");
+            MyGUI::Align::HStretch | MyGUI::Align::Top, "LimbVigorL1");
+        if (g_l1) g_l1->setCaption("Limb Vigor");
     }
-    catch (...) { g_line1 = nullptr; }
+    catch (...) { g_l1 = nullptr; }
     try
     {
-        g_line2 = client->createWidgetReal<MyGUI::Button>(
+        g_l2 = client->createWidgetReal<MyGUI::Button>(
             "Kenshi_Button1", 0.04f, 0.38f, 0.92f, 0.26f,
-            MyGUI::Align::Top | MyGUI::Align::HStretch, "LimbVigorL2");
+            MyGUI::Align::HStretch | MyGUI::Align::Top, "LimbVigorL2");
     }
-    catch (...) { g_line2 = nullptr; }
+    catch (...) { g_l2 = nullptr; }
     try
     {
-        g_line3 = client->createWidgetReal<MyGUI::Button>(
+        g_l3 = client->createWidgetReal<MyGUI::Button>(
             "Kenshi_Button1", 0.04f, 0.68f, 0.92f, 0.26f,
-            MyGUI::Align::Top | MyGUI::Align::HStretch, "LimbVigorL3");
+            MyGUI::Align::HStretch | MyGUI::Align::Top, "LimbVigorL3");
     }
-    catch (...) { g_line3 = nullptr; }
+    catch (...) { g_l3 = nullptr; }
 
-    if (g_line1)
-    {
-        try { g_line1->setCaption("Limb Vigor"); }
-        catch (...) {}
-    }
-    g_win = win;
-    try { g_win->setVisible(true); }
+    try { g_win->setVisible(false); }
     catch (...) {}
-    LvLog("LimbVigor: HUD window up (KillButton skin, layer Window)");
-    return 1;
+
+    try
+    {
+        gui->eventFrameStart += MyGUI::newDelegate(OnFrame);
+    }
+    catch (...)
+    {
+        LvErr("LimbVigor: frame delegate failed — window stays hidden until I-key");
+    }
+
+    g_ready = 1;
+    LvLog("LimbVigor: HUD created at title screen (KillButton path)");
+    return ts;
 }
 
-static void SetLine(MyGUI::Button* b, const char* s, int show)
+void LvHudInstall()
 {
-    if (!b) return;
-    try { b->setVisible(show ? true : false); }
-    catch (...) {}
-    if (!show || !s || !s[0]) return;
-    try { b->setCaption(s); }
-    catch (...) {}
+    void* base = nullptr;
+    HMODULE exe = GetModuleHandleA(nullptr);
+    if (!exe) exe = GetModuleHandleA("kenshi_x64.exe");
+    if (!exe) exe = GetModuleHandleA("kenshi_GOG_x64.exe");
+    if (exe) base = (void*)exe;
+    if (!base)
+    {
+        LvErr("LimbVigor: no exe base — HUD skipped");
+        return;
+    }
+    void* addr = (void*)((unsigned char*)base + kRvaTitleCtor);
+    if (KenshiLib::SUCCESS != KenshiLib::AddHook(addr, (void*)Title_hook, (void**)&Title_orig))
+        LvErr("LimbVigor: TitleScreen hook failed");
+    else
+        LvLog("LimbVigor: TitleScreen HUD");
 }
 
 void LvHudHide()
 {
-    try { if (g_win) g_win->setVisible(false); }
-    catch (...) {}
+    g_ingame = 0;
 }
 
 void LvHudPaint(const CharSnap* snap)
 {
-    if (!LvCfg().enableHud || g_failed) return;
-    if (!snap || snap->race == RACE_ANIMAL)
-    {
-        LvHudHide();
-        return;
-    }
-
-    if (!Alive(g_win))
-    {
-        Clear();
-        if (++g_skip < 8) return;
-        g_skip = 0;
-        if (g_tries > 20)
-        {
-            if (!g_failed)
-            {
-                LvErr("LimbVigor: HUD window gave up — STATS (C) and I-key still work");
-                g_failed = 1;
-            }
-            return;
-        }
-        int ok = 0;
-        try { ok = BuildHud(); }
-        catch (...) { ok = 0; }
-        g_tries++;
-        if (!ok) return;
-        g_tries = 0;
-    }
-
-    char bar1[96], bar2[96], tip[220];
-    float f1 = 0.f, f2 = 0.f;
-    LvHudLines(snap, bar1, (int)sizeof(bar1), &f1, bar2, (int)sizeof(bar2), &f2, tip, (int)sizeof(tip));
-
-    try { g_win->setVisible(true); }
-    catch (...) {}
-    SetLine(g_line1, bar1, 1);
-    SetLine(g_line2, bar2[0] ? bar2 : "", bar2[0] ? 1 : 0);
-    SetLine(g_line3, tip, tip[0] ? 1 : 0);
-
-    if (!g_logged)
-    {
-        g_logged = 1;
-        LvLogf("LimbVigor: HUD painted  %s", bar1);
-        if (bar2[0]) LvLogf("LimbVigor: HUD painted  %s", bar2);
-    }
+    LvHudNote(snap);
 }
 
 void LvHudNote(const CharSnap* snap)
 {
     if (!snap) return;
-    LvHudPaint(snap);
+    g_snap = *snap;
+    g_have = 1;
+    g_ingame = 1;
 }
 
 #endif
