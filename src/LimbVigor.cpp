@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.8.4 — left HUD under Blood. I-key hover uses a documented RVA (no GetRealAddress on virtuals).");
+        LvLog("LimbVigor: ready v1.8.5 — HUD is a KillButton-style window on the left. No frame delegate.");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

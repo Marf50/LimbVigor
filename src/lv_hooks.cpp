@@ -256,6 +256,7 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                 g_hudSnap = *live;
                 g_hudHave = 1;
                 LvHudNote(live);
+                LvHudPaint(live);
             }
         }
         LvPersistSave(0);
