@@ -191,8 +191,6 @@ static void DriveTick(MedicalSystem* med, float frameTime)
         g_loggedInGame = 1;
         LvLog("LimbVigor: In-game");
     }
-    // Blood HUD bar — after In-game only. No Character. No TitleScreen.
-    LvHudEnsureAfterInGame();
     if (IsDead(med))
     {
         if (!g_oncePlayer) LogSkip("dead");

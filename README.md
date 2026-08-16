@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-Live numbers are on a **new left-stack bar under Blood** (after in-game) and the **I-key LV part**. C is skills — not the HUD. There is no title MyGUI and no ProgressBar skin.
+Live numbers are on the **I-key LV part**. There is no MyGUI HUD (title or in-game) — any widget create hard-kills Kenshi 1.0.65 + Dark UI. C is skills — not the HUD.
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.9.5: v1.9.4 reached the menu but never armed — `ou->gameResetting` stayed true after RE_Kenshi’s In-game, so DriveTick and the Blood HUD never ran. A stuck reset is ignored after a short run of medical pulses. Then the left Blood HUD bar is created and a −15 empty stump gets an LV part (Grown if progress was already 100%). Title MyGUI stays gone. C is not the HUD.
+v1.9.6: v1.9.5 armed (`In-game — ignoring stuck gameResetting`) then hard-killed on `Blood HUD created after in-game`. Any MyGUI widget create is fatal on 1.0.65 + Dark UI — title or after In-game. This build creates no MyGUI widgets. Visible path is I-key only. Stuck-reset arm, −15 stump slotting, skip logs, and 1.9.1 stabilize stay.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 
@@ -35,11 +35,11 @@ See [kenshi_mod/INSTALL.txt](kenshi_mod/INSTALL.txt).
 
 ## What is hooked
 
-Documented KenshiLib methods. No TitleScreen hook. No title MyGUI.
+Documented KenshiLib methods. No TitleScreen hook. No MyGUI widgets.
 
 | Hook | Why |
 | --- | --- |
-| `MedicalSystem::medicalUpdate` | Tick vigor and growth; create/update the left Blood HUD bar after in-game |
+| `MedicalSystem::medicalUpdate` | Tick vigor and growth; slot LV parts after in-game |
 | `MedicalSystem::getMedicalGUIData` | I-key snapshot only (C is not the HUD) |
 | `MedicalSystem::applyDoctoring` | Splint Kit / stimulant starts the catalyst |
 | `InventoryItemBase::getTooltipData1` | Live Hemolymph / stage / time on the I-key LV part |
@@ -58,7 +58,7 @@ src/lv_hooks.cpp      medical + I-key tooltip hooks
 src/lv_config.cpp     LimbVigor.cfg / config.ini
 src/lv_persist.cpp    LimbVigor.progress
 src/lv_parts.cpp      growth-stage LimbReplacement catalog + equip
-src/lv_hud.cpp        left Blood HUD bar after in-game (no title MyGUI)
+src/lv_hud.cpp        no-op (no MyGUI widgets)
 src/lv_sim_test.cpp   headless checks (also run in CI)
 ```
 

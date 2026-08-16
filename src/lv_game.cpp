@@ -106,7 +106,7 @@ void LvGameInit()
         g_setLineProg = (FnSetLineProg)prog;
     else if (base)
         g_setLineProg = (FnSetLineProg)((unsigned char*)base + kRvaSetLineProg);
-    LvLog(g_setLineProg ? "LimbVigor: game helpers ready" : "LimbVigor: no setLineProgress (unused — Blood HUD is MyGUI)");
+    LvLog(g_setLineProg ? "LimbVigor: game helpers ready" : "LimbVigor: no setLineProgress (unused — I-key only)");
 #endif
 }
 

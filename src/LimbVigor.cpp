@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.9.5 — arm despite stuck reset, Blood HUD after in-game");
+        LvLog("LimbVigor: ready v1.9.6 — I-key only, no MyGUI widgets, arm despite stuck reset");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

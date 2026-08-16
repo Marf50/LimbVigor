@@ -23,20 +23,19 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-After the world is in-game, a new bar sits on the left HUD
-under Blood: Hemolymph / Vigor / Battle-heat (fill + number).
+There is no title-screen box and no Blood HUD bar.
+Any MyGUI widget create crashes 1.0.65 + Dark UI.
 
-I-key is the backup — hover a Limb Vigor stump/bud/knit/grown
-item for the same numbers.
+After the world is in-game, open I and hover a Limb Vigor
+stump/bud/knit/grown item for Hemolymph / Vigor / stage.
 
-C is skills. Do not look there. There is no title-screen box
-and no ProgressBar skin.
+C is skills. Do not look there.
 
-v1.9.5: arm even if gameResetting stays stuck.
-Blood HUD bar after in-game, no title MyGUI.
-No Character until the world is in-game. LimbVigor.mod
-records have mesh/icon. A mesh-less hit is skipped — we
-never slot an Economy prosthetic as a fake LV part.
+v1.9.6: I-key only, no MyGUI widgets. Arms even if
+gameResetting stays stuck. No Character until in-game.
+LimbVigor.mod records have mesh/icon. A mesh-less hit
+is skipped — we never slot an Economy prosthetic as a
+fake LV part.
 
 Overwrite both LimbVigor.dll and LimbVigor.mod. Keep
 LimbVigor.progress.
