@@ -29,7 +29,7 @@ int       LvHasSplint(Character* me);
 void      LvSay(Character* me, const char* text);
 int       LvIsPlayerSquad(Character* me);
 int       LvIsSelectedCharacter(Character* me);
-int       LvPanelIsLeftMedical(DatapanelGUI* panel); // same pointer as getMedicalPanel / +0x188, or Blood on this DatapanelGUI*
+int       LvPanelIsLeftMedical(DatapanelGUI* panel); // hook DatapanelGUI* has Blood, or same pointer as gui→mainbar→getMedicalPanel
 int       LvPanelHasBlood(DatapanelGUI* panel);
 void      LvWalkSelPanel(DatapanelGUI* panel); // panel vs medicalPanel, Blood, getNumLines, every key
 void      LvClearHud(DatapanelGUI* panel); // removeLine Hemolymph/Vigor/Battle-heat on after-orig path

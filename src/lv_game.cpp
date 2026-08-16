@@ -76,7 +76,6 @@ static FnLineByNum    g_lineByNum   = nullptr;
 static FnRemoveLine   g_removeLine  = nullptr;
 static FnGetMedPanel  g_getMedPanel = nullptr;
 static FnSay          g_say         = nullptr;
-static void*          g_mainBar     = nullptr;
 static int            g_gameReady   = 0;
 static int            g_paintLogged = 0;
 static int            g_paintDead   = 0;
@@ -592,24 +591,20 @@ int LvIsSelectedCharacter(Character* me)
     return yes;
 }
 
-/* Official (KenshiLib_Examples_deps Globals.h): ForgottenGUI* gui.
- * ForgottenGUI::mainbar @ 0x10. Read after In-game only. No ctor hook. */
+/* Official path only: ForgottenGUI* gui → mainbar @ 0x10.
+ * No MainBarGUI ctor hook. No stash. Read after In-game only. */
 static void* lvMainBar()
 {
 #if !defined(LIMBVIGOR_IDE)
-    if (gui)
-    {
-        void* bar = nullptr;
-        LV_TRY { std::memcpy(&bar, (const char*)(const void*)gui + 0x10, sizeof(bar)); }
-        LV_EXCEPT { bar = nullptr; }
-        if (bar)
-        {
-            g_mainBar = bar;
-            return bar;
-        }
-    }
+    if (!gui)
+        return nullptr;
+    void* bar = nullptr;
+    LV_TRY { std::memcpy(&bar, (const char*)(const void*)gui + 0x10, sizeof(bar)); }
+    LV_EXCEPT { bar = nullptr; }
+    return bar;
+#else
+    return nullptr;
 #endif
-    return g_mainBar;
 }
 
 /* Official: MainBarGUI::getMedicalPanel() RVA 0x71FDA0 → MedicalDatapanel*.
