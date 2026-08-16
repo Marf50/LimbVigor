@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.9.1 — static HUD, I-key numbers. No Character until in-game. No Economy fallback.");
+        LvLog("LimbVigor: ready v1.9.2 — no title MyGUI, I-key only");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

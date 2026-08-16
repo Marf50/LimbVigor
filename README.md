@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-Live numbers are on the **I-key LV part**, not Blood HUD bars. The title-screen box is a static caption (`I-key the LV part`). No MyGUI events.
+Live numbers are on the **I-key LV part**, not Blood HUD bars and not a title-screen box. There is no title MyGUI.
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,9 +17,9 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.9.1 (stabilize): v1.9.0 reached the menu (static v1.8.8 window) but the playable loop was broken. HUD numbers were never written from the UI thread; I-key only rewrote after 45s of ticks; parts waited 90s and fell back to Economy (a fake prosthetic) when LimbVigor.mod missed or the 20 LimbReplacement records had no mesh/icon. DriveTick also touched Character on every medical tick during save load.
+v1.9.2: v1.9.1's static title window still hard-killed 1.0.65 + Dark UI ~2.5s after `HUD created at title screen`. Any TitleScreen widget create is fatal. This build creates no title MyGUI. HUD is I-key only.
 
-This build: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
+The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 
 ## Get the DLL
 
@@ -35,7 +35,7 @@ See [kenshi_mod/INSTALL.txt](kenshi_mod/INSTALL.txt).
 
 ## What is hooked
 
-Documented KenshiLib methods plus a small MyGUI overlay of Kenshi skins.
+Documented KenshiLib methods. No TitleScreen hook. No MyGUI widgets.
 
 | Hook | Why |
 | --- | --- |
@@ -43,7 +43,6 @@ Documented KenshiLib methods plus a small MyGUI overlay of Kenshi skins.
 | `MedicalSystem::getMedicalGUIData` | Snapshot for I-key; C is backup only |
 | `MedicalSystem::applyDoctoring` | Splint Kit / stimulant starts the catalyst |
 | `InventoryItemBase::getTooltipData1` | Live Hemolymph / stage / time on the I-key LV part |
-| TitleScreen constructor | One static window, no MyGUI events |
 
 Addresses come from `KenshiLib::GetRealAddress`. The RVAs printed in the official headers are a fallback only.
 
@@ -59,7 +58,7 @@ src/lv_hooks.cpp      medical + I-key tooltip hooks
 src/lv_config.cpp     LimbVigor.cfg / config.ini
 src/lv_persist.cpp    LimbVigor.progress
 src/lv_parts.cpp      growth-stage LimbReplacement catalog + equip
-src/lv_hud.cpp        static title box (no events)
+src/lv_hud.cpp        no-op (no title MyGUI)
 src/lv_sim_test.cpp   headless checks (also run in CI)
 ```
 

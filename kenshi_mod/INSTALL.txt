@@ -23,20 +23,20 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-A small **Limb Vigor** window sits on the left (static caption,
-no click or hover). It says "I-key the LV part".
+There is no title-screen Limb Vigor box and no Blood HUD bars.
 
-Live numbers are on the I-key slot, not Blood HUD bars.
-Open inventory and hover a Limb Vigor stump/bud/knit/grown
-item for Hemolymph / Vigor / stage / hours left.
+Live numbers are on the I-key slot. Open inventory and hover
+a Limb Vigor stump/bud/knit/grown item for Hemolymph / Vigor /
+stage / hours left.
 
 C still has a backup list (Hemolymph / Regrowth / Time / How)
 if you want the STATS window.
 
-v1.9.1: no Character until the world is in-game. I-key snap
-as soon as your squad exists. LimbVigor.mod records have
-mesh/icon. A mesh-less hit is skipped — we never slot an
-Economy prosthetic as a fake LV part.
+v1.9.2: no title MyGUI (v1.9.1's static window crashed Dark UI
+at the title screen). I-key only. No Character until the world
+is in-game. LimbVigor.mod records have mesh/icon. A mesh-less
+hit is skipped — we never slot an Economy prosthetic as a
+fake LV part.
 
 Overwrite both LimbVigor.dll and LimbVigor.mod. Keep
 LimbVigor.progress.

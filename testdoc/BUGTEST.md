@@ -2,15 +2,15 @@
 
 Throwaway save. Tick the box. Write the last I-key tooltip line and anything in `RE_Kenshi_log.txt`.
 
-**Where to look:** a small **Limb Vigor** box on the title screen / in-game (static caption, no click/hover events). It says `I-key the LV part`. Live numbers are **not** Blood HUD bars. Open **I** and hover an LV stump/bud/knit/grown part — that tooltip is the live resource / % / time. C is a backup list only.
+**Where to look:** there is **no** title-screen Limb Vigor box and **no** Blood HUD bars. Live numbers are on the **I-key** LV part. Open **I** and hover an LV stump/bud/knit/grown part — that tooltip is the live resource / % / time. C is a backup list only.
 
 Every ~15s the log prints `LimbVigor: Boop  Hemolymph 38/100  left leg 4% dormant stump`.
 
 Send the notes back and the plugin gets patched.
 
-- [ ] **Reaches the menu.** `ready v1.9.1` then `TitleScreen HUD` then `HUD created at title screen (static, no events)` then `Main menu loaded`. Must NOT die at ~12s with `Log manager destructor`.
+- [ ] **Reaches the menu.** `ready v1.9.2 — no title MyGUI, I-key only` then `no title MyGUI — I-key only` then `Main menu loaded`. Must NOT log `HUD created at title screen`. Must NOT die after title create / at ~12s with `Log manager destructor`.
 - [ ] **Loads the save.** `In-game` then `player squad seen — I-key snap live, ticks on, parts on`. No 45s / 90s wait. Must NOT touch Character during save load (no crash before `In-game`).
-- [ ] **I-key live numbers.** Open inventory as soon as you can move. Hover an LV stump/bud/knit part — tooltip shows Hemolymph / Vigor / stage / hours left. Do not score Blood HUD bars. The title box stays a static caption.
+- [ ] **I-key live numbers.** Open inventory as soon as you can move. Hover an LV stump/bud/knit part — tooltip shows Hemolymph / Vigor / stage / hours left. Do not score Blood HUD bars. Do not look for a title box.
 - [ ] **STATS panel.** C still lists Hemolymph / Regrowth / Time. Backup only. Not the pass/fail for this build.
 - [ ] **Heartbeat.** After ~15s in-game, RE_Kenshi_log.txt has a `LimbVigor: <name>  Hemolymph …` line. It must NOT spam `restored limb 0` every frame.
 - [ ] **New game.** Same — no crash at the first medical panel.
@@ -29,7 +29,7 @@ Send the notes back and the plugin gets patched.
 - [ ] **Grown is the limb.** At 100% the I-key slot should say `LV Grown …`, not −15 and not original flesh. We do not call `setLimb(ORIGINAL)`. Send the log either way. Boop's already-100% left leg should become Grown on load.
 - [ ] **Save / load.** Grow to ~40%, save, quit, load. Numbers persist (LimbVigor.progress).
 - [ ] **Squad.** Player + hired hive + hired shek, each selected I-key shows their own numbers.
-- [ ] **No title-screen crash.** Static box only. No MyGUI mouse delegates. No eventFrameStart.
+- [ ] **No title-screen crash.** No TitleScreen widget create. No MyGUI mouse delegates. No eventFrameStart. Dark UI must reach the menu.
 
 ## Notes
 

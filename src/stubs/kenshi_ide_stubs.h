@@ -124,5 +124,6 @@ public:
 };
 
 class Item {};
+class InventoryItemBase {};
 class DatapanelGUI {};
 class CharacterAnimal {};

@@ -470,7 +470,7 @@ void LvInstallHooks()
     }
     else
     {
-        LvLog("LimbVigor: no exe base — I-key tooltip skipped, HUD still runs");
+        LvLog("LimbVigor: no exe base — I-key tooltip skipped");
     }
 #endif
 }
