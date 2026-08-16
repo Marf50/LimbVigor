@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-Live numbers are written into an **unused caption already on the Blood HUD** (RE_Kenshi walk, name after the first `_`). `setCaption` / `setSize` only — never a sibling create (v1.8.1 found Blood, created children, died). Spoken lines use `_NV_say`. I-key on the LV part is the backup. C is skills — not the HUD. Door or building selected: hide the unused caption. If the walk finds no unused widget, `gui/LimbVigor.layout` is shipped for the game loader (`Kenshi_FloatingPanelSkin` / `Kenshi_TextboxStandardText`); C++ still only findWidget + setCaption. Does not replace Dark UI MainPanel.
+Live numbers are written onto the **selection info panel** (`setLineProgress` Hemolymph / Vigor / Battle-heat on Blood’s category). Spoken lines use `_NV_say`. I-key on the LV part is the backup. C is skills — not the HUD. Door or anything non-character: the Hemolymph line is hidden. If a line cannot be added without overwriting Blood / Head / limbs / Hunger, log `LimbVigor: none exists` and ship `_NV_say` only. No layout file. No widget create.
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.9.7: walk/log the selection info panel (Blood when a character is selected, door condition when a door is selected): `panel` vs `medicalPanel`, `lineExists("Blood")`, `getNumLines`, every line key. `setLineProgress` writes Hemolymph / Vigor / Battle-heat on that panel only while a character is selected, same category as Blood. Does not overwrite Blood, Head, limbs, or Hunger. Door / building: `removeLine` those keys. If a line cannot be added without overwriting, log `LimbVigor: none exists` — `_NV_say` still ships. No widget create.
+v1.9.7: walk is the selection panel (`panel` vs `medicalPanel`, `lineExists("Blood")`, `getNumLines`, every key). `setLineProgress` on that panel only while a character is selected. Hide Hemolymph when a door or anything non-character is selected. If none exists: `_NV_say` only and log `LimbVigor: none exists`. No layout file. No createWidget.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 
@@ -63,8 +63,7 @@ src/lv_hooks.cpp      medical + I-key tooltip hooks
 src/lv_config.cpp     LimbVigor.cfg / config.ini
 src/lv_persist.cpp    LimbVigor.progress
 src/lv_parts.cpp      growth-stage LimbReplacement catalog + equip
-src/lv_hud.cpp        Blood walk + unused caption (no widget create)
-kenshi_mod/gui/       LimbVigor.layout (game loader fallback)
+src/lv_hud.cpp        I-key snapshot only (no MyGUI walk, no layout)
 src/lv_sim_test.cpp   headless checks (also run in CI)
 ```
 

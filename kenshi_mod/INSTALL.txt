@@ -31,22 +31,16 @@ character.
 I-key on a stump/bud/knit/grown item is the backup.
 C is skills. Door / building: no medical row.
 
-This build does not create widgets. Sibling create
-is banned. If no unused caption exists, gui/LimbVigor.layout
-is shipped for the game loader — C++ only finds it
-and setCaption. Does not replace Dark UI MainPanel.
+This build does not create widgets. No layout file.
 
 v1.9.7: setLineProgress on medicalPanel + _NV_say, no
-createWidget. Walk/log the selection info panel (Blood
-when a character is selected, door condition when a
-door is selected): panel vs medicalPanel,
-lineExists("Blood"), getNumLines, every line key.
-Writes Hemolymph / Vigor / Battle-heat on Blood's
-category only while a character is selected. Does not
-overwrite Blood, Head, limbs, or Hunger. Door /
-building: removeLine those keys. If a line cannot be
-added without overwriting, log "LimbVigor: none exists"
-— _NV_say still ships. Arms even if gameResetting
+createWidget. Walk is the selection panel: panel vs
+medicalPanel, lineExists("Blood"), getNumLines, every
+line key. Writes Hemolymph / Vigor / Battle-heat on
+Blood's category only while a character is selected.
+Hide Hemolymph when a door or anything non-character
+is selected. If none exists: _NV_say only and log
+"LimbVigor: none exists". Arms even if gameResetting
 stays stuck. No Character until in-game. LimbVigor.mod
 records have mesh/icon. A mesh-less hit is skipped —
 we never slot an Economy prosthetic as a fake LV part.

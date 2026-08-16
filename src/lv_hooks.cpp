@@ -425,18 +425,12 @@ static void* hook_mainBar(void* self)
 {
     void* r = orig_mainBar ? orig_mainBar(self) : self;
     LvNoteMainBar(self);
-    /* UI thread (RE_Kenshi In-game). Find/paint only — never create. */
-    LvHudEnsureAfterInGame();
     return r ? r : self;
 }
 
 static void hook_font()
 {
     if (orig_font) orig_font();
-    /* ForgottenGUI::changeFontSize — same UI-thread moment RE_Kenshi
-     * uses for the settings button. Find/paint only. Never create. */
-    if (LvWorldInGame())
-        LvHudEnsureAfterInGame();
 }
 
 static void hook_dpUpdate(DatapanelGUI* self)
