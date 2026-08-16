@@ -779,7 +779,6 @@ void LvWalkSelPanel(DatapanelGUI* panel)
     }
 
     void* med = lvMedicalPanel();
-    const int bloodCat = lvBloodCat(panel);
     const int match = (med && (void*)panel == med) ? 1 : 0;
     LvLogf("LimbVigor: panel=%p medicalPanel=%p match=%d lineExists(Blood)=%d",
            (void*)panel, med, match, hasBlood);
