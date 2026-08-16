@@ -395,8 +395,7 @@ int main()
         Expect(LvEligible(&c, why, 96) == 0, "starving hive is blocked");
         char eta[96];
         LvEtaText(&c, eta, 96);
-        Expect(std::strstr(eta, "starve") != nullptr || std::strstr(eta, "Starving") != nullptr
-            || std::strstr(eta, "nothing left") != nullptr || std::strstr(eta, "Nothing left") != nullptr,
+        Expect(std::strcmp(eta, "Starving. Nothing left to grow with.") == 0,
             "starving ETA mentions starve / nothing left");
         const float before = c.progress[LIMB_RIGHT_LEG];
         TickResult r;
@@ -410,7 +409,7 @@ int main()
         c.race = RACE_ANIMAL;
         char why[96];
         Expect(LvEligible(&c, why, 96) == 0, "animal is never eligible");
-        Expect(std::strstr(why, "cannot") != nullptr, "animal explains itself");
+        Expect(std::strcmp(why, "This body cannot regrow a limb.") == 0, "animal explains itself");
         TickResult r;
         LvTick(&c, 1.f, &r);
         Expect(c.progress[LIMB_RIGHT_LEG] == 0.f, "animal does not grow");
@@ -422,7 +421,8 @@ int main()
         c.limbs[LIMB_RIGHT_LEG] = LIMB_KIND_PROSTHETIC;
         char why[96];
         Expect(LvEligible(&c, why, 96) == 0, "no stump is not eligible");
-        Expect(std::strstr(why, "prosthetic") != nullptr, "no stump says remove a prosthetic first");
+        Expect(std::strcmp(why, "No stump to grow from. Remove a prosthetic first.") == 0,
+            "no stump says remove a prosthetic first");
         Expect(LvFirstStump(&c) == -1, "prosthetic is not a stump");
     }
 
@@ -469,7 +469,7 @@ int main()
         LvTick(&c, dt, &r);
         Expect(c.progress[LIMB_RIGHT_LEG] == before, "too-low vigor keeps progress");
         Expect(r.restored == -1, "too-low vigor does not restore");
-        Expect(std::strstr(r.speech, "spent") != nullptr, "speech about spent");
+        Expect(std::strcmp(r.speech, "Hemolymph is spent.") == 0, "speech about spent");
     }
 
     if (g_fail)
