@@ -37,6 +37,7 @@ static void (*orig_medUpdate)(MedicalSystem*, float) = nullptr;
 static void (*orig_medGui)(MedicalSystem*, DatapanelGUI*) = nullptr;
 static void (*orig_charGui)(Character*, DatapanelGUI*, int) = nullptr;
 static void* (*orig_mainBar)(void*) = nullptr;
+static void (*orig_font)() = nullptr;
 static bool (*orig_doctor)(MedicalSystem*, float, Item*, float, Character*) = nullptr;
 static void (*orig_tip1)(InventoryItemBase*, void*) = nullptr;
 
@@ -352,20 +353,21 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
         LvHudNote(live);
     }
 
-    /* Door / building: no character — do not add. _NV_say still ships from DriveTick. */
+    /* Door / building: hide the unused caption. _NV_say still ships from DriveTick. */
     if (!who)
+    {
+        LvHudHide();
         return;
-    if (!LvPanelIsLeftMedical(panel))
-        return;
+    }
     if (live)
-        LvPaintHud(med, panel, live);
+        LvHudPaint(live);
 }
 
 static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
 {
     if (orig_medGui) orig_medGui(self, panel);
     if (!self || !panel) return;
-    /* After orig: Blood is already on the panel. setLineProgress ADDS Hemolymph. */
+    /* After orig: Blood HUD exists. Walk + unused caption — do not create. */
     Character* who = LvCharFromMed(self);
     LV_TRY { AfterGuiRebuild(self, panel, who); }
     LV_EXCEPT
@@ -395,7 +397,18 @@ static void* hook_mainBar(void* self)
 {
     void* r = orig_mainBar ? orig_mainBar(self) : self;
     LvNoteMainBar(self);
+    /* UI thread (RE_Kenshi In-game). Find/paint only — never create. */
+    LvHudEnsureAfterInGame();
     return r ? r : self;
+}
+
+static void hook_font()
+{
+    if (orig_font) orig_font();
+    /* ForgottenGUI::changeFontSize — same UI-thread moment RE_Kenshi
+     * uses for the settings button. Find/paint only. Never create. */
+    if (LvWorldInGame())
+        LvHudEnsureAfterInGame();
 }
 
 static bool hook_doctor(MedicalSystem* self, float skill, Item* equipment, float dt, Character* who)
@@ -556,11 +569,13 @@ void LvInstallHooks()
     HookOne("LimbVigor: _NV_getGUIData", cgui, (void*)hook_charGui, (void**)&orig_charGui);
     HookOne("LimbVigor: applyDoctoring (splint)", doc, (void*)hook_doctor, (void**)&orig_doctor);
 
-    /* MainBarGUI::_CONSTRUCTOR — stash medicalPanel. RVA only (no MainBarGUI.h). */
+    /* MainBarGUI::_CONSTRUCTOR — stash medicalPanel + UI-thread find/paint. */
     if (base)
     {
         intptr_t bar = (intptr_t)((unsigned char*)base + 0x72C1E0);
-        HookOne("LimbVigor: MainBarGUI ctor (medicalPanel)", bar, (void*)hook_mainBar, (void**)&orig_mainBar);
+        HookOne("LimbVigor: MainBarGUI ctor (find/paint)", bar, (void*)hook_mainBar, (void**)&orig_mainBar);
+        intptr_t font = (intptr_t)((unsigned char*)base + 0x3E7C80);
+        HookOne("LimbVigor: ForgottenGUI::changeFontSize (find/paint)", font, (void*)hook_font, (void**)&orig_font);
     }
 
     LvHudInstall();

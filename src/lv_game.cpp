@@ -3,6 +3,7 @@
 #include "lv_sim.h"
 #include "lv_parts.h"
 #include "lv_msvcstr.h"
+#include "lv_hud.h"
 
 #if defined(LIMBVIGOR_IDE)
 #include "stubs/kenshi_ide_stubs.h"
@@ -75,8 +76,6 @@ static FnSay          g_say         = nullptr;
 static void*          g_mainBar     = nullptr;
 static int            g_gameReady   = 0;
 static int            g_panelLogged = 0;
-static int            g_paintLogged = 0;
-static int            g_paintDead   = 0;
 
 static void* ExeBase()
 {
@@ -687,46 +686,8 @@ void LvLogMedicalPanelOnce(DatapanelGUI* panel)
 void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
 {
     (void)med;
-    if (!panel || !snap || !LvCfg().enableHud || !g_setLineProg || g_paintDead)
-        return;
-    if (!LvPanelIsLeftMedical(panel))
-        return;
-    if (snap->race == RACE_ANIMAL)
-        return;
-
-    /* Blood's category — setLineProgress ADDS the row. Do not hunt a slot. */
-    int cat = lvBloodCat(panel);
-    if (cat < 0)
-        return;
-
-    const char* res = LvResourceName(snap->race);
-    if (!res || !res[0])
-        res = "Vigor";
-
-    const float maxv = LvCfg().maxVigor > 0.f ? LvCfg().maxVigor : 100.f;
-    float fill = snap->vigor / maxv;
-    if (fill < 0.f) fill = 0.f;
-    if (fill > 1.f) fill = 1.f;
-
-    char cap[32];
-    std::snprintf(cap, sizeof(cap), "%d / %d", (int)snap->vigor, (int)maxv);
-
-    GameStr key, text;
-    GameStrSet(&key, res);
-    GameStrSet(&text, cap);
-
-    int excepted = 0;
-    LV_TRY { g_setLineProg(panel, &key, cat, fill, &text, true); }
-    LV_EXCEPT { excepted = 1; }
-    if (excepted)
-    {
-        g_paintDead = 1;
-        LvErr("LimbVigor: setLineProgress SEH — medical row stopped");
-        return;
-    }
-    if (!g_paintLogged)
-    {
-        g_paintLogged = 1;
-        LvLogf("LimbVigor: setLineProgress %s cat=%d %s", res, cat, cap);
-    }
+    (void)panel;
+    /* Walk + unused caption lives in lv_hud. Do not add a line here. */
+    if (snap)
+        LvHudPaint(snap);
 }

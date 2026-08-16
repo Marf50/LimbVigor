@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MyGUI type="Layout">
+    <!-- Own file. Do not replace Dark UI MainPanel.
+         Game loader builds this. C++ only findWidget + setCaption. -->
+    <Widget type="Widget" skin="Kenshi_FloatingPanelSkin" position="8 210 200 36" name="LimbVigorPanel" layer="Overlapped" align="Left Top">
+        <Widget type="TextBox" skin="Kenshi_TextboxStandardText" position="4 4 192 28" name="LimbVigorText" align="Stretch">
+            <Property key="Caption" value=""/>
+            <Property key="TextAlign" value="Left VCenter"/>
+        </Widget>
+    </Widget>
+</MyGUI>

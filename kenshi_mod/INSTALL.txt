@@ -23,18 +23,21 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-Select a character. The left medical list (Blood, Head,
-limbs, Hunger) gets a Hemolymph / Vigor / Battle-heat
-row — same setLineProgress call Blood uses. Spoken
-lines appear over the character.
+Select a character. The live Blood HUD gets Hemolymph
+/ Vigor / Battle-heat on an unused caption already
+there (not Blood's own fill). Spoken lines appear
+over the character.
 
 I-key on a stump/bud/knit/grown item is the backup.
-C is skills. Do not look there. Door / building: no row.
+C is skills. Door / building: the unused caption
+clears.
 
-Any MyGUI widget create crashes 1.0.65 + Dark UI.
-This build does not create widgets.
+This build does not create widgets. Sibling create
+is banned. If no unused caption exists, gui/LimbVigor.layout
+is shipped for the game loader — C++ only finds it
+and setCaption. Does not replace Dark UI MainPanel.
 
-v1.9.7: medicalPanel setLineProgress + _NV_say.
+v1.9.8: Blood walk + unused caption + _NV_say.
 Arms even if gameResetting stays stuck. No Character
 until in-game. LimbVigor.mod records have mesh/icon.
 A mesh-less hit is skipped — we never slot an Economy
