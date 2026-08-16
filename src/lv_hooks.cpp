@@ -36,12 +36,8 @@
 static void (*orig_medUpdate)(MedicalSystem*, float) = nullptr;
 static void (*orig_medGui)(MedicalSystem*, DatapanelGUI*) = nullptr;
 static void (*orig_charGui)(Character*, DatapanelGUI*, int) = nullptr;
-static void* (*orig_mainBar)(void*) = nullptr;
-static void (*orig_font)() = nullptr;
 static bool (*orig_doctor)(MedicalSystem*, float, Item*, float, Character*) = nullptr;
 static void (*orig_tip1)(InventoryItemBase*, void*) = nullptr;
-static void (*orig_dpUpdate)(DatapanelGUI*) = nullptr;
-static void (*orig_dpSetObj)(DatapanelGUI*, const void*) = nullptr;
 
 static CharSnap g_hudSnap;
 static int      g_hudHave = 0;
@@ -336,23 +332,14 @@ static void hook_medUpdate(MedicalSystem* self, float frameTime)
     DriveTick(self, frameTime);
 }
 
-static int IsSelInfoPanel(DatapanelGUI* panel)
-{
-    if (!panel)
-        return 0;
-    if (LvSelPanel() && panel == LvSelPanel())
-        return 1;
-    return LvPanelIsLeftMedical(panel);
-}
-
 static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* who)
 {
     if (!panel)
         return;
+    /* Load / title: do not touch DatapanelGUI. v1.9.7 ctor/font/update hooks died here. */
     if (!LvWorldInGame())
         return;
 
-    LvNoteSelPanel(panel);
     LvWalkSelPanel(panel);
 
     CharSnap* live = nullptr;
@@ -365,25 +352,20 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
         LvHudNote(live);
     }
 
-    /* Door / building: clear Hemolymph. _NV_say still ships from DriveTick. */
+    /* Door / non-character: do not add. Clear on this after-orig path only. */
     if (!who || !LvIsSelectedCharacter(who))
     {
-        if (IsSelInfoPanel(panel))
-            LvClearHud(panel);
+        LvClearHud(panel);
         return;
     }
     if (!LvPanelHasBlood(panel))
     {
-        /* C / skills or empty — do not overwrite Blood/Head/limbs/Hunger. */
-        if (LvPanelIsLeftMedical(panel))
+        LvClearHud(panel);
+        static int noneOnce = 0;
+        if (!noneOnce)
         {
-            LvClearHud(panel);
-            static int noneOnce = 0;
-            if (!noneOnce)
-            {
-                noneOnce = 1;
-                LvLog("LimbVigor: none exists");
-            }
+            noneOnce = 1;
+            LvLog("LimbVigor: none exists");
         }
         return;
     }
@@ -409,58 +391,12 @@ static void hook_charGui(Character* self, DatapanelGUI* panel, int cat)
 {
     if (orig_charGui) orig_charGui(self, panel, cat);
     if (!self || !panel) return;
-    /* Only the selected character — do not paint another pawn onto Blood. */
-    if (!LvIsSelectedCharacter(self))
-        return;
     MedicalSystem* med = LvMedFromChar(self);
     LV_TRY { AfterGuiRebuild(med, panel, self); }
     LV_EXCEPT
     {
         static int once = 0;
         if (!once) { LvErr("LimbVigor: _NV_getGUIData SEH"); once = 1; }
-    }
-}
-
-static void* hook_mainBar(void* self)
-{
-    void* r = orig_mainBar ? orig_mainBar(self) : self;
-    LvNoteMainBar(self);
-    return r ? r : self;
-}
-
-static void hook_font()
-{
-    if (orig_font) orig_font();
-}
-
-static void hook_dpUpdate(DatapanelGUI* self)
-{
-    if (orig_dpUpdate) orig_dpUpdate(self);
-    if (!self || !LvWorldInGame())
-        return;
-    if (!IsSelInfoPanel(self))
-        return;
-    /* Door / building: Blood is gone — walk keys once, clear Hemolymph. */
-    if (!LvPanelHasBlood(self))
-    {
-        LvWalkSelPanel(self);
-        LvClearHud(self);
-    }
-}
-
-static void hook_dpSetObj(DatapanelGUI* self, const void* h)
-{
-    if (orig_dpSetObj) orig_dpSetObj(self, h);
-    if (!self || !LvWorldInGame())
-        return;
-    if (!IsSelInfoPanel(self) && !LvPanelIsLeftMedical(self))
-        return;
-    LvNoteSelPanel(self);
-    Character* who = LvCharFromHand(h);
-    if (!who || !LvIsSelectedCharacter(who))
-    {
-        LvWalkSelPanel(self);
-        LvClearHud(self);
     }
 }
 
@@ -621,23 +557,6 @@ void LvInstallHooks()
     HookOne("LimbVigor: getMedicalGUIData", gui, (void*)hook_medGui, (void**)&orig_medGui);
     HookOne("LimbVigor: _NV_getGUIData", cgui, (void*)hook_charGui, (void**)&orig_charGui);
     HookOne("LimbVigor: applyDoctoring (splint)", doc, (void*)hook_doctor, (void**)&orig_doctor);
-
-    /* DatapanelGUI virtuals: GetRealAddress on _NV_ only. */
-    intptr_t dpUp = KenshiLib::GetRealAddress(&DatapanelGUI::_NV_update);
-    intptr_t dpObj = KenshiLib::GetRealAddress(&DatapanelGUI::_NV_setObject);
-    if (!dpUp && base) dpUp = (intptr_t)((unsigned char*)base + 0x6F9510);
-    if (!dpObj && base) dpObj = (intptr_t)((unsigned char*)base + 0x6F9580);
-    HookOne("LimbVigor: _NV_update (sel panel walk/clear)", dpUp, (void*)hook_dpUpdate, (void**)&orig_dpUpdate);
-    HookOne("LimbVigor: _NV_setObject (clear if not a person)", dpObj, (void*)hook_dpSetObj, (void**)&orig_dpSetObj);
-
-    /* MainBarGUI::_CONSTRUCTOR — stash medicalPanel + UI-thread find/paint. */
-    if (base)
-    {
-        intptr_t bar = (intptr_t)((unsigned char*)base + 0x72C1E0);
-        HookOne("LimbVigor: MainBarGUI ctor (find/paint)", bar, (void*)hook_mainBar, (void**)&orig_mainBar);
-        intptr_t font = (intptr_t)((unsigned char*)base + 0x3E7C80);
-        HookOne("LimbVigor: ForgottenGUI::changeFontSize (find/paint)", font, (void*)hook_font, (void**)&orig_font);
-    }
 
     LvHudInstall();
 

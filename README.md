@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.9.7: walk is the selection panel (`panel` vs `medicalPanel`, `lineExists("Blood")`, `getNumLines`, every key). `setLineProgress` on that panel only while a character is selected. Hide Hemolymph when a door or anything non-character is selected. If none exists: `_NV_say` only and log `LimbVigor: none exists`. No layout file. No createWidget.
+v1.9.8: no load-time GUI hooks (v1.9.7 died in MainBarGUI ctor / `LifeBar10` while loading `Kenshi_MainPanel.layout`). After orig `getMedicalGUIData` / `_NV_getGUIData` only: In-game + character selected + Blood → `setLineProgress`. Door / non-character: do not add; `removeLine` on that same path. `_NV_say` if none exists. No ctor, no font, no `_NV_update` / `_NV_setObject`.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 
@@ -40,14 +40,10 @@ Documented KenshiLib methods. No TitleScreen hook. No widget create.
 | Hook | Why |
 | --- | --- |
 | `MedicalSystem::medicalUpdate` | Tick vigor and growth; slot LV parts after in-game (snapshot only, no MyGUI) |
-| `MedicalSystem::getMedicalGUIData` | After orig: walk/log selection panel; `setLineProgress` Hemolymph/Vigor/Battle-heat on Blood’s category if a character is selected. Never overwrite Blood/Head/limbs/Hunger |
-| `Character::_NV_getGUIData` | Same after orig. `GetRealAddress` on `_NV_getGUIData` only — never virtual `getGUIData` (RVA `0x5D3AE0`) |
-| `DatapanelGUI::_NV_update` | Selection panel: if no Blood (door/building), walk keys and `removeLine` Hemolymph. `_NV_` only |
-| `DatapanelGUI::_NV_setObject` | If `hand::getCharacter` is null, clear Hemolymph. `_NV_` only |
-| `MainBarGUI::_CONSTRUCTOR` | Stash MainBarGUI instance (RVA `0x72C1E0`) |
-| `ForgottenGUI::changeFontSize` | UI-thread leftover (RVA `0x3E7C80`) — no create |
+| `MedicalSystem::getMedicalGUIData` | After orig, In-game only: `setLineProgress` if character selected and panel has Blood |
+| `Character::_NV_getGUIData` | Same after orig. `GetRealAddress` on `_NV_getGUIData` only — never virtual `getGUIData` |
 | `MedicalSystem::applyDoctoring` | Splint Kit / stimulant starts the catalyst |
-| `InventoryItemBase::getTooltipData1` | Live Hemolymph / stage / time on the I-key LV part |
+| `InventoryItemBase::getTooltipData1` | I-key tooltip RVA `0x7A8E30` (never `GetRealAddress` on the virtual) |
 
 Addresses come from `KenshiLib::GetRealAddress`. The RVAs printed in the official headers are a fallback only.
 

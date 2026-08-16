@@ -28,7 +28,6 @@
 #include <kenshi/Enums.h>
 #include <kenshi/Item.h>
 #include <kenshi/gui/DatapanelGUI.h>
-#include <kenshi/util/hand.h>
 #include <kenshi/Globals.h>
 #include <kenshi/GameWorld.h>
 #endif
@@ -54,7 +53,6 @@ static const intptr_t kRvaRemoveLine  = 0x6FC1F0; // DatapanelGUI::removeLine
 static const intptr_t kRvaGetMedPanel = 0x71FDA0; // MainBarGUI::getMedicalPanel
 static const intptr_t kRvaSayLimit    = 0x5CA790; // Character::_NV_say_WithARepeatLimiter
 static const intptr_t kRvaSay         = 0x5C91D0; // Character::_NV_say
-static const intptr_t kRvaHandChar    = 0x796E30; // hand::getCharacter — not virtual
 
 static const RobotLimbs::Limb kGameLimb[LIMB_COUNT] = {
     RobotLimbs::RIGHT_LEG,
@@ -70,7 +68,6 @@ typedef void* (*FnLineByNum)(DatapanelGUI*, int, int);
 typedef void  (*FnRemoveLine)(DatapanelGUI*, const GameStr*, int);
 typedef void* (*FnGetMedPanel)(void*);
 typedef void  (*FnSay)(Character*, const GameStr*);
-typedef Character* (*FnHandChar)(const void*);
 
 static FnSetLineProg  g_setLineProg = nullptr;
 static FnLineExists   g_lineExists  = nullptr;
@@ -79,9 +76,7 @@ static FnLineByNum    g_lineByNum   = nullptr;
 static FnRemoveLine   g_removeLine  = nullptr;
 static FnGetMedPanel  g_getMedPanel = nullptr;
 static FnSay          g_say         = nullptr;
-static FnHandChar     g_handChar    = nullptr;
 static void*          g_mainBar     = nullptr;
-static DatapanelGUI*  g_selPanel    = nullptr;
 static int            g_gameReady   = 0;
 static int            g_paintLogged = 0;
 static int            g_paintDead   = 0;
@@ -161,16 +156,9 @@ void LvGameInit()
     else if (base)
         g_removeLine = (FnRemoveLine)((unsigned char*)base + kRvaRemoveLine);
 
-    /* MainBarGUI::getMedicalPanel — RVA only, do not include MainBarGUI.h. */
+    /* MainBarGUI::getMedicalPanel — RVA only. No ctor hook (v1.9.7 load crash). */
     if (base)
         g_getMedPanel = (FnGetMedPanel)((unsigned char*)base + kRvaGetMedPanel);
-
-    /* hand::getCharacter — not virtual. */
-    intptr_t hc = KenshiLib::GetRealAddress(&hand::getCharacter);
-    if (hc)
-        g_handChar = (FnHandChar)hc;
-    else if (base)
-        g_handChar = (FnHandChar)((unsigned char*)base + kRvaHandChar);
 
     /* _NV_say only — never GetRealAddress on virtual Character::say. */
     intptr_t say = KenshiLib::GetRealAddress(&Character::_NV_say_WithARepeatLimiter);
@@ -594,12 +582,6 @@ void LvSay(Character* me, const char* text)
     }
 }
 
-void LvNoteMainBar(void* mainbar)
-{
-    if (mainbar)
-        g_mainBar = mainbar;
-}
-
 int LvIsSelectedCharacter(Character* me)
 {
     if (!me)
@@ -611,7 +593,7 @@ int LvIsSelectedCharacter(Character* me)
 }
 
 /* Official (KenshiLib_Examples_deps Globals.h): ForgottenGUI* gui.
- * ForgottenGUI::mainbar @ 0x10. Fallback: MainBarGUI::_CONSTRUCTOR stash. */
+ * ForgottenGUI::mainbar @ 0x10. Read after In-game only. No ctor hook. */
 static void* lvMainBar()
 {
 #if !defined(LIMBVIGOR_IDE)
@@ -728,33 +710,9 @@ int LvPanelIsLeftMedical(DatapanelGUI* panel)
     return 0;
 }
 
-void LvNoteSelPanel(DatapanelGUI* panel)
-{
-    if (!panel)
-        return;
-    void* med = lvMedicalPanel();
-    if ((med && (void*)panel == med) || lvBloodCat(panel) >= 0)
-        g_selPanel = panel;
-}
-
-DatapanelGUI* LvSelPanel()
-{
-    return g_selPanel;
-}
-
 int LvPanelHasBlood(DatapanelGUI* panel)
 {
     return lvBloodCat(panel) >= 0 ? 1 : 0;
-}
-
-Character* LvCharFromHand(const void* h)
-{
-    if (!h || !g_handChar)
-        return nullptr;
-    Character* me = nullptr;
-    LV_TRY { me = g_handChar(h); }
-    LV_EXCEPT { me = nullptr; }
-    return me;
 }
 
 void LvWalkSelPanel(DatapanelGUI* panel)
@@ -807,11 +765,6 @@ void LvWalkSelPanel(DatapanelGUI* panel)
             }
         }
     }
-}
-
-void LvLogMedicalPanelOnce(DatapanelGUI* panel)
-{
-    LvWalkSelPanel(panel);
 }
 
 void LvClearHud(DatapanelGUI* panel)

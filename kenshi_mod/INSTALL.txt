@@ -33,17 +33,16 @@ C is skills. Door / building: no medical row.
 
 This build does not create widgets. No layout file.
 
-v1.9.7: setLineProgress on medicalPanel + _NV_say, no
-createWidget. Walk is the selection panel: panel vs
-medicalPanel, lineExists("Blood"), getNumLines, every
-line key. Writes Hemolymph / Vigor / Battle-heat on
-Blood's category only while a character is selected.
-Hide Hemolymph when a door or anything non-character
-is selected. If none exists: _NV_say only and log
-"LimbVigor: none exists". Arms even if gameResetting
-stays stuck. No Character until in-game. LimbVigor.mod
-records have mesh/icon. A mesh-less hit is skipped —
-we never slot an Economy prosthetic as a fake LV part.
+v1.9.8: medicalPanel setLineProgress + _NV_say, no
+load-time GUI hooks. v1.9.7 died in MainBarGUI ctor
+(LifeBar10 / Kenshi_MainPanel.layout). No ctor, no
+changeFontSize, no _NV_update, no _NV_setObject.
+After orig getMedicalGUIData / _NV_getGUIData only
+when In-game + character selected + Blood. Door /
+non-character: do not add; removeLine on that path.
+If none exists: _NV_say only. Arms even if
+gameResetting stays stuck. No Character until
+in-game. LimbVigor.mod records have mesh/icon.
 
 Overwrite both LimbVigor.dll and LimbVigor.mod. Keep
 LimbVigor.progress.

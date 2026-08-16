@@ -8,7 +8,7 @@
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: HUD is selection-panel setLineProgress — no layout, no createWidget");
+    LvLog("LimbVigor: HUD is after-orig setLineProgress — no load-time GUI hooks");
 }
 
 void LvHudEnsureAfterInGame() {}
