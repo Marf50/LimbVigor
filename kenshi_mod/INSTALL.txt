@@ -33,16 +33,16 @@ C is skills. Door / building: no medical row.
 
 This build does not create widgets. No layout file.
 
-v1.9.8: medicalPanel setLineProgress + _NV_say, no
-load-time GUI hooks. v1.9.7 died in MainBarGUI ctor
-(LifeBar10 / Kenshi_MainPanel.layout). No ctor, no
-changeFontSize, no _NV_update, no _NV_setObject.
-After orig getMedicalGUIData / _NV_getGUIData only
-when In-game + character selected + Blood. Door /
-non-character: do not add; removeLine on that path.
-If none exists: _NV_say only. Arms even if
-gameResetting stays stuck. No Character until
-in-game. LimbVigor.mod records have mesh/icon.
+v1.9.9: harden medicalPanel setLineProgress + -15
+slot, no load-time GUI hooks. In-game gate before
+any Character / DatapanelGUI write. After orig
+getMedicalGUIData / _NV_getGUIData only when
+In-game + character selected + Blood. -15 empty
+socket slots LV Stump, or LV Grown if persist
+>=99.5 (log: slotted … (-15 empty socket)). No
+ctor, no changeFontSize, no _NV_update, no
+_NV_setObject. If none exists: _NV_say only.
+Arms even if gameResetting stays stuck.
 
 Overwrite both LimbVigor.dll and LimbVigor.mod. Keep
 LimbVigor.progress.

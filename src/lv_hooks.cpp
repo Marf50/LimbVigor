@@ -377,7 +377,9 @@ static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
 {
     if (orig_medGui) orig_medGui(self, panel);
     if (!self || !panel) return;
-    /* After orig: only paint if this DatapanelGUI* is the left medical panel. */
+    /* Do not touch Character or write DatapanelGUI until In-game. */
+    if (!LvWorldInGame())
+        return;
     Character* who = LvCharFromMed(self);
     LV_TRY { AfterGuiRebuild(self, panel, who); }
     LV_EXCEPT
@@ -391,6 +393,8 @@ static void hook_charGui(Character* self, DatapanelGUI* panel, int cat)
 {
     if (orig_charGui) orig_charGui(self, panel, cat);
     if (!self || !panel) return;
+    if (!LvWorldInGame())
+        return;
     MedicalSystem* med = LvMedFromChar(self);
     LV_TRY { AfterGuiRebuild(med, panel, self); }
     LV_EXCEPT

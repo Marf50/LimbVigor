@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.9.8: no load-time GUI hooks (v1.9.7 died in MainBarGUI ctor / `LifeBar10` while loading `Kenshi_MainPanel.layout`). After orig `getMedicalGUIData` / `_NV_getGUIData` only: In-game + character selected + Blood → `setLineProgress`. Door / non-character: do not add; `removeLine` on that same path. `_NV_say` if none exists. No ctor, no font, no `_NV_update` / `_NV_setObject`.
+v1.9.9: harden medicalPanel `setLineProgress`. After orig `getMedicalGUIData` / `_NV_getGUIData` only. Do not touch Character or write DatapanelGUI until `LvWorldInGame()`. Paint only if In-game + character selected + Blood. −15 empty socket still slots LV Stump, or LV Grown if persist ≥99.5. No load-time GUI hooks. No ctor stash.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 
@@ -40,8 +40,8 @@ Documented KenshiLib methods. No TitleScreen hook. No widget create.
 | Hook | Why |
 | --- | --- |
 | `MedicalSystem::medicalUpdate` | Tick vigor and growth; slot LV parts after in-game (snapshot only, no MyGUI) |
-| `MedicalSystem::getMedicalGUIData` | After orig, In-game only: `setLineProgress` if character selected and panel has Blood |
-| `Character::_NV_getGUIData` | Same after orig. `GetRealAddress` on `_NV_getGUIData` only — never virtual `getGUIData` |
+| `MedicalSystem::getMedicalGUIData` | After orig: In-game gate first (no Character). Then `setLineProgress` if selected + Blood |
+| `Character::_NV_getGUIData` | Same after orig. In-game gate before `getMedical()`. `GetRealAddress` on `_NV_` only |
 | `MedicalSystem::applyDoctoring` | Splint Kit / stimulant starts the catalyst |
 | `InventoryItemBase::getTooltipData1` | I-key tooltip RVA `0x7A8E30` (never `GetRealAddress` on the virtual) |
 
