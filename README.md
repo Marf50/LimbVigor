@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.9.8: UI-thread find/paint (ForgottenGUI::changeFontSize + MainBarGUI ctor + medical GUI rebuild). Walk live Blood, log name/parent/skin/children, write Hemolymph/Vigor into an unused caption. `_NV_say` speaks DriveTick lines (EnableSpeech on). No widget create. v1.8.1 sibling create is still banned. Stuck-reset arm, −15 stump slotting, skip logs, and 1.9.1 stabilize stay.
+v1.9.9: after orig `getMedicalGUIData` / `_NV_getGUIData`, `setLineProgress` runs only if the `DatapanelGUI*` is the left medical panel (`ForgottenGUI* gui` → `mainbar` @ 0x10 → `getMedicalPanel()` RVA `0x71FDA0` / `medicalPanel` @ 0x188). If that `MedicalDatapanel*` is not the same pointer, we do not cast it — we only write the hook’s `DatapanelGUI*` when it has Blood. Never C / skills. `_NV_say` unchanged. No widget create.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 
@@ -40,10 +40,10 @@ Documented KenshiLib methods. No TitleScreen hook. No widget create.
 | Hook | Why |
 | --- | --- |
 | `MedicalSystem::medicalUpdate` | Tick vigor and growth; slot LV parts after in-game (snapshot only, no MyGUI) |
-| `MedicalSystem::getMedicalGUIData` | After orig: walk Blood, paint unused caption; I-key snapshot |
-| `Character::_NV_getGUIData` | Same find/paint after orig (never `GetRealAddress` on virtual `getGUIData`) |
-| `MainBarGUI::_CONSTRUCTOR` | UI-thread find/paint (RVA `0x72C1E0`) |
-| `ForgottenGUI::changeFontSize` | UI-thread find/paint (RVA `0x3E7C80`) — settings-button moment, no create |
+| `MedicalSystem::getMedicalGUIData` | After orig: I-key snapshot; `setLineProgress` on this `DatapanelGUI*` only if left medical (`gui` → `mainbar` @ 0x10 → `getMedicalPanel` / `medicalPanel` @ 0x188, or Blood on this panel) + character selected + in-game |
+| `Character::_NV_getGUIData` | Same after orig. `GetRealAddress` on `_NV_getGUIData` only — never virtual `getGUIData` (RVA `0x5D3AE0`) |
+| `MainBarGUI::_CONSTRUCTOR` | Stash MainBarGUI instance (RVA `0x72C1E0`); UI-thread find/paint leftover |
+| `ForgottenGUI::changeFontSize` | UI-thread find/paint leftover (RVA `0x3E7C80`) — settings-button moment, no create |
 | `MedicalSystem::applyDoctoring` | Splint Kit / stimulant starts the catalyst |
 | `InventoryItemBase::getTooltipData1` | Live Hemolymph / stage / time on the I-key LV part |
 

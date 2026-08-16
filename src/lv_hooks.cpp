@@ -341,8 +341,6 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
     if (!LvWorldInGame())
         return;
 
-    LvLogMedicalPanelOnce(panel);
-
     CharSnap* live = nullptr;
     if (med)
         live = Bind(med);
@@ -353,21 +351,32 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
         LvHudNote(live);
     }
 
-    /* Door / building: hide the unused caption. _NV_say still ships from DriveTick. */
+    /* Door / building: no character — do not paint. _NV_say still ships. */
     if (!who)
+        return;
+    if (!LvIsSelectedCharacter(who))
+        return;
+    /* Left medical panel only. Do not paint C / skills. */
+    if (!LvPanelIsLeftMedical(panel))
     {
-        LvHudHide();
+        static int skipOnce = 0;
+        if (!skipOnce)
+        {
+            skipOnce = 1;
+            LvLog("LimbVigor: hud-skip-not-medical");
+        }
         return;
     }
+    LvLogMedicalPanelOnce(panel);
     if (live)
-        LvHudPaint(live);
+        LvPaintHud(med, panel, live);
 }
 
 static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
 {
     if (orig_medGui) orig_medGui(self, panel);
     if (!self || !panel) return;
-    /* After orig: Blood HUD exists. Walk + unused caption — do not create. */
+    /* After orig: only paint if this DatapanelGUI* is the left medical panel. */
     Character* who = LvCharFromMed(self);
     LV_TRY { AfterGuiRebuild(self, panel, who); }
     LV_EXCEPT

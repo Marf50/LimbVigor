@@ -76,6 +76,8 @@ static FnSay          g_say         = nullptr;
 static void*          g_mainBar     = nullptr;
 static int            g_gameReady   = 0;
 static int            g_panelLogged = 0;
+static int            g_paintLogged = 0;
+static int            g_paintDead   = 0;
 
 static void* ExeBase()
 {
@@ -587,17 +589,40 @@ int LvIsSelectedCharacter(Character* me)
     return yes;
 }
 
+/* Official (KenshiLib_Examples_deps Globals.h): ForgottenGUI* gui.
+ * ForgottenGUI::mainbar @ 0x10. Fallback: MainBarGUI::_CONSTRUCTOR stash. */
+static void* lvMainBar()
+{
+#if !defined(LIMBVIGOR_IDE)
+    if (gui)
+    {
+        void* bar = nullptr;
+        LV_TRY { std::memcpy(&bar, (const char*)(const void*)gui + 0x10, sizeof(bar)); }
+        LV_EXCEPT { bar = nullptr; }
+        if (bar)
+        {
+            g_mainBar = bar;
+            return bar;
+        }
+    }
+#endif
+    return g_mainBar;
+}
+
+/* Official: MainBarGUI::getMedicalPanel() RVA 0x71FDA0 → MedicalDatapanel*.
+ * Member medicalPanel @ 0x188. KenshiLib has no MedicalDatapanel body. */
 static void* lvMedicalPanel()
 {
+    void* bar = lvMainBar();
     void* med = nullptr;
-    if (g_getMedPanel && g_mainBar)
+    if (g_getMedPanel && bar)
     {
-        LV_TRY { med = g_getMedPanel(g_mainBar); }
+        LV_TRY { med = g_getMedPanel(bar); }
         LV_EXCEPT { med = nullptr; }
     }
-    if (!med && g_mainBar)
+    if (!med && bar)
     {
-        LV_TRY { std::memcpy(&med, (const char*)g_mainBar + 0x188, sizeof(med)); }
+        LV_TRY { std::memcpy(&med, (const char*)bar + 0x188, sizeof(med)); }
         LV_EXCEPT { med = nullptr; }
     }
     return med;
@@ -631,9 +656,12 @@ int LvPanelIsLeftMedical(DatapanelGUI* panel)
 {
     if (!panel)
         return 0;
-    void* med = lvMedicalPanel();
+    void* med = lvMedicalPanel(); /* MedicalDatapanel* */
+    /* Same address: MedicalDatapanel is the DatapanelGUI the hook received. */
     if (med && (void*)panel == med)
         return 1;
+    /* Different pointer: do not cast MedicalDatapanel* and write to it.
+     * Identify the hook's DatapanelGUI* via Blood (what orig just wrote). */
     if (lvBloodCat(panel) >= 0)
         return 1;
     return 0;
@@ -685,9 +713,50 @@ void LvLogMedicalPanelOnce(DatapanelGUI* panel)
 
 void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
 {
-    (void)med;
-    (void)panel;
-    /* Walk + unused caption lives in lv_hud. Do not add a line here. */
-    if (snap)
-        LvHudPaint(snap);
+    if (!panel || !snap || !LvCfg().enableHud || !g_setLineProg || g_paintDead)
+        return;
+    if (!LvWorldInGame())
+        return;
+    /* Gate: left medical panel + selected character. Never C / skills. */
+    if (!LvPanelIsLeftMedical(panel))
+        return;
+    if (!LvIsSelectedCharacter(LvCharFromMed(med)))
+        return;
+    if (snap->race == RACE_ANIMAL)
+        return;
+
+    int cat = lvBloodCat(panel);
+    if (cat < 0)
+        return;
+
+    const char* res = LvResourceName(snap->race);
+    if (!res || !res[0])
+        res = "Vigor";
+
+    const float maxv = LvCfg().maxVigor > 0.f ? LvCfg().maxVigor : 100.f;
+    float fill = snap->vigor / maxv;
+    if (fill < 0.f) fill = 0.f;
+    if (fill > 1.f) fill = 1.f;
+
+    char cap[32];
+    std::snprintf(cap, sizeof(cap), "%d / %d", (int)snap->vigor, (int)maxv);
+
+    GameStr key, text;
+    GameStrSet(&key, res);
+    GameStrSet(&text, cap);
+
+    int excepted = 0;
+    LV_TRY { g_setLineProg(panel, &key, cat, fill, &text, true); }
+    LV_EXCEPT { excepted = 1; }
+    if (excepted)
+    {
+        g_paintDead = 1;
+        LvErr("LimbVigor: setLineProgress SEH — medical row stopped");
+        return;
+    }
+    if (!g_paintLogged)
+    {
+        g_paintLogged = 1;
+        LvLogf("LimbVigor: setLineProgress %s cat=%d %s (medicalPanel)", res, cat, cap);
+    }
 }

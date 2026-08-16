@@ -30,7 +30,7 @@ void      LvSay(Character* me, const char* text);
 int       LvIsPlayerSquad(Character* me);
 int       LvIsSelectedCharacter(Character* me);
 void      LvNoteMainBar(void* mainbar); // MainBarGUI* — no Character
-int       LvPanelIsLeftMedical(DatapanelGUI* panel); // medicalPanel or has Blood
+int       LvPanelIsLeftMedical(DatapanelGUI* panel); // same pointer as getMedicalPanel / +0x188, or Blood on this DatapanelGUI*
 void      LvLogMedicalPanelOnce(DatapanelGUI* panel);
 void      LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap);
 int       LvReadMsvcString(const void* strObj, char* out, int outsz);
