@@ -388,6 +388,90 @@ int main()
         Expect(LvPartSlotForLimb(LIMB_RIGHT_LEG) == 3, "right leg FCS slot 3");
     }
 
+    {
+        CharSnap c = Hive();
+        c.starving = 1;
+        char why[96];
+        Expect(LvEligible(&c, why, 96) == 0, "starving hive is blocked");
+        char eta[96];
+        LvEtaText(&c, eta, 96);
+        Expect(std::strcmp(eta, "Starving. Nothing left to grow with.") == 0,
+            "starving ETA mentions starve / nothing left");
+        const float before = c.progress[LIMB_RIGHT_LEG];
+        TickResult r;
+        LvTick(&c, 1.f, &r);
+        Expect(c.progress[LIMB_RIGHT_LEG] == before, "starving hive does not grow");
+        Expect(r.restored == -1, "starving hive does not restore");
+    }
+
+    {
+        CharSnap c = Hive();
+        c.race = RACE_ANIMAL;
+        char why[96];
+        Expect(LvEligible(&c, why, 96) == 0, "animal is never eligible");
+        Expect(std::strcmp(why, "This body cannot regrow a limb.") == 0, "animal explains itself");
+        TickResult r;
+        LvTick(&c, 1.f, &r);
+        Expect(c.progress[LIMB_RIGHT_LEG] == 0.f, "animal does not grow");
+        Expect(r.restored == -1, "animal does not restore");
+    }
+
+    {
+        CharSnap c = Hive();
+        c.limbs[LIMB_RIGHT_LEG] = LIMB_KIND_PROSTHETIC;
+        char why[96];
+        Expect(LvEligible(&c, why, 96) == 0, "no stump is not eligible");
+        Expect(std::strcmp(why, "No stump to grow from. Remove a prosthetic first.") == 0,
+            "no stump says remove a prosthetic first");
+        Expect(LvFirstStump(&c) == -1, "prosthetic is not a stump");
+    }
+
+    {
+        CharSnap c = Hive();
+        c.race = RACE_HUMAN;
+        c.toughness = 10;
+        c.medic = 5;
+        c.catalystHours = 2.5f;
+        char why[96];
+        Expect(LvEligible(&c, why, 96) == 1, "catalyst makes the human eligible");
+        const float start = c.catalystHours;
+        LvTick(&c, 1.f, nullptr);
+        Expect(c.catalystHours < start && c.catalystHours > 0.f, "catalyst hours count down");
+        LvTick(&c, 2.f, nullptr);
+        Expect(c.catalystHours == 0.f, "catalyst hours expire");
+        Expect(LvEligible(&c, why, 96) == 0, "expired catalyst leaves the human blocked");
+    }
+
+    {
+        CharSnap c = Hive();
+        c.limbs[LIMB_LEFT_LEG] = LIMB_KIND_STUMP;
+        Expect(LvFirstStump(&c) == LIMB_RIGHT_LEG, "first stump is the right leg");
+        TickResult r;
+        LvTick(&c, 0.1f, &r);
+        Expect(c.progress[LIMB_RIGHT_LEG] > 0.f, "growth goes to the first stump");
+        Expect(c.progress[LIMB_LEFT_LEG] == 0.f, "the other stump stays 0");
+        Expect(c.limbs[LIMB_LEFT_LEG] == LIMB_KIND_STUMP, "the other stump stays a stump");
+    }
+
+    {
+        CharSnap c = Hive();
+        c.fed = 0;
+        c.progress[LIMB_RIGHT_LEG] = 40.f;
+        const float dt = 1.f;
+        // LvTick fills hemolymph, then spends hive_growth_drain * hours.
+        // Hive passive beats drain, so a zero tank still grows. Leave the
+        // tank under the post-fill spend so the spoken line is "spent".
+        c.vigor = LvCfg().hiveGrowthDrain * dt - LvCfg().hivePassive * dt - 1.f;
+        char why[96];
+        Expect(LvEligible(&c, why, 96) == 1, "hive with too-low vigor is still eligible");
+        const float before = c.progress[LIMB_RIGHT_LEG];
+        TickResult r;
+        LvTick(&c, dt, &r);
+        Expect(c.progress[LIMB_RIGHT_LEG] == before, "too-low vigor keeps progress");
+        Expect(r.restored == -1, "too-low vigor does not restore");
+        Expect(std::strcmp(r.speech, "Hemolymph is spent.") == 0, "speech about spent");
+    }
+
     if (g_fail)
     {
         std::fprintf(stderr, "%d failed\n", g_fail);
