@@ -115,6 +115,8 @@ static unsigned g_medPulse = 0;
 static int      g_loadProbe = 0; // 0 try, 1 live, -1 dead (do not block)
 static intptr_t g_loadAddr = 0;
 static int      g_gateLogged = 0;
+static int      g_ignoredReset = 0;
+static unsigned g_waitLogMs = 0;
 
 void LvNoteMedicalPulse()
 {
@@ -151,6 +153,9 @@ int LvWorldInGame()
     // loading forever) and/or ou->player was null after RE_Kenshi
     // printed In-game. Do not require player. A dead loading-probe
     // must not block forever.
+    //
+    // v1.9.4 never armed: gameResetting stayed true after RE_Kenshi
+    // In-game. Ignore that flag after a short run of medical pulses.
 
     if (!ou)
     {
@@ -164,10 +169,29 @@ int LvWorldInGame()
     LV_EXCEPT { init = 0; }
     LV_TRY { reset = ou->gameResetting ? 1 : 0; }
     LV_EXCEPT { reset = 0; }
+
+    unsigned now = GetTickCount();
+    unsigned age = (g_pulseMs && now >= g_pulseMs) ? now - g_pulseMs : 0;
+
+    // v1.9.4: gameResetting stayed true after RE_Kenshi printed
+    // In-game. Do not block forever once medical ticks are running.
+    int stuckReset = 0;
     if (reset)
     {
-        LogGateOnce("LimbVigor: not in-game yet — game resetting");
-        return 0;
+        if (g_medPulse >= 6u || age >= 8000u)
+            stuckReset = 1;
+        else
+        {
+            LogGateOnce("LimbVigor: not in-game yet — game resetting");
+            if (g_waitLogMs && now >= g_waitLogMs && (now - g_waitLogMs) >= 8000u)
+            {
+                g_waitLogMs = now;
+                LvLog("LimbVigor: still waiting — gameResetting still set");
+            }
+            else if (!g_waitLogMs)
+                g_waitLogMs = now ? now : 1;
+            return 0;
+        }
     }
 
     int loading = 0;
@@ -207,6 +231,16 @@ int LvWorldInGame()
         return 0;
     }
 
+    if (stuckReset)
+    {
+        if (!g_ignoredReset)
+        {
+            g_ignoredReset = 1;
+            LvLog("LimbVigor: In-game — ignoring stuck gameResetting");
+        }
+        return 1;
+    }
+
     if (init)
     {
         /* Probe dead: wait a few medical pulses so DriveTick does not
@@ -219,8 +253,6 @@ int LvWorldInGame()
 
     // Fallback: medical ticks have been running. RE_Kenshi already
     // printed In-game; do not sit silent because initialized read 0.
-    unsigned now = GetTickCount();
-    unsigned age = (g_pulseMs && now >= g_pulseMs) ? now - g_pulseMs : 0;
     if (g_pulseMs && age >= 8000u)
     {
         LogGateOnce("LimbVigor: in-game fallback — medical ticks while initialized unread");

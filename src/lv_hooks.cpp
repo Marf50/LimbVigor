@@ -127,7 +127,18 @@ static CharSnap* Bind(MedicalSystem* med)
     {
         const LimbKind was = live->limbs[i];
         live->limbs[i] = tmp.limbs[i];
-        if (firstSeen) continue;
+        if (firstSeen)
+        {
+            // Empty -15 socket reads as a stump. If progress already
+            // finished, keep 100% so Sync slots LV Grown immediately.
+            if ((tmp.limbs[i] == LIMB_KIND_STUMP || tmp.limbs[i] == LIMB_KIND_CRUSHED)
+                && (live->lastStage[i] == LV_PART_GROWN || live->progress[i] >= 99.5f))
+            {
+                live->progress[i] = 100.f;
+                live->lastStage[i] = LV_PART_GROWN;
+            }
+            continue;
+        }
 
         if ((tmp.limbs[i] == LIMB_KIND_STUMP || tmp.limbs[i] == LIMB_KIND_CRUSHED)
             && was == LIMB_KIND_WHOLE)

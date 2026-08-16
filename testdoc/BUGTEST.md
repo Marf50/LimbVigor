@@ -8,9 +8,9 @@ Every ~15s the log prints `LimbVigor: Boop  Hemolymph 38/100  left leg 4% dorman
 
 Send the notes back and the plugin gets patched.
 
-- [ ] **Reaches the menu.** `ready v1.9.4 — Blood HUD bar after in-game, no title MyGUI` then `Main menu loaded`. Must NOT log `HUD created at title screen`. Must NOT die after title create / at ~12s with `Log manager destructor`.
-- [ ] **Loads the save.** `LimbVigor: In-game` then `player squad seen`. Then `LimbVigor: Blood HUD created after in-game` (or a clear create-fail / caption-only line). If it does not tick, the log must say **why** (`skip — no player squad` / skeleton / bind failed / …). Must NOT touch Character during title / save load.
-- [ ] **Visible after in-game.** Left HUD, under Blood: Hemolymph / Vigor / Battle-heat bar with fill + number. Open **I** and hover an LV stump/bud/knit part — tooltip is the backup. Do not open C for this. Do not look for a title box. No ProgressBar skin.
+- [ ] **Reaches the menu.** `ready v1.9.5 — arm despite stuck reset, Blood HUD after in-game` then `Main menu loaded`. Must NOT log `HUD created at title screen`. Must NOT die after title create / at ~12s with `Log manager destructor`.
+- [ ] **Loads the save.** `LimbVigor: In-game` (or `In-game — ignoring stuck gameResetting`) then `player squad seen`. Then `LimbVigor: Blood HUD created after in-game` (or a clear create-fail / caption-only line). A −15 empty stump must get an LV part (`slotted LV Stump/Grown …`) or a logged skip saying why. If it does not tick, the log must say **why**. Must NOT touch Character during title / save load.
+- [ ] **Visible after in-game.** Left HUD, under Blood: Hemolymph / Vigor / Battle-heat bar with fill + number. Open **I** — a −15 stump shows `LV Stump/Budding/…/Grown`, not an empty socket. Do not open C for this. Do not look for a title box. No ProgressBar skin.
 - [ ] **Heartbeat.** After ~15s in-game, RE_Kenshi_log.txt has a `LimbVigor: <name>  Hemolymph …` line. It must NOT spam `restored limb 0` every frame.
 - [ ] **New game.** Same — no crash at the first medical panel. Bar appears after In-game, not at the title.
 - [ ] **Shows in the Mods list.** `Kenshi/mods/LimbVigor/LimbVigor.mod` exists. Launcher lists LimbVigor. Enable it after RE_Kenshi.

@@ -619,9 +619,25 @@ void LvSyncGrowthParts(MedicalSystem* med, const CharSnap* snap)
     if (snap->race == RACE_SKELETON || snap->race == RACE_ANIMAL) return;
     for (int i = 0; i < LIMB_COUNT; ++i)
     {
-        if (snap->limbs[i] != LIMB_KIND_STUMP && snap->limbs[i] != LIMB_KIND_CRUSHED)
-            continue;
-        const int stage = LvPartStageFromProgress(snap->progress[i]);
+        Item* cur = Equipped(med, i);
+        if (cur && !LvIsGrowthPart(cur))
+            continue; // real prosthetic — leave it
+
+        int need = 0;
+        if (snap->limbs[i] == LIMB_KIND_STUMP || snap->limbs[i] == LIMB_KIND_CRUSHED)
+            need = 1;
+        else if (!cur && (snap->progress[i] > 0.f || snap->lastStage[i] >= 0)
+                 && snap->limbs[i] != LIMB_KIND_PROSTHETIC)
+        {
+            // Persist knows this socket; game read it as whole with
+            // nothing equipped (the -15 empty-stump case).
+            need = 1;
+        }
+        if (!need) continue;
+
+        int stage = LvPartStageFromProgress(snap->progress[i]);
+        if (snap->lastStage[i] == LV_PART_GROWN || snap->progress[i] >= 99.5f)
+            stage = LV_PART_GROWN;
         LvEquipGrowthPart(med, i, stage);
     }
 }

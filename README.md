@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.9.4: v1.9.3 armed (or should have) but put the visible indicator on C via `setLineProgress`. Blood is the always-on left HUD; C is skills and has no Blood line. This build creates a Hemolymph / Vigor / Battle-heat bar under the typical Blood slot **after In-game only** (KillButton skins, sized child fill, no ProgressBar, no widget-name walk, no TitleScreen). I-key is the backup. Title MyGUI stays gone.
+v1.9.5: v1.9.4 reached the menu but never armed — `ou->gameResetting` stayed true after RE_Kenshi’s In-game, so DriveTick and the Blood HUD never ran. A stuck reset is ignored after a short run of medical pulses. Then the left Blood HUD bar is created and a −15 empty stump gets an LV part (Grown if progress was already 100%). Title MyGUI stays gone. C is not the HUD.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 

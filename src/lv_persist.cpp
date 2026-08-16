@@ -1,5 +1,6 @@
 #include "lv_persist.h"
 #include "lv_config.h"
+#include "lv_parts.h"
 
 #include <cstdio>
 #include <cstring>
@@ -81,7 +82,14 @@ void LvPersistLoad()
         if (std::sscanf(line, "%d %f %d", &slot, &pr, &st) >= 2 && slot >= 0 && slot < LIMB_COUNT)
         {
             if (pr < 0.f) pr = 0.f;
-            if (pr > 99.5f) pr = 99.5f; // never complete on load
+            if (pr > 100.f) pr = 100.f;
+            // Keep 100% / Grown so a -15 empty socket slots LV Grown
+            // on load. Do not cap to 99.5 (that left Boop as knitting).
+            if (st == LV_PART_GROWN || pr >= 99.5f)
+            {
+                pr = 100.f;
+                if (st < 0) st = LV_PART_GROWN;
+            }
             cur->progress[slot] = pr;
             cur->lastStage[slot] = st;
         }

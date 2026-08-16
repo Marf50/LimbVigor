@@ -32,7 +32,8 @@ item for the same numbers.
 C is skills. Do not look there. There is no title-screen box
 and no ProgressBar skin.
 
-v1.9.4: Blood HUD bar after in-game, no title MyGUI.
+v1.9.5: arm even if gameResetting stays stuck.
+Blood HUD bar after in-game, no title MyGUI.
 No Character until the world is in-game. LimbVigor.mod
 records have mesh/icon. A mesh-less hit is skipped — we
 never slot an Economy prosthetic as a fake LV part.
