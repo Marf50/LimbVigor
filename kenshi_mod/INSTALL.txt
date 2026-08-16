@@ -36,17 +36,20 @@ is banned. If no unused caption exists, gui/LimbVigor.layout
 is shipped for the game loader — C++ only finds it
 and setCaption. Does not replace Dark UI MainPanel.
 
-v1.9.9: setLineProgress on medicalPanel only + _NV_say.
-After orig getMedicalGUIData / _NV_getGUIData, only if
-this DatapanelGUI* is the left medical panel (gui →
-mainbar @ 0x10 → getMedicalPanel 0x71FDA0 / medicalPanel
-@ 0x188, or lineExists("Blood") on this panel), a
-character is selected, and the world is in-game. Never
-C / skills. Never cast MedicalDatapanel* and write it.
-Arms even if gameResetting stays stuck. No Character
-until in-game. LimbVigor.mod records have mesh/icon.
-A mesh-less hit is skipped — we never slot an Economy
-prosthetic as a fake LV part.
+v1.9.7: setLineProgress on medicalPanel + _NV_say, no
+createWidget. Walk/log the selection info panel (Blood
+when a character is selected, door condition when a
+door is selected): panel vs medicalPanel,
+lineExists("Blood"), getNumLines, every line key.
+Writes Hemolymph / Vigor / Battle-heat on Blood's
+category only while a character is selected. Does not
+overwrite Blood, Head, limbs, or Hunger. Door /
+building: removeLine those keys. If a line cannot be
+added without overwriting, log "LimbVigor: none exists"
+— _NV_say still ships. Arms even if gameResetting
+stays stuck. No Character until in-game. LimbVigor.mod
+records have mesh/icon. A mesh-less hit is skipped —
+we never slot an Economy prosthetic as a fake LV part.
 
 Overwrite both LimbVigor.dll and LimbVigor.mod. Keep
 LimbVigor.progress.

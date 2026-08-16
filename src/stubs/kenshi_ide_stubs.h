@@ -135,5 +135,12 @@ public:
     bool lineExists(const std::string&, int) { return false; }
     int getNumLines(int) { return 0; }
     void* getLineByNum(int, int) { return nullptr; }
+    void removeLine(const std::string&, int) {}
+    void _NV_update() {}
+    void _NV_setObject(const void*) {}
+};
+class hand {
+public:
+    Character* getCharacter() const { return nullptr; }
 };
 class CharacterAnimal {};
