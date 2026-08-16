@@ -136,41 +136,136 @@ int main()
         char eta[96];
         LvEtaText(&c, eta, 96);
         Expect(eta[0] != 0, "eligible hive has an ETA");
+        Expect(std::strstr(eta, "~") != nullptr && std::strstr(eta, "h") != nullptr,
+            "growing ETA is a short ~Nh tag");
         c.race = RACE_HUMAN;
         c.toughness = 1;
         c.medic = 1;
         LvEtaText(&c, eta, 96);
-        Expect(std::strstr(eta, "Splint") != nullptr || std::strstr(eta, "toughness") != nullptr,
-            "blocked human ETA explains why");
+        Expect(std::strstr(eta, "Need a Splint Kit") != nullptr,
+            "blocked human ETA is the Line 2 reason");
+    }
+
+    {
+        /* QA: Hemolymph 72/100 then left leg  budding 30%  ~Xh bed */
+        CharSnap c = Hive();
+        c.limbs[LIMB_RIGHT_LEG] = LIMB_KIND_WHOLE;
+        c.limbs[LIMB_LEFT_LEG] = LIMB_KIND_STUMP;
+        c.progress[LIMB_LEFT_LEG] = 30.f;
+        c.vigor = 72.f;
+        c.inBed = 1;
+        char bar1[96], bar2[96], tip[64], hover[256];
+        float f1 = 0.f, f2 = 0.f;
+        LvHudLines(&c, bar1, 96, &f1, bar2, 96, &f2, tip, 64);
+        Expect(std::strcmp(LvHudResourceKey(&c), "Hemolymph") == 0, "hive Line 1 key is Hemolymph");
+        Expect(std::strcmp(bar1, "72 / 100") == 0, "hive Line 1 right is 72 / 100");
+        Expect(std::strcmp(tip, "left leg") == 0, "hive Line 2 key is left leg");
+        Expect(std::strstr(bar2, "budding 30%") == bar2, "hive Line 2 starts budding 30%");
+        Expect(std::strstr(bar2, "~") != nullptr && std::strstr(bar2, "bed") != nullptr,
+            "hive Line 2 has ~Nh bed");
+        Expect(std::strstr(bar2, "Regrowth") == nullptr && std::strstr(bar2, "Wait") == nullptr,
+            "Line 2 is not Regrowth/Wait");
+        Expect(f2 > 0.29f && f2 < 0.31f, "growing Line 2 fill is 30%");
+        LvItemTooltipText(&c, hover, 256);
+        Expect(std::strstr(hover, "budding") != nullptr, "I-key tooltip has stage");
+    }
+
+    {
+        /* QA: Vigor 40/100 then left leg  Need a Splint Kit... */
+        CharSnap c = Hive();
+        c.race = RACE_HUMAN;
+        c.toughness = 10;
+        c.medic = 5;
+        c.vigor = 40.f;
+        c.limbs[LIMB_RIGHT_LEG] = LIMB_KIND_WHOLE;
+        c.limbs[LIMB_LEFT_LEG] = LIMB_KIND_STUMP;
+        c.progress[LIMB_LEFT_LEG] = 30.f;
+        char bar1[96], bar2[96], tip[64];
+        float f1 = 0.f, f2 = 0.f;
+        LvHudLines(&c, bar1, 96, &f1, bar2, 96, &f2, tip, 64);
+        Expect(std::strcmp(LvHudResourceKey(&c), "Vigor") == 0, "human Line 1 key is Vigor");
+        Expect(std::strcmp(bar1, "40 / 100") == 0, "human Line 1 right is 40 / 100");
+        Expect(std::strcmp(tip, "left leg") == 0, "blocked Line 2 key is left leg");
+        Expect(std::strcmp(bar2, "Need a Splint Kit, or toughness 40 and medic 25.") == 0,
+            "human blocked Line 2 is the Designer reason");
+        Expect(std::strstr(bar2, "30%") == nullptr, "blocked Line 2 has no percent");
+        Expect(f2 == 0.f, "blocked Line 2 fill is empty");
+    }
+
+    {
+        /* QA: Battle-heat 88/100 then right arm  forming 55%  heat */
+        CharSnap c = Hive();
+        c.race = RACE_SHEK;
+        c.toughness = 20;
+        c.vigor = 88.f;
+        c.inCombat = 1;
+        c.limbs[LIMB_RIGHT_LEG] = LIMB_KIND_WHOLE;
+        c.limbs[LIMB_RIGHT_ARM] = LIMB_KIND_STUMP;
+        c.progress[LIMB_RIGHT_ARM] = 55.f;
+        c.lastStage[LIMB_RIGHT_ARM] = 2;
+        char bar1[96], bar2[96], tip[64];
+        float f1 = 0.f, f2 = 0.f;
+        LvHudLines(&c, bar1, 96, &f1, bar2, 96, &f2, tip, 64);
+        Expect(std::strcmp(LvHudResourceKey(&c), "Battle-heat") == 0, "shek Line 1 key is Battle-heat");
+        Expect(std::strcmp(bar1, "88 / 100") == 0, "shek Line 1 right is 88 / 100");
+        Expect(std::strcmp(tip, "right arm") == 0, "shek Line 2 key is right arm");
+        Expect(std::strcmp(bar2, "forming 55%  heat") == 0, "shek combat Line 2 is forming 55%  heat");
+        std::snprintf(c.name, sizeof(c.name), "%s", "ShekHeat");
+        TickResult heat;
+        LvTick(&c, 0.1f, &heat);
+        Expect(std::strstr(heat.speech, "heat is in it") != nullptr, "shek first combat tick speaks heat");
+        TickResult heat2;
+        LvTick(&c, 0.1f, &heat2);
+        Expect(std::strstr(heat2.speech, "heat is in it") == nullptr, "shek heat speech is once");
+    }
+
+    {
+        /* QA: Limb Vigor  Frames do not grow flesh. */
+        CharSnap c = Hive();
+        c.race = RACE_SKELETON;
+        char bar1[96], bar2[96], tip[64];
+        float f1 = 0.f, f2 = 0.f;
+        LvHudLines(&c, bar1, 96, &f1, bar2, 96, &f2, tip, 64);
+        Expect(std::strcmp(LvHudResourceKey(&c), "Limb Vigor") == 0, "skeleton Line 1 key is Limb Vigor");
+        Expect(std::strcmp(bar1, "Frames do not grow flesh.") == 0, "skeleton Line 1 is frames copy");
+        Expect(bar2[0] == 0 && tip[0] == 0, "skeleton has no Line 2");
+        Expect(f1 == 0.f, "skeleton Line 1 fill is 0");
     }
 
     {
         CharSnap c = Hive();
-        c.progress[LIMB_RIGHT_LEG] = 30.f;
-        c.vigor = 42.f;
-        char bar1[96], bar2[96], tip[220], hover[256];
+        c.race = RACE_ANIMAL;
+        char bar1[96], bar2[96], tip[64];
+        float f1 = 1.f, f2 = 1.f;
+        LvHudLines(&c, bar1, 96, &f1, bar2, 96, &f2, tip, 64);
+        Expect(bar1[0] == 0 && bar2[0] == 0, "animal paints nothing");
+        Expect(LvHudResourceKey(&c)[0] == 0, "animal has no Line 1 key");
+    }
+
+    {
+        CharSnap c = Hive();
+        c.limbs[LIMB_RIGHT_LEG] = LIMB_KIND_WHOLE;
+        c.progress[LIMB_RIGHT_LEG] = 100.f;
+        c.lastStage[LIMB_RIGHT_LEG] = 4;
+        char bar1[96], bar2[96], tip[64];
         float f1 = 0.f, f2 = 0.f;
-        LvHudLines(&c, bar1, 96, &f1, bar2, 96, &f2, tip, 220);
-        Expect(std::strstr(bar1, "Hemolymph") != nullptr, "HUD bar 1 names Hemolymph");
-        Expect(std::strstr(bar1, "42") != nullptr, "HUD bar 1 shows vigor");
-        Expect(std::strstr(bar2, "right leg") != nullptr, "HUD bar 2 names the stump");
-        Expect(std::strstr(bar2, "budding") != nullptr, "HUD bar 2 shows stage");
-        Expect(std::strstr(bar2, "30%") != nullptr, "HUD bar 2 shows percent");
-        Expect(f2 > 0.29f && f2 < 0.31f, "HUD bar 2 fill is 30%");
-        Expect(!std::strstr(bar2, "Blood") && !std::strstr(bar2, "Hunger"),
-            "HUD bar 2 is not a reserved Blood/Hunger key");
-        Expect(tip[0] != 0, "HUD tooltip line is never empty");
-        {
-            char eta[96];
-            LvEtaText(&c, eta, 96);
-            Expect(eta[0] != 0, "ETA text is filled for an eligible hive");
-            Expect(std::strstr(eta, "h") != nullptr || std::strstr(eta, "hour") != nullptr
-                || std::strstr(eta, "day") != nullptr,
-                "ETA text is a wait time");
-        }
-        LvItemTooltipText(&c, hover, 256);
-        Expect(std::strstr(hover, "Hemolymph") != nullptr, "I-key tooltip has Hemolymph");
-        Expect(std::strstr(hover, "budding") != nullptr, "I-key tooltip has stage");
+        LvHudLines(&c, bar1, 96, &f1, bar2, 96, &f2, tip, 64);
+        Expect(bar2[0] == 0, "100% Grown drops Line 2");
+        Expect(std::strcmp(bar1, "40 / 100") == 0, "idle Line 1 still paints with no stump");
+    }
+
+    {
+        CharSnap c = Hive();
+        c.limbs[LIMB_RIGHT_LEG] = LIMB_KIND_WHOLE;
+        c.limbs[LIMB_LEFT_LEG] = LIMB_KIND_STUMP;
+        c.limbs[LIMB_RIGHT_ARM] = LIMB_KIND_STUMP;
+        c.progress[LIMB_LEFT_LEG] = 30.f;
+        c.vigor = 80.f;
+        char bar1[96], bar2[96], tip[64];
+        float f1 = 0.f, f2 = 0.f;
+        LvHudLines(&c, bar1, 96, &f1, bar2, 96, &f2, tip, 64);
+        Expect(std::strcmp(tip, "left leg") == 0, "legs first for Line 2");
+        Expect(std::strstr(bar2, "then right arm") != nullptr, "next waiting stump is then right arm");
     }
 
     {
@@ -178,20 +273,28 @@ int main()
         c.race = RACE_HUMAN;
         c.toughness = 10;
         c.medic = 5;
+        c.catalystHours = 12.f;
+        c.vigor = 80.f;
         c.progress[LIMB_RIGHT_LEG] = 30.f;
-        char bar1[96], bar2[96], tip[220];
+        char bar1[96], bar2[96], tip[64];
         float f1 = 0.f, f2 = 0.f;
-        LvHudLines(&c, bar1, 96, &f1, bar2, 96, &f2, tip, 220);
-        Expect(std::strstr(bar2, "right leg") != nullptr, "blocked bar 2 still names the stump");
-        Expect(std::strstr(bar2, "30%") == nullptr, "blocked bar 2 is the reason, not a percent");
-        Expect(bar2[0] != 0, "blocked bar 2 is not empty");
-        Expect(f2 == 0.f, "blocked bar 2 fill is empty");
-        {
-            char eta[96];
-            LvEtaText(&c, eta, 96);
-            Expect(std::strstr(eta, "Splint") != nullptr || std::strstr(eta, "toughness") != nullptr,
-                "blocked ETA is the wait reason");
-        }
+        LvHudLines(&c, bar1, 96, &f1, bar2, 96, &f2, tip, 64);
+        Expect(std::strstr(bar2, "splint 12h") != nullptr, "active splint tags Line 2");
+        c.catalystHours = 0.f;
+        char why[96];
+        Expect(LvEligible(&c, why, 96) == 0, "expired splint blocks a low-stat human");
+    }
+
+    {
+        CharSnap c = Hive();
+        c.limbs[LIMB_RIGHT_LEG] = LIMB_KIND_PROSTHETIC;
+        c.progress[LIMB_RIGHT_LEG] = 40.f;
+        char bar1[96], bar2[96], tip[64];
+        float f1 = 0.f, f2 = 0.f;
+        LvHudLines(&c, bar1, 96, &f1, bar2, 96, &f2, tip, 64);
+        Expect(std::strcmp(tip, "right leg") == 0, "metal Line 2 key is the socket");
+        Expect(std::strcmp(bar2, "Metal. Progress kept.") == 0, "metal pauses and keeps progress");
+        Expect(f2 == 0.f, "metal Line 2 fill is empty");
     }
 
     {
@@ -205,7 +308,48 @@ int main()
         c.inBed = 0;
         c.bleedRate = 50.f;
         LvEtaText(&c, eta, 96);
-        Expect(std::strstr(eta, "bleeding") != nullptr, "bleed ETA says bandage first");
+        Expect(std::strcmp(eta, "Too much bleeding. Bandage first.") == 0,
+            "bleed ETA is the Line 2 reason");
+    }
+
+    {
+        CharSnap c = Hive();
+        c.vigor = 0.f;
+        char bar1[96], bar2[96], tip[64];
+        float f1 = 0.f, f2 = 0.f;
+        LvHudLines(&c, bar1, 96, &f1, bar2, 96, &f2, tip, 64);
+        Expect(std::strcmp(bar2, "Hemolymph is spent. Eat or rest.") == 0,
+            "spent Line 2 is Designer copy");
+        c.race = RACE_HUMAN;
+        c.toughness = 40;
+        c.medic = 25;
+        c.fed = 0;
+        TickResult r;
+        LvTick(&c, 1.f, &r);
+        Expect(std::strcmp(r.speech, "Vigor is spent.") == 0, "spent speech is Designer short copy");
+        TickResult r2;
+        LvTick(&c, 1.f, &r2);
+        Expect(r2.speech[0] == 0, "spent speech is once");
+    }
+
+    {
+        TickResult cat;
+        CharSnap c = Hive();
+        c.race = RACE_HUMAN;
+        LvApplyCatalyst(&c, &cat);
+        Expect(std::strcmp(cat.speech, "The splint takes.") == 0, "splint speech is Designer copy");
+    }
+
+    {
+        const LvPartDef* stump = LvPartFor(LIMB_LEFT_LEG, LV_PART_STUMP);
+        const LvPartDef* knit = LvPartFor(LIMB_RIGHT_ARM, LV_PART_KNITTING);
+        const LvPartDef* grown = LvPartFor(LIMB_LEFT_LEG, LV_PART_GROWN);
+        Expect(stump && std::strcmp(stump->desc, "A raw stump. Almost no push-off.") == 0,
+            "stump I-key is Designer copy");
+        Expect(knit && std::strcmp(knit->desc, "Almost a limb. Soft. Do not test it.") == 0,
+            "knitting I-key is Designer copy");
+        Expect(grown && std::strcmp(grown->desc, "A new limb. Soft. Yours.") == 0,
+            "grown I-key is Designer copy");
     }
 
     {

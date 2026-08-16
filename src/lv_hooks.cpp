@@ -150,13 +150,11 @@ static CharSnap* Bind(MedicalSystem* med)
             live->lastStage[i] = -1;
             LvMarkDirty();
             if (tmp.race == RACE_HIVE)
-                LvSay(speaker, "The stump itches. Hemolymph will try to knit it.");
+                LvSay(speaker, "The stump itches. It will grow.");
             else if (tmp.race == RACE_SHEK)
-                LvSay(speaker, "The bone remembers. Survive. Stay fed.");
-            else if (tmp.race == RACE_SKELETON)
-                LvSay(speaker, "A machine does not grow flesh. Find a replacement.");
-            else
-                LvSay(speaker, "Flesh does not grow back on its own. You need a splint — or to have earned it.");
+                LvSay(speaker, "The stump wants a fight, or a splint.");
+            else if (tmp.race == RACE_HUMAN)
+                LvSay(speaker, "The stump will not grow on its own.");
         }
         if (tmp.limbs[i] == LIMB_KIND_WHOLE && was != LIMB_KIND_WHOLE)
         {
@@ -286,7 +284,13 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                     live->limbs[limb] = LIMB_KIND_WHOLE;
                     live->progress[limb] = 0.f;
                     live->lastStage[limb] = LV_PART_GROWN;
-                    LvSay(who, "The limb is back. Soft, but mine.");
+                    if (!r.speech[0])
+                    {
+                        char grown[96];
+                        std::snprintf(grown, sizeof(grown), "The %s has grown back.",
+                            LvLimbLabel((LimbId)limb));
+                        LvSay(who, grown);
+                    }
                     LvLogf("LimbVigor: slotted grown part on %s %s",
                         live->name, LvLimbLabel((LimbId)limb));
                 }

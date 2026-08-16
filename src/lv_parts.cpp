@@ -57,35 +57,35 @@ static const int kFcsSlot[LIMB_COUNT] = {
 static const LvPartDef kParts[LIMB_COUNT][LV_PART_COUNT] = {
     // RIGHT LEG
     {
-        { "LV Stump Right Leg",    "lv-stump-r-leg", "A raw stump. Almost no push-off. Open I and hover this slot for live Hemolymph / Vigor and hours left.",           "Economy Leg (right)", LV_MESH_RLEG, LV_ICON_RLEG, 3,  30.f, 0.15f, 0.20f, 0.10f, 1.f, 1.f, 1.f, 1.f, 0.4f },
-        { "LV Budding Right Leg",  "lv-bud-r-leg",   "Flesh is budding on the stump. Hover this I-key part for resource, percent, and time.",             "Economy Leg (right)", LV_MESH_RLEG, LV_ICON_RLEG, 3,  45.f, 0.35f, 0.40f, 0.25f, 1.f, 1.f, 1.f, 1.f, 0.8f },
-        { "LV Forming Right Leg",  "lv-form-r-leg",  "Bone and tendon are finding their shape. Hover for live Hemolymph / Vigor, stage percent, and hours left.",   "Economy Leg (right)", LV_MESH_RLEG, LV_ICON_RLEG, 3,  65.f, 0.60f, 0.65f, 0.50f, 1.f, 1.f, 1.f, 1.f, 1.4f },
-        { "LV Knitting Right Leg", "lv-knit-r-leg",  "Almost a leg. Soft. Do not kick anyone. Hover this I-key slot for time remaining.",    "Economy Leg (right)", LV_MESH_RLEG, LV_ICON_RLEG, 3,  85.f, 0.85f, 0.85f, 0.75f, 1.f, 1.f, 1.f, 1.f, 2.0f },
-        { "LV Grown Right Leg",    "lv-grown-r-leg", "A new leg. Soft. Yours. This is the finished limb — not a robot part.",                    "Economy Leg (right)", LV_MESH_RLEG, LV_ICON_RLEG, 3, 100.f, 1.00f, 1.00f, 1.00f, 1.f, 1.f, 1.f, 1.f, 2.4f },
+        { "LV Stump Right Leg",    "lv-stump-r-leg", "A raw stump. Almost no push-off.",           "Economy Leg (right)", LV_MESH_RLEG, LV_ICON_RLEG, 3,  30.f, 0.15f, 0.20f, 0.10f, 1.f, 1.f, 1.f, 1.f, 0.4f },
+        { "LV Budding Right Leg",  "lv-bud-r-leg",   "Flesh is budding on the stump.",             "Economy Leg (right)", LV_MESH_RLEG, LV_ICON_RLEG, 3,  45.f, 0.35f, 0.40f, 0.25f, 1.f, 1.f, 1.f, 1.f, 0.8f },
+        { "LV Forming Right Leg",  "lv-form-r-leg",  "Bone and tendon are finding their shape.",   "Economy Leg (right)", LV_MESH_RLEG, LV_ICON_RLEG, 3,  65.f, 0.60f, 0.65f, 0.50f, 1.f, 1.f, 1.f, 1.f, 1.4f },
+        { "LV Knitting Right Leg", "lv-knit-r-leg",  "Almost a limb. Soft. Do not test it.",       "Economy Leg (right)", LV_MESH_RLEG, LV_ICON_RLEG, 3,  85.f, 0.85f, 0.85f, 0.75f, 1.f, 1.f, 1.f, 1.f, 2.0f },
+        { "LV Grown Right Leg",    "lv-grown-r-leg", "A new limb. Soft. Yours.",                   "Economy Leg (right)", LV_MESH_RLEG, LV_ICON_RLEG, 3, 100.f, 1.00f, 1.00f, 1.00f, 1.f, 1.f, 1.f, 1.f, 2.4f },
     },
     // LEFT LEG
     {
-        { "LV Stump Left Leg",    "lv-stump-l-leg", "A raw stump. Almost no push-off. Open I and hover this slot for live Hemolymph / Vigor and hours left.",           "Economy Leg (left)", LV_MESH_LLEG, LV_ICON_LLEG, 2,  30.f, 0.15f, 0.20f, 0.10f, 1.f, 1.f, 1.f, 1.f, 0.4f },
-        { "LV Budding Left Leg",  "lv-bud-l-leg",   "Flesh is budding on the stump. Hover this I-key part for resource, percent, and time.",             "Economy Leg (left)", LV_MESH_LLEG, LV_ICON_LLEG, 2,  45.f, 0.35f, 0.40f, 0.25f, 1.f, 1.f, 1.f, 1.f, 0.8f },
-        { "LV Forming Left Leg",  "lv-form-l-leg",  "Bone and tendon are finding their shape. Hover for live Hemolymph / Vigor, stage percent, and hours left.",   "Economy Leg (left)", LV_MESH_LLEG, LV_ICON_LLEG, 2,  65.f, 0.60f, 0.65f, 0.50f, 1.f, 1.f, 1.f, 1.f, 1.4f },
-        { "LV Knitting Left Leg", "lv-knit-l-leg",  "Almost a leg. Soft. Do not kick anyone. Hover this I-key slot for time remaining.",    "Economy Leg (left)", LV_MESH_LLEG, LV_ICON_LLEG, 2,  85.f, 0.85f, 0.85f, 0.75f, 1.f, 1.f, 1.f, 1.f, 2.0f },
-        { "LV Grown Left Leg",    "lv-grown-l-leg", "A new leg. Soft. Yours. This is the finished limb — not a robot part.",                    "Economy Leg (left)", LV_MESH_LLEG, LV_ICON_LLEG, 2, 100.f, 1.00f, 1.00f, 1.00f, 1.f, 1.f, 1.f, 1.f, 2.4f },
+        { "LV Stump Left Leg",    "lv-stump-l-leg", "A raw stump. Almost no push-off.",           "Economy Leg (left)", LV_MESH_LLEG, LV_ICON_LLEG, 2,  30.f, 0.15f, 0.20f, 0.10f, 1.f, 1.f, 1.f, 1.f, 0.4f },
+        { "LV Budding Left Leg",  "lv-bud-l-leg",   "Flesh is budding on the stump.",             "Economy Leg (left)", LV_MESH_LLEG, LV_ICON_LLEG, 2,  45.f, 0.35f, 0.40f, 0.25f, 1.f, 1.f, 1.f, 1.f, 0.8f },
+        { "LV Forming Left Leg",  "lv-form-l-leg",  "Bone and tendon are finding their shape.",   "Economy Leg (left)", LV_MESH_LLEG, LV_ICON_LLEG, 2,  65.f, 0.60f, 0.65f, 0.50f, 1.f, 1.f, 1.f, 1.f, 1.4f },
+        { "LV Knitting Left Leg", "lv-knit-l-leg",  "Almost a limb. Soft. Do not test it.",       "Economy Leg (left)", LV_MESH_LLEG, LV_ICON_LLEG, 2,  85.f, 0.85f, 0.85f, 0.75f, 1.f, 1.f, 1.f, 1.f, 2.0f },
+        { "LV Grown Left Leg",    "lv-grown-l-leg", "A new limb. Soft. Yours.",                   "Economy Leg (left)", LV_MESH_LLEG, LV_ICON_LLEG, 2, 100.f, 1.00f, 1.00f, 1.00f, 1.f, 1.f, 1.f, 1.f, 2.4f },
     },
     // RIGHT ARM
     {
-        { "LV Stump Right Arm",    "lv-stump-r-arm", "A raw stump. The hand is a memory. Open I and hover this slot for live Hemolymph / Vigor and hours left.",         "Economy Arm (right)", LV_MESH_RARM, LV_ICON_RARM, 1,  30.f, 1.f, 1.f, 0.10f, 0.15f, 0.20f, 0.15f, 0.10f, 0.3f },
-        { "LV Budding Right Arm",  "lv-bud-r-arm",   "Fingers are suggestions, not facts. Hover this I-key part for resource, percent, and time.",        "Economy Arm (right)", LV_MESH_RARM, LV_ICON_RARM, 1,  45.f, 1.f, 1.f, 0.25f, 0.35f, 0.40f, 0.30f, 0.25f, 0.6f },
-        { "LV Forming Right Arm",  "lv-form-r-arm",  "A forearm you can almost trust. Hover for live Hemolymph / Vigor, stage percent, and hours left.",            "Economy Arm (right)", LV_MESH_RARM, LV_ICON_RARM, 1,  65.f, 1.f, 1.f, 0.50f, 0.60f, 0.70f, 0.55f, 0.50f, 1.1f },
-        { "LV Knitting Right Arm", "lv-knit-r-arm",  "Almost a hand. Soft. Do not make a fist. Hover this I-key slot for time remaining.",   "Economy Arm (right)", LV_MESH_RARM, LV_ICON_RARM, 1,  85.f, 1.f, 1.f, 0.75f, 0.85f, 0.90f, 0.80f, 0.80f, 1.6f },
-        { "LV Grown Right Arm",    "lv-grown-r-arm", "A new arm. Soft. Yours. This is the finished limb — not a robot part.",                    "Economy Arm (right)", LV_MESH_RARM, LV_ICON_RARM, 1, 100.f, 1.f, 1.f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.9f },
+        { "LV Stump Right Arm",    "lv-stump-r-arm", "A raw stump. Almost no push-off.",           "Economy Arm (right)", LV_MESH_RARM, LV_ICON_RARM, 1,  30.f, 1.f, 1.f, 0.10f, 0.15f, 0.20f, 0.15f, 0.10f, 0.3f },
+        { "LV Budding Right Arm",  "lv-bud-r-arm",   "Flesh is budding on the stump.",             "Economy Arm (right)", LV_MESH_RARM, LV_ICON_RARM, 1,  45.f, 1.f, 1.f, 0.25f, 0.35f, 0.40f, 0.30f, 0.25f, 0.6f },
+        { "LV Forming Right Arm",  "lv-form-r-arm",  "Bone and tendon are finding their shape.",   "Economy Arm (right)", LV_MESH_RARM, LV_ICON_RARM, 1,  65.f, 1.f, 1.f, 0.50f, 0.60f, 0.70f, 0.55f, 0.50f, 1.1f },
+        { "LV Knitting Right Arm", "lv-knit-r-arm",  "Almost a limb. Soft. Do not test it.",       "Economy Arm (right)", LV_MESH_RARM, LV_ICON_RARM, 1,  85.f, 1.f, 1.f, 0.75f, 0.85f, 0.90f, 0.80f, 0.80f, 1.6f },
+        { "LV Grown Right Arm",    "lv-grown-r-arm", "A new limb. Soft. Yours.",                   "Economy Arm (right)", LV_MESH_RARM, LV_ICON_RARM, 1, 100.f, 1.f, 1.f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.9f },
     },
     // LEFT ARM
     {
-        { "LV Stump Left Arm",    "lv-stump-l-arm", "A raw stump. The hand is a memory. Open I and hover this slot for live Hemolymph / Vigor and hours left.",         "Economy Arm (left)", LV_MESH_LARM, LV_ICON_LARM, 0,  30.f, 1.f, 1.f, 0.10f, 0.15f, 0.20f, 0.15f, 0.10f, 0.3f },
-        { "LV Budding Left Arm",  "lv-bud-l-arm",   "Fingers are suggestions, not facts. Hover this I-key part for resource, percent, and time.",        "Economy Arm (left)", LV_MESH_LARM, LV_ICON_LARM, 0,  45.f, 1.f, 1.f, 0.25f, 0.35f, 0.40f, 0.30f, 0.25f, 0.6f },
-        { "LV Forming Left Arm",  "lv-form-l-arm",  "A forearm you can almost trust. Hover for live Hemolymph / Vigor, stage percent, and hours left.",            "Economy Arm (left)", LV_MESH_LARM, LV_ICON_LARM, 0,  65.f, 1.f, 1.f, 0.50f, 0.60f, 0.70f, 0.55f, 0.50f, 1.1f },
-        { "LV Knitting Left Arm", "lv-knit-l-arm",  "Almost a hand. Soft. Do not make a fist. Hover this I-key slot for time remaining.",   "Economy Arm (left)", LV_MESH_LARM, LV_ICON_LARM, 0,  85.f, 1.f, 1.f, 0.75f, 0.85f, 0.90f, 0.80f, 0.80f, 1.6f },
-        { "LV Grown Left Arm",    "lv-grown-l-arm", "A new arm. Soft. Yours. This is the finished limb — not a robot part.",                    "Economy Arm (left)", LV_MESH_LARM, LV_ICON_LARM, 0, 100.f, 1.f, 1.f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.9f },
+        { "LV Stump Left Arm",    "lv-stump-l-arm", "A raw stump. Almost no push-off.",           "Economy Arm (left)", LV_MESH_LARM, LV_ICON_LARM, 0,  30.f, 1.f, 1.f, 0.10f, 0.15f, 0.20f, 0.15f, 0.10f, 0.3f },
+        { "LV Budding Left Arm",  "lv-bud-l-arm",   "Flesh is budding on the stump.",             "Economy Arm (left)", LV_MESH_LARM, LV_ICON_LARM, 0,  45.f, 1.f, 1.f, 0.25f, 0.35f, 0.40f, 0.30f, 0.25f, 0.6f },
+        { "LV Forming Left Arm",  "lv-form-l-arm",  "Bone and tendon are finding their shape.",   "Economy Arm (left)", LV_MESH_LARM, LV_ICON_LARM, 0,  65.f, 1.f, 1.f, 0.50f, 0.60f, 0.70f, 0.55f, 0.50f, 1.1f },
+        { "LV Knitting Left Arm", "lv-knit-l-arm",  "Almost a limb. Soft. Do not test it.",       "Economy Arm (left)", LV_MESH_LARM, LV_ICON_LARM, 0,  85.f, 1.f, 1.f, 0.75f, 0.85f, 0.90f, 0.80f, 0.80f, 1.6f },
+        { "LV Grown Left Arm",    "lv-grown-l-arm", "A new limb. Soft. Yours.",                   "Economy Arm (left)", LV_MESH_LARM, LV_ICON_LARM, 0, 100.f, 1.f, 1.f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.9f },
     },
 };
 

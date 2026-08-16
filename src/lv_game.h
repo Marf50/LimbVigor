@@ -32,7 +32,7 @@ int       LvIsSelectedCharacter(Character* me);
 int       LvPanelIsLeftMedical(DatapanelGUI* panel); // hook DatapanelGUI* has Blood, or same pointer as gui→mainbar→getMedicalPanel
 int       LvPanelHasBlood(DatapanelGUI* panel);
 void      LvWalkSelPanel(DatapanelGUI* panel); // panel vs medicalPanel, Blood, getNumLines, every key
-void      LvClearHud(DatapanelGUI* panel); // removeLine Hemolymph/Vigor/Battle-heat/Regrowth/Wait on after-orig path
+void      LvClearHud(DatapanelGUI* panel); // resource + Limb Vigor + lowercase limbs + leftover Regrowth/Wait
 void      LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap);
 int       LvReadMsvcString(const void* strObj, char* out, int outsz);
 int       LvItemLooksLikeCatalyst(Item* item);
