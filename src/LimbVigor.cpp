@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.11 — two-line medicalPanel (resource + stump/ETA), Designer copy, no load-time GUI hooks");
+        LvLog("LimbVigor: ready v1.12 — selected-body HUD + first-stump bark, two-line medicalPanel, no load-time GUI hooks");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

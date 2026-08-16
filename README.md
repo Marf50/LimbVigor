@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.11: two `setLineProgress` rows after orig only — resource (`72 / 100`) and lowercase stump key with stage/ETA tags folded in. No `Regrowth` / `Wait`. In-game gate before Character / DatapanelGUI. −15 empty socket slots LV Stump, or LV Grown if persist ≥99.5. No load-time GUI hooks.
+v1.12: same two lines for **whoever the medical panel is showing** (hired Hive / Shek included). I-key snap follows that body. First new stump barks once. No `isPlayerCharacter()` HUD gate. No `Regrowth` / `Wait`. In-game gate before Character / DatapanelGUI. −15 empty socket slots LV Stump, or LV Grown if persist ≥99.5. No load-time GUI hooks.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 

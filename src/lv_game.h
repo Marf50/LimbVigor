@@ -28,7 +28,7 @@ int       LvRestoreLimb(MedicalSystem* med, int limbId); // unused no-op; do not
 int       LvHasSplint(Character* me);
 void      LvSay(Character* me, const char* text);
 int       LvIsPlayerSquad(Character* me);
-int       LvIsSelectedCharacter(Character* me);
+int       LvIsSelectedCharacter(Character* me); // squad body the panel is drawing — not isPlayerCharacter()
 int       LvPanelIsLeftMedical(DatapanelGUI* panel); // hook DatapanelGUI* has Blood, or same pointer as gui→mainbar→getMedicalPanel
 int       LvPanelHasBlood(DatapanelGUI* panel);
 void      LvWalkSelPanel(DatapanelGUI* panel); // panel vs medicalPanel, Blood, getNumLines, every key

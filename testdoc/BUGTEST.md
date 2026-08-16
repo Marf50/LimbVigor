@@ -2,15 +2,17 @@
 
 Throwaway save. Tick the box. Write the last I-key tooltip line and anything in `RE_Kenshi_log.txt`.
 
-**Where to look:** select a **character** after In-game. Blood gets **two** LV rows only: resource (`72 / 100`) and the lowercase stump key (`budding 30%  ~2h bed`). No `Regrowth`. No `Wait`. Must NOT crash on save load (no MainBar ctor / font / `_NV_update` / `_NV_setObject`). Door / animal: neither line (`removeLine` only on the after-orig medical path). If none exists: `_NV_say` only and `LimbVigor: none exists`. No layout. No sibling create.
+**Where to look:** select a **character** after In-game — the player pawn **or** a hired Hive / Shek. Blood gets **two** LV rows only: resource (`72 / 100`) and the lowercase stump key (`budding 30%  ~2h bed`). No `Regrowth`. No `Wait`. Must NOT crash on save load (no MainBar ctor / font / `_NV_update` / `_NV_setObject`). Door / animal: neither line (`removeLine` only on the after-orig medical path). If none exists: `_NV_say` only and `LimbVigor: none exists`. No layout. No sibling create.
 
 Every ~15s the log prints `LimbVigor: Boop  Hemolymph 38/100  left leg 4% dormant`.
 
 Send the notes back and the plugin gets patched.
 
-- [ ] **Reaches the menu.** `ready v1.11 — two-line medicalPanel (resource + stump/ETA), Designer copy, no load-time GUI hooks` then `Main menu loaded`. Must NOT log `HUD created at title screen` or `Blood HUD created after in-game`. Must NOT die after title create / at ~12s with `Log manager destructor`. Must NOT hook MainBarGUI ctor / changeFontSize / `_NV_update` / `_NV_setObject`.
+- [ ] **Reaches the menu.** `ready v1.12 — selected-body HUD + first-stump bark, two-line medicalPanel, no load-time GUI hooks` then `Main menu loaded`. Must NOT log `HUD created at title screen` or `Blood HUD created after in-game`. Must NOT die after title create / at ~12s with `Log manager destructor`. Must NOT hook MainBarGUI ctor / changeFontSize / `_NV_update` / `_NV_setObject`.
 - [ ] **Loads the save.** `LimbVigor: In-game` (or `In-game — ignoring stuck gameResetting`) then `player squad seen`. A −15 empty stump must get an LV part (`slotted LV Stump/Grown … (-15 empty socket)`) or a logged skip saying why. If it does not tick, the log must say **why**. Must NOT touch Character during title / save load. Must NOT crash after In-game.
 - [ ] **Two-line QA.** Hive growing: Hemolymph `72 / 100` then `left leg` `budding 30%  ~2h bed` (hours from LvHoursToFinish). Human blocked: Vigor `40 / 100` then `left leg` `Need a Splint Kit, or toughness 40 and medic 25.` Shek fighting: Battle-heat `88 / 100` then `right arm` `forming 55%  heat`. Skeleton: `Limb Vigor` `Frames do not grow flesh.` (no Line 2). Door / animal: neither line. Blood / Head / `Left Leg` unchanged. No third row. Open **I** as backup. C stays skills. If none exists: `_NV_say` only.
+- [ ] **Selected body, not the player pawn.** Select a **hired Hive** and a **hired Shek**. Same two lines for that body (Hemolymph / Battle-heat + their stump). I-key snap matches the selected body. Door / building: both lines gone. Must NOT only paint the player character.
+- [ ] **First-stump bark.** A new stump (not an already-missing limb on load) speaks once: Hive `The stump itches. It will grow.` / Shek `The stump wants a fight, or a splint.` / Human `The stump will not grow on its own.` Hired squad bodies bark too. Must NOT spam every tick or on save load.
 - [ ] **Heartbeat.** After ~15s in-game, RE_Kenshi_log.txt has a `LimbVigor: <name>  Hemolymph …` line. It must NOT spam `restored limb 0` every frame.
 - [ ] **New game.** Same — no crash at the first medical panel. No MyGUI create.
 - [ ] **Shows in the Mods list.** `Kenshi/mods/LimbVigor/LimbVigor.mod` exists. Launcher lists LimbVigor. Enable it after RE_Kenshi.

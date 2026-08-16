@@ -130,6 +130,7 @@ static CharSnap* Bind(MedicalSystem* med)
         live->limbs[i] = tmp.limbs[i];
         if (firstSeen)
         {
+            /* Already-missing limb on load: do not bark. */
             // Empty -15 socket reads as a stump. If progress already
             // finished, keep 100% so Sync slots LV Grown immediately.
             if ((tmp.limbs[i] == LIMB_KIND_STUMP || tmp.limbs[i] == LIMB_KIND_CRUSHED)
@@ -233,11 +234,14 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                 LvLog("LimbVigor: player squad seen — I-key snap live, ticks on, parts on");
             }
 
-            // I-key tooltip reads g_hudHave. Set it as soon as this
-            // player character exists — do not wait 45s of ticks.
-            g_hudSnap = *live;
-            g_hudHave = 1;
-            LvHudNote(live);
+            /* I-key follows the body the medical panel last drew.
+             * Do not stamp every ticking squad pawn into g_hudSnap. */
+            if (g_hudHave && live->name[0]
+                && std::strcmp(g_hudSnap.name, live->name) == 0)
+            {
+                g_hudSnap = *live;
+                LvHudNote(live);
+            }
 
             if (live->race == RACE_SKELETON)
             {
@@ -306,16 +310,6 @@ static void DriveTick(MedicalSystem* med, float frameTime)
             }
 
             Heartbeat(live);
-
-            int selected = 0;
-            LV_TRY { selected = who->isPlayerCharacter() ? 1 : 0; }
-            LV_EXCEPT { selected = 0; }
-            if (selected)
-            {
-                g_hudSnap = *live;
-                g_hudHave = 1;
-                LvHudNote(live);
-            }
             }
         }
         LvPersistSave(0);
@@ -356,8 +350,9 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
         LvHudNote(live);
     }
 
-    /* Door / non-character: do not add. Clear on this after-orig path only. */
-    if (!who || !LvIsSelectedCharacter(who))
+    /* Door / building / non-person: clear. The hook's Character* is
+     * the selected body — hired squad counts. Not isPlayerCharacter(). */
+    if (!who || !LvIsPlayerSquad(who))
     {
         LvClearHud(panel);
         return;

@@ -583,12 +583,10 @@ void LvSay(Character* me, const char* text)
 
 int LvIsSelectedCharacter(Character* me)
 {
-    if (!me)
-        return 0;
-    int yes = 0;
-    LV_TRY { yes = me->isPlayerCharacter() ? 1 : 0; }
-    LV_EXCEPT { yes = 0; }
-    return yes;
+    /* The after-orig Character* is the body the medical panel is
+     * drawing. Hired Hive / Shek are squad, not the player pawn.
+     * isPlayerCharacter() is the wrong gate (v1.11 door-cleared them). */
+    return LvIsPlayerSquad(me);
 }
 
 /* Official path only: ForgottenGUI* gui → mainbar @ 0x10.
@@ -811,10 +809,10 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
         return;
     if (!LvWorldInGame())
         return;
-    /* Selection info panel + selected character only. Never C / skills. */
+    /* Selection info panel + the body this panel is drawing. Never C / skills. */
     if (!LvPanelIsLeftMedical(panel))
         return;
-    if (!LvIsSelectedCharacter(LvCharFromMed(med)))
+    if (!LvIsPlayerSquad(LvCharFromMed(med)))
         return;
     if (snap->race == RACE_ANIMAL)
     {
