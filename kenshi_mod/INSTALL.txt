@@ -25,18 +25,14 @@ Where the numbers are
 ---------------------
 There is no title-screen Limb Vigor box and no Blood HUD bars.
 
-Live numbers are on the I-key slot. Open inventory and hover
-a Limb Vigor stump/bud/knit/grown item for Hemolymph / Vigor /
-stage / hours left.
+After the world is in-game: open C for Hemolymph / Vigor /
+stage next to Blood, and open I and hover a Limb Vigor
+stump/bud/knit/grown item for the same numbers.
 
-C still has a backup list (Hemolymph / Regrowth / Time / How)
-if you want the STATS window.
-
-v1.9.2: no title MyGUI (v1.9.1's static window crashed Dark UI
-at the title screen). I-key only. No Character until the world
-is in-game. LimbVigor.mod records have mesh/icon. A mesh-less
-hit is skipped — we never slot an Economy prosthetic as a
-fake LV part.
+v1.9.3: no title MyGUI. C + I-key only after in-game.
+No Character until the world is in-game. LimbVigor.mod
+records have mesh/icon. A mesh-less hit is skipped — we
+never slot an Economy prosthetic as a fake LV part.
 
 Overwrite both LimbVigor.dll and LimbVigor.mod. Keep
 LimbVigor.progress.

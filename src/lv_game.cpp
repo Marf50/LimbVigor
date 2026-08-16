@@ -110,6 +110,34 @@ void LvGameInit()
 #endif
 }
 
+static unsigned g_pulseMs = 0;
+static unsigned g_medPulse = 0;
+static int      g_loadProbe = 0; // 0 try, 1 live, -1 dead (do not block)
+static intptr_t g_loadAddr = 0;
+static int      g_gateLogged = 0;
+
+void LvNoteMedicalPulse()
+{
+    g_medPulse++;
+#if defined(LIMBVIGOR_IDE)
+    if (!g_pulseMs) g_pulseMs = 1;
+#else
+    unsigned now = GetTickCount();
+    if (!g_pulseMs)
+    {
+        g_pulseMs = now ? now : 1;
+        LvLog("LimbVigor: medical tick (waiting for in-game)");
+    }
+#endif
+}
+
+static void LogGateOnce(const char* why)
+{
+    if (g_gateLogged) return;
+    g_gateLogged = 1;
+    LvLog(why);
+}
+
 int LvWorldInGame()
 {
 #if defined(LIMBVIGOR_IDE)
@@ -118,22 +146,89 @@ int LvWorldInGame()
     // Do not touch Character here. Title / save-load medical ticks
     // still fire; isWithThePlayer() on a half-built pawn is what
     // v1.9.0 did every frame.
-    if (!ou) return 0;
-    if (!ou->initialized) return 0;
-    if (!ou->player) return 0;
-    if (ou->gameResetting) return 0;
+    //
+    // v1.9.2 never armed: raw RVA 0x784C40 excepted (SEH → still
+    // loading forever) and/or ou->player was null after RE_Kenshi
+    // printed In-game. Do not require player. A dead loading-probe
+    // must not block forever.
 
-    void* base = ExeBase();
-    if (base)
+    if (!ou)
+    {
+        LogGateOnce("LimbVigor: not in-game yet — no GameWorld (ou)");
+        return 0;
+    }
+
+    int init = 0;
+    int reset = 0;
+    LV_TRY { init = ou->initialized ? 1 : 0; }
+    LV_EXCEPT { init = 0; }
+    LV_TRY { reset = ou->gameResetting ? 1 : 0; }
+    LV_EXCEPT { reset = 0; }
+    if (reset)
+    {
+        LogGateOnce("LimbVigor: not in-game yet — game resetting");
+        return 0;
+    }
+
+    int loading = 0;
+    if (g_loadProbe == 0)
+    {
+        int resolved = 0;
+        LV_TRY
+        {
+            g_loadAddr = KenshiLib::GetRealAddress(&GameWorld::isLoadingFromASaveGame);
+            resolved = 1;
+        }
+        LV_EXCEPT { g_loadAddr = 0; }
+        if (!resolved || !g_loadAddr)
+        {
+            g_loadProbe = -1;
+            LvLog("LimbVigor: isLoadingFromASaveGame not usable — not blocking on it");
+        }
+    }
+    if (g_loadProbe != -1 && g_loadAddr)
     {
         typedef bool (*FnLoading)(GameWorld*);
-        FnLoading fn = (FnLoading)((unsigned char*)base + 0x784C40);
-        int loading = 1;
+        FnLoading fn = (FnLoading)g_loadAddr;
+        int excepted = 0;
         LV_TRY { loading = fn(ou) ? 1 : 0; }
-        LV_EXCEPT { loading = 1; }
-        if (loading) return 0;
+        LV_EXCEPT { excepted = 1; loading = 0; }
+        if (excepted)
+        {
+            g_loadProbe = -1;
+            LvLog("LimbVigor: isLoadingFromASaveGame probe excepted — ignoring (not still-loading)");
+        }
+        else
+            g_loadProbe = 1;
     }
-    return 1;
+    if (g_loadProbe == 1 && loading)
+    {
+        LogGateOnce("LimbVigor: not in-game yet — save still loading");
+        return 0;
+    }
+
+    if (init)
+    {
+        /* Probe dead: wait a few medical pulses so DriveTick does not
+         * touch Character on the load screen. Probe live + not loading
+         * arms immediately. */
+        if (g_loadProbe != 1 && g_medPulse < 4)
+            return 0;
+        return 1;
+    }
+
+    // Fallback: medical ticks have been running. RE_Kenshi already
+    // printed In-game; do not sit silent because initialized read 0.
+    unsigned now = GetTickCount();
+    unsigned age = (g_pulseMs && now >= g_pulseMs) ? now - g_pulseMs : 0;
+    if (g_pulseMs && age >= 8000u)
+    {
+        LogGateOnce("LimbVigor: in-game fallback — medical ticks while initialized unread");
+        return 1;
+    }
+
+    LogGateOnce("LimbVigor: not in-game yet — GameWorld not initialized");
+    return 0;
 #endif
 }
 
@@ -413,5 +508,5 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     }
 
     AddTextLine(panel, cat, "Time", tip);
-    AddTextLine(panel, cat, "Look", "Hover this line, the left HUD bar, or the I-key LV part.");
+    AddTextLine(panel, cat, "Look", "C panel + I-key LV part (no title box).");
 }

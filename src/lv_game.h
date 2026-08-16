@@ -19,7 +19,8 @@ class DatapanelGUI;
 #endif
 
 void      LvGameInit();
-int       LvWorldInGame(); // 1 only after the world is playable — no Character yet
+void      LvNoteMedicalPulse(); // medicalUpdate seen — no Character
+int       LvWorldInGame(); // 1 after the world is playable — no Character yet
 Character* LvCharFromMed(MedicalSystem* med);
 void      LvReadSnap(MedicalSystem* med, CharSnap* io);
 int       LvRestoreLimb(MedicalSystem* med, int limbId); // unused no-op; do not re-hook

@@ -1,14 +1,13 @@
 #include "lv_hud.h"
 #include "lv_config.h"
 
-// v1.9.2: no title-screen MyGUI at all.
-// Creating a Kenshi_WindowCX in TitleScreen's constructor
-// (even with no events) hard-kills 1.0.65 + Dark UI after
-// "HUD created at title screen". Live numbers are I-key only.
+// No title-screen MyGUI. Creating a Kenshi_WindowCX in TitleScreen
+// hard-kills 1.0.65 + Dark UI. Live numbers are C (after in-game)
+// and I-key. This file stays a no-op — do not create widgets here.
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: no title MyGUI — I-key only");
+    LvLog("LimbVigor: no title MyGUI — C + I-key after in-game");
 }
 
 void LvHudHide() {}

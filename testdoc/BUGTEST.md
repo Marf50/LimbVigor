@@ -2,16 +2,16 @@
 
 Throwaway save. Tick the box. Write the last I-key tooltip line and anything in `RE_Kenshi_log.txt`.
 
-**Where to look:** there is **no** title-screen Limb Vigor box and **no** Blood HUD bars. Live numbers are on the **I-key** LV part. Open **I** and hover an LV stump/bud/knit/grown part — that tooltip is the live resource / % / time. C is a backup list only.
+**Where to look:** there is **no** title-screen Limb Vigor box and **no** Blood HUD bars. After the world is in-game, live numbers are on the **C** STATS panel (Hemolymph / Vigor / stage next to Blood) and on the **I-key** LV part. Do not look for a title box.
 
 Every ~15s the log prints `LimbVigor: Boop  Hemolymph 38/100  left leg 4% dormant stump`.
 
 Send the notes back and the plugin gets patched.
 
-- [ ] **Reaches the menu.** `ready v1.9.2 — no title MyGUI, I-key only` then `no title MyGUI — I-key only` then `Main menu loaded`. Must NOT log `HUD created at title screen`. Must NOT die after title create / at ~12s with `Log manager destructor`.
-- [ ] **Loads the save.** `In-game` then `player squad seen — I-key snap live, ticks on, parts on`. No 45s / 90s wait. Must NOT touch Character during save load (no crash before `In-game`).
-- [ ] **I-key live numbers.** Open inventory as soon as you can move. Hover an LV stump/bud/knit part — tooltip shows Hemolymph / Vigor / stage / hours left. Do not score Blood HUD bars. Do not look for a title box.
-- [ ] **STATS panel.** C still lists Hemolymph / Regrowth / Time. Backup only. Not the pass/fail for this build.
+- [ ] **Reaches the menu.** `ready v1.9.3 — I-key + C after in-game, no title MyGUI` then `Main menu loaded`. Must NOT log `HUD created at title screen`. Must NOT die after title create / at ~12s with `Log manager destructor`.
+- [ ] **Loads the save.** `LimbVigor: In-game` then `player squad seen`. If it does not tick, the log must say **why** (`skip — no player squad` / skeleton / bind failed / …). No 45s / 90s wait. Must NOT touch Character during title / save load (no crash before `In-game`).
+- [ ] **Visible after in-game.** Open **C** — Hemolymph / Vigor / stage next to Blood. Open **I** and hover an LV stump/bud/knit part — tooltip shows the same. Do not score Blood HUD bars. Do not look for a title box.
+- [ ] **STATS panel.** C is the requested visible path after in-game (`setLineProgress` next to Blood). Not a title MyGUI window.
 - [ ] **Heartbeat.** After ~15s in-game, RE_Kenshi_log.txt has a `LimbVigor: <name>  Hemolymph …` line. It must NOT spam `restored limb 0` every frame.
 - [ ] **New game.** Same — no crash at the first medical panel.
 - [ ] **Shows in the Mods list.** `Kenshi/mods/LimbVigor/LimbVigor.mod` exists. Launcher lists LimbVigor. Enable it after RE_Kenshi.

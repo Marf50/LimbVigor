@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-Live numbers are on the **I-key LV part**, not Blood HUD bars and not a title-screen box. There is no title MyGUI.
+Live numbers are on the **C** STATS panel (after in-game) and the **I-key LV part**, not Blood HUD bars and not a title-screen box. There is no title MyGUI.
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.9.2: v1.9.1's static title window still hard-killed 1.0.65 + Dark UI ~2.5s after `HUD created at title screen`. Any TitleScreen widget create is fatal. This build creates no title MyGUI. HUD is I-key only.
+v1.9.3: v1.9.2 reached the menu (no title crash) but never armed — zero LimbVigor lines after ready. The in-game gate no longer treats a failed `isLoadingFromASaveGame` probe as “still loading forever,” does not require `ou->player`, and logs `LimbVigor: In-game` / `player squad seen` / skip reasons. C panel `setLineProgress` runs only after in-game. Title MyGUI stays gone.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 
@@ -40,7 +40,7 @@ Documented KenshiLib methods. No TitleScreen hook. No MyGUI widgets.
 | Hook | Why |
 | --- | --- |
 | `MedicalSystem::medicalUpdate` | Tick vigor and growth (after the world is in-game) |
-| `MedicalSystem::getMedicalGUIData` | Snapshot for I-key; C is backup only |
+| `MedicalSystem::getMedicalGUIData` | C panel Hemolymph / Vigor / stage after in-game; I-key snapshot |
 | `MedicalSystem::applyDoctoring` | Splint Kit / stimulant starts the catalyst |
 | `InventoryItemBase::getTooltipData1` | Live Hemolymph / stage / time on the I-key LV part |
 

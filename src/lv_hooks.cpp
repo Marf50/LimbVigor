@@ -43,6 +43,8 @@ static int      g_hudHave = 0;
 
 static int g_inTick = 0;
 static int g_loggedInGame = 0;
+static int g_oncePlayer = 0;
+static int g_cPaintOk = 1;
 
 static unsigned NowMs()
 {
@@ -157,6 +159,19 @@ static CharSnap* Bind(MedicalSystem* med)
     return live;
 }
 
+static void LogSkip(const char* why)
+{
+    static char last[128];
+    static unsigned lastMs = 0;
+    if (!why || !why[0]) return;
+    const unsigned now = NowMs();
+    if (last[0] && std::strcmp(last, why) == 0 && lastMs && now && (now - lastMs) < 15000u)
+        return;
+    std::snprintf(last, sizeof(last), "%s", why);
+    lastMs = now ? now : 1;
+    LvLogf("LimbVigor: skip — %s", why);
+}
+
 static void DriveTick(MedicalSystem* med, float frameTime)
 {
     if (!med || !LvCfg().enableHooks) return;
@@ -166,11 +181,26 @@ static void DriveTick(MedicalSystem* med, float frameTime)
         g_loggedInGame = 1;
         LvLog("LimbVigor: In-game");
     }
-    if (IsDead(med)) return;
+    if (IsDead(med))
+    {
+        if (!g_oncePlayer) LogSkip("dead");
+        return;
+    }
     if (g_inTick) return;
 
-    Character* who = LvCharFromMed(med);
-    if (!LvIsPlayerSquad(who)) return;
+    Character* who = nullptr;
+    LV_TRY { who = LvCharFromMed(med); }
+    LV_EXCEPT { who = nullptr; }
+    if (!who)
+    {
+        LogSkip("no character on medical state");
+        return;
+    }
+    if (!LvIsPlayerSquad(who))
+    {
+        if (!g_oncePlayer) LogSkip("no player squad");
+        return;
+    }
 
     float secPerHour = LvCfg().secondsPerGameHour;
     if (secPerHour < 1.f) secPerHour = 53.33f;
@@ -182,13 +212,16 @@ static void DriveTick(MedicalSystem* med, float frameTime)
     LV_TRY
     {
         CharSnap* live = Bind(med);
-        if (live && live->race != RACE_SKELETON && live->race != RACE_ANIMAL)
+        if (!live)
         {
-            static int oncePlayer = 0;
-            if (!oncePlayer)
+            LogSkip("bind failed (no name)");
+        }
+        else
+        {
+            if (!g_oncePlayer)
             {
+                g_oncePlayer = 1;
                 LvLog("LimbVigor: player squad seen — I-key snap live, ticks on, parts on");
-                oncePlayer = 1;
             }
 
             // I-key tooltip reads g_hudHave. Set it as soon as this
@@ -197,6 +230,16 @@ static void DriveTick(MedicalSystem* med, float frameTime)
             g_hudHave = 1;
             LvHudNote(live);
 
+            if (live->race == RACE_SKELETON)
+            {
+                LogSkip("skeleton — vigor not applied");
+            }
+            else if (live->race == RACE_ANIMAL)
+            {
+                LogSkip("animal — vigor not applied");
+            }
+            else
+            {
             TickResult r;
             LvTick(live, dtHours, &r);
             LvMarkDirty();
@@ -258,6 +301,7 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                 g_hudHave = 1;
                 LvHudNote(live);
             }
+            }
         }
         LvPersistSave(0);
     }
@@ -273,6 +317,7 @@ static void hook_medUpdate(MedicalSystem* self, float frameTime)
 {
     if (orig_medUpdate) orig_medUpdate(self, frameTime);
     if (!self) return;
+    LvNoteMedicalPulse();
     DriveTick(self, frameTime);
 }
 
@@ -280,8 +325,8 @@ static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
 {
     if (orig_medGui) orig_medGui(self, panel);
     if (!self || !panel || !LvCfg().enableHud) return;
-    // Do not write DatapanelGUI / setLineProgress. C is the status
-    // window, not a Blood HUD, and GameStr there has crashed loads.
+    // C panel setLineProgress only after in-game. GameStr here
+    // crashed loads in v1.9.1; title MyGUI is still forbidden.
     if (!LvWorldInGame()) return;
     Character* who = LvCharFromMed(self);
     if (!LvIsPlayerSquad(who)) return;
@@ -293,6 +338,17 @@ static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
             g_hudSnap = *live;
             g_hudHave = 1;
             LvHudNote(live);
+            if (g_cPaintOk)
+            {
+                int excepted = 0;
+                LV_TRY { LvPaintHud(self, panel, live); }
+                LV_EXCEPT { excepted = 1; }
+                if (excepted)
+                {
+                    g_cPaintOk = 0;
+                    LvLog("LimbVigor: C panel paint excepted — I-key still live");
+                }
+            }
         }
     }
     LV_EXCEPT
