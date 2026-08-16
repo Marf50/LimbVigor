@@ -25,65 +25,21 @@ void LvHudInstall() {}
 #include <mygui/MyGUI_Gui.h>
 #include <mygui/MyGUI_Window.h>
 #include <mygui/MyGUI_Button.h>
-#include <mygui/MyGUI_Widget.h>
 
-// Snapshot is written on the game thread. Caption is written ONLY from
-// MyGUI mouse events (UI thread) — same path KillButton uses.
+// Snapshot is written on the game thread. We never write MyGUI after
+// TitleScreen construction — newDelegate / setCaption after create
+// has killed 1.8.5–1.8.9 (frame callback, then mouse events).
 static CharSnap g_snap;
 static volatile int g_have = 0;
 static volatile int g_ready = 0;
 
 static MyGUI::Window* g_win = nullptr;
 static MyGUI::Button* g_btn = nullptr;
-static char g_last[256];
-static int g_painted = 0;
 
 static TitleScreen* (*Title_orig)(TitleScreen*) = nullptr;
 
-static void WriteCaption()
-{
-    if (!g_btn) return;
-
-    char text[256];
-    if (!g_have)
-    {
-        std::snprintf(text, sizeof(text), "%s", "hover after load");
-    }
-    else
-    {
-        char bar1[96], bar2[96], tip[160];
-        float f1 = 0.f, f2 = 0.f;
-        LvHudLines(&g_snap, bar1, (int)sizeof(bar1), &f1,
-                   bar2, (int)sizeof(bar2), &f2,
-                   tip, (int)sizeof(tip));
-        if (bar2[0])
-            std::snprintf(text, sizeof(text), "%s | %s", bar1, bar2);
-        else
-            std::snprintf(text, sizeof(text), "%s", bar1);
-    }
-
-    if (std::strcmp(g_last, text) == 0) return;
-    std::snprintf(g_last, sizeof(g_last), "%s", text);
-    g_btn->setCaption(text);
-    if (!g_painted)
-    {
-        g_painted = 1;
-        LvLogf("LimbVigor: HUD painted  %s", text);
-    }
-}
-
-static void OnClick(MyGUI::Widget*)
-{
-    WriteCaption();
-}
-
-static void OnFocus(MyGUI::Widget*, MyGUI::Widget*)
-{
-    WriteCaption();
-}
-
-// KillButton recipe. No eventFrameStart. Caption updates only from
-// click / hover, which MyGUI runs on the UI thread.
+// Exact v1.8.8 create path (that reached the menu and the save).
+// No eventFrameStart. No eventMouse*. Caption is static.
 static TitleScreen* Title_hook(TitleScreen* self)
 {
     TitleScreen* ts = Title_orig ? Title_orig(self) : self;
@@ -116,16 +72,12 @@ static TitleScreen* Title_hook(TitleScreen* self)
         MyGUI::Align::Default,
         "LimbVigorBtn");
     if (button)
-    {
-        button->setCaption("hover after load");
-        button->eventMouseButtonClick += MyGUI::newDelegate(OnClick);
-        button->eventMouseSetFocus += MyGUI::newDelegate(OnFocus);
-    }
+        button->setCaption("I-key the LV part");
 
     g_win = window;
     g_btn = button;
     g_ready = 1;
-    LvLog("LimbVigor: HUD created at title screen (click/hover to refresh)");
+    LvLog("LimbVigor: HUD created at title screen (static, no events)");
     return ts;
 }
 
