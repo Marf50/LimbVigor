@@ -23,19 +23,22 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-There is no title-screen box and no Blood HUD bar.
+Select a character. The left medical list (Blood, Head,
+limbs, Hunger) gets a Hemolymph / Vigor / Battle-heat
+row — same setLineProgress call Blood uses. Spoken
+lines appear over the character.
+
+I-key on a stump/bud/knit/grown item is the backup.
+C is skills. Do not look there. Door / building: no row.
+
 Any MyGUI widget create crashes 1.0.65 + Dark UI.
+This build does not create widgets.
 
-After the world is in-game, open I and hover a Limb Vigor
-stump/bud/knit/grown item for Hemolymph / Vigor / stage.
-
-C is skills. Do not look there.
-
-v1.9.6: I-key only, no MyGUI widgets. Arms even if
-gameResetting stays stuck. No Character until in-game.
-LimbVigor.mod records have mesh/icon. A mesh-less hit
-is skipped — we never slot an Economy prosthetic as a
-fake LV part.
+v1.9.7: medicalPanel setLineProgress + _NV_say.
+Arms even if gameResetting stays stuck. No Character
+until in-game. LimbVigor.mod records have mesh/icon.
+A mesh-less hit is skipped — we never slot an Economy
+prosthetic as a fake LV part.
 
 Overwrite both LimbVigor.dll and LimbVigor.mod. Keep
 LimbVigor.progress.

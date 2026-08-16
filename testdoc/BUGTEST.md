@@ -2,15 +2,15 @@
 
 Throwaway save. Tick the box. Write the last I-key tooltip line and anything in `RE_Kenshi_log.txt`.
 
-**Where to look:** there is **no** title-screen box and **no** Blood HUD bar. After the world is in-game, live numbers are on the **I-key** LV part. Open **I** and hover an LV stump/bud/knit/grown part. **C is skills** — not the scorecard. Must NOT log `HUD created` or `Blood HUD created after in-game`.
+**Where to look:** select a **character**. The **left medical list** (Blood, Head, limbs, Hunger) should grow a **Hemolymph / Vigor / Battle-heat** row under Blood — same kind of bar as Blood, caption like `72 / 100`. Spoken lines should appear over the character. I-key on the LV part is the backup. **C is skills** — not the scorecard. Door / building selected: no row. Must NOT log `HUD created` or `Blood HUD created after in-game`. No `createWidget`.
 
 Every ~15s the log prints `LimbVigor: Boop  Hemolymph 38/100  left leg 4% dormant stump`.
 
 Send the notes back and the plugin gets patched.
 
-- [ ] **Reaches the menu.** `ready v1.9.6 — I-key only, no MyGUI widgets, arm despite stuck reset` then `Main menu loaded`. Must NOT log `HUD created at title screen` or `Blood HUD created after in-game`. Must NOT die after title create / at ~12s with `Log manager destructor`.
+- [ ] **Reaches the menu.** `ready v1.9.7 — setLineProgress on medicalPanel + _NV_say, no createWidget` then `Main menu loaded`. Must NOT log `HUD created at title screen` or `Blood HUD created after in-game`. Must NOT die after title create / at ~12s with `Log manager destructor`.
 - [ ] **Loads the save.** `LimbVigor: In-game` (or `In-game — ignoring stuck gameResetting`) then `player squad seen`. A −15 empty stump must get an LV part (`slotted LV Stump/Grown …`) or a logged skip saying why. If it does not tick, the log must say **why**. Must NOT touch Character during title / save load. Must NOT crash after In-game.
-- [ ] **Visible after in-game.** Open **I** — a −15 stump shows `LV Stump/Budding/…/Grown` and the tooltip has Hemolymph / Vigor / stage. Do not look for a left Blood bar or a title box. Do not open C for this.
+- [ ] **Visible after in-game.** Select a character. Left medical list has Hemolymph / Vigor / Battle-heat under Blood (`72 / 100`). Log has `setLineProgress Hemolymph` (or Vigor / Battle-heat) and panel vs medicalPanel / `lineExists(Blood)`. Spoken line from `_NV_say`. Open **I** as backup. Do not open C. Door selected: no row. `none exists` only if medicalPanel is missing or Blood is missing — speech still ships.
 - [ ] **Heartbeat.** After ~15s in-game, RE_Kenshi_log.txt has a `LimbVigor: <name>  Hemolymph …` line. It must NOT spam `restored limb 0` every frame.
 - [ ] **New game.** Same — no crash at the first medical panel. No MyGUI create.
 - [ ] **Shows in the Mods list.** `Kenshi/mods/LimbVigor/LimbVigor.mod` exists. Launcher lists LimbVigor. Enable it after RE_Kenshi.

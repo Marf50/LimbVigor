@@ -35,6 +35,8 @@
 
 static void (*orig_medUpdate)(MedicalSystem*, float) = nullptr;
 static void (*orig_medGui)(MedicalSystem*, DatapanelGUI*) = nullptr;
+static void (*orig_charGui)(Character*, DatapanelGUI*, int) = nullptr;
+static void* (*orig_mainBar)(void*) = nullptr;
 static bool (*orig_doctor)(MedicalSystem*, float, Item*, float, Character*) = nullptr;
 static void (*orig_tip1)(InventoryItemBase*, void*) = nullptr;
 
@@ -331,30 +333,69 @@ static void hook_medUpdate(MedicalSystem* self, float frameTime)
     DriveTick(self, frameTime);
 }
 
+static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* who)
+{
+    if (!panel)
+        return;
+    if (!LvWorldInGame())
+        return;
+
+    LvLogMedicalPanelOnce(panel);
+
+    CharSnap* live = nullptr;
+    if (med)
+        live = Bind(med);
+    if (live && who && LvIsPlayerSquad(who))
+    {
+        g_hudSnap = *live;
+        g_hudHave = 1;
+        LvHudNote(live);
+    }
+
+    /* Door / building: no character — do not add. _NV_say still ships from DriveTick. */
+    if (!who)
+        return;
+    if (!LvPanelIsLeftMedical(panel))
+        return;
+    if (live)
+        LvPaintHud(med, panel, live);
+}
+
 static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
 {
     if (orig_medGui) orig_medGui(self, panel);
     if (!self || !panel) return;
-    // Snapshot only for I-key. C is skills — not the HUD. Do not
-    // setLineProgress here (wrong surface; GameStr crashed loads).
-    if (!LvWorldInGame()) return;
+    /* After orig: Blood is already on the panel. setLineProgress ADDS Hemolymph. */
     Character* who = LvCharFromMed(self);
-    if (!LvIsPlayerSquad(who)) return;
-    LV_TRY
-    {
-        CharSnap* live = Bind(self);
-        if (live)
-        {
-            g_hudSnap = *live;
-            g_hudHave = 1;
-            LvHudNote(live);
-        }
-    }
+    LV_TRY { AfterGuiRebuild(self, panel, who); }
     LV_EXCEPT
     {
         static int once = 0;
-        if (!once) { LvErr("LimbVigor: HUD snapshot SEH"); once = 1; }
+        if (!once) { LvErr("LimbVigor: medical GUI SEH"); once = 1; }
     }
+}
+
+static void hook_charGui(Character* self, DatapanelGUI* panel, int cat)
+{
+    if (orig_charGui) orig_charGui(self, panel, cat);
+    if (!self || !panel) return;
+    /* Only the selected character — do not paint another pawn onto Blood. */
+    if (!LvIsSelectedCharacter(self))
+        return;
+    MedicalSystem* med = LvMedFromChar(self);
+    LV_TRY { AfterGuiRebuild(med, panel, self); }
+    LV_EXCEPT
+    {
+        static int once = 0;
+        if (!once) { LvErr("LimbVigor: _NV_getGUIData SEH"); once = 1; }
+    }
+}
+
+static void* hook_mainBar(void* self)
+{
+    void* r = orig_mainBar ? orig_mainBar(self) : self;
+    LvNoteMainBar(self);
+    return r ? r : self;
 }
 
 static bool hook_doctor(MedicalSystem* self, float skill, Item* equipment, float dt, Character* who)
@@ -495,6 +536,7 @@ void LvInstallHooks()
 #else
     intptr_t med = KenshiLib::GetRealAddress(&MedicalSystem::medicalUpdate);
     intptr_t gui = KenshiLib::GetRealAddress(&MedicalSystem::getMedicalGUIData);
+    intptr_t cgui = KenshiLib::GetRealAddress(&Character::_NV_getGUIData);
     intptr_t doc = KenshiLib::GetRealAddress(&MedicalSystem::applyDoctoring);
 
     void* base = nullptr;
@@ -506,11 +548,20 @@ void LvInstallHooks()
     }
     if (!med && base) med = (intptr_t)((unsigned char*)base + 0x651880);
     if (!gui && base) gui = (intptr_t)((unsigned char*)base + 0x889140);
+    if (!cgui && base) cgui = (intptr_t)((unsigned char*)base + 0x5D3AE0);
     if (!doc && base) doc = (intptr_t)((unsigned char*)base + 0x649280);
 
     HookOne("LimbVigor: medicalUpdate", med, (void*)hook_medUpdate, (void**)&orig_medUpdate);
     HookOne("LimbVigor: getMedicalGUIData", gui, (void*)hook_medGui, (void**)&orig_medGui);
+    HookOne("LimbVigor: _NV_getGUIData", cgui, (void*)hook_charGui, (void**)&orig_charGui);
     HookOne("LimbVigor: applyDoctoring (splint)", doc, (void*)hook_doctor, (void**)&orig_doctor);
+
+    /* MainBarGUI::_CONSTRUCTOR — stash medicalPanel. RVA only (no MainBarGUI.h). */
+    if (base)
+    {
+        intptr_t bar = (intptr_t)((unsigned char*)base + 0x72C1E0);
+        HookOne("LimbVigor: MainBarGUI ctor (medicalPanel)", bar, (void*)hook_mainBar, (void**)&orig_mainBar);
+    }
 
     LvHudInstall();
 

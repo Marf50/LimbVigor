@@ -45,6 +45,12 @@
 // Official documented RVAs from KenshiLib headers (not guessed).
 // Used only when GetRealAddress cannot pick an overload.
 static const intptr_t kRvaSetLineProg = 0x6FCF00;
+static const intptr_t kRvaLineExists  = 0x6FC100;
+static const intptr_t kRvaNumLines    = 0x6F5FA0;
+static const intptr_t kRvaLineByNum   = 0x6FBD30;
+static const intptr_t kRvaGetMedPanel = 0x71FDA0; // MainBarGUI::getMedicalPanel
+static const intptr_t kRvaSayLimit    = 0x5CA790; // Character::_NV_say_WithARepeatLimiter
+static const intptr_t kRvaSay         = 0x5C91D0; // Character::_NV_say
 
 static const RobotLimbs::Limb kGameLimb[LIMB_COUNT] = {
     RobotLimbs::RIGHT_LEG,
@@ -54,9 +60,23 @@ static const RobotLimbs::Limb kGameLimb[LIMB_COUNT] = {
 };
 
 typedef void* (*FnSetLineProg)(DatapanelGUI*, const GameStr*, int, float, const GameStr*, bool);
+typedef int   (*FnLineExists)(DatapanelGUI*, const GameStr*, int);
+typedef int   (*FnNumLines)(DatapanelGUI*, int);
+typedef void* (*FnLineByNum)(DatapanelGUI*, int, int);
+typedef void* (*FnGetMedPanel)(void*);
+typedef void  (*FnSay)(Character*, const GameStr*);
 
-static FnSetLineProg g_setLineProg = nullptr;
-static int           g_gameReady   = 0;
+static FnSetLineProg  g_setLineProg = nullptr;
+static FnLineExists   g_lineExists  = nullptr;
+static FnNumLines     g_numLines    = nullptr;
+static FnLineByNum    g_lineByNum   = nullptr;
+static FnGetMedPanel  g_getMedPanel = nullptr;
+static FnSay          g_say         = nullptr;
+static void*          g_mainBar     = nullptr;
+static int            g_gameReady   = 0;
+static int            g_panelLogged = 0;
+static int            g_paintLogged = 0;
+static int            g_paintDead   = 0;
 
 static void* ExeBase()
 {
@@ -100,13 +120,55 @@ void LvGameInit()
     g_gameReady = 1;
 
 #if !defined(LIMBVIGOR_IDE)
-    intptr_t prog = KenshiLib::GetRealAddress(&DatapanelGUI::setLineProgress);
     void* base = ExeBase();
+
+    intptr_t prog = KenshiLib::GetRealAddress(&DatapanelGUI::setLineProgress);
     if (prog)
         g_setLineProg = (FnSetLineProg)prog;
     else if (base)
         g_setLineProg = (FnSetLineProg)((unsigned char*)base + kRvaSetLineProg);
-    LvLog(g_setLineProg ? "LimbVigor: game helpers ready" : "LimbVigor: no setLineProgress (unused — I-key only)");
+
+    intptr_t exists = KenshiLib::GetRealAddress(&DatapanelGUI::lineExists);
+    if (exists)
+        g_lineExists = (FnLineExists)exists;
+    else if (base)
+        g_lineExists = (FnLineExists)((unsigned char*)base + kRvaLineExists);
+
+    intptr_t nlines = KenshiLib::GetRealAddress(&DatapanelGUI::getNumLines);
+    if (nlines)
+        g_numLines = (FnNumLines)nlines;
+    else if (base)
+        g_numLines = (FnNumLines)((unsigned char*)base + kRvaNumLines);
+
+    intptr_t bynum = KenshiLib::GetRealAddress(&DatapanelGUI::getLineByNum);
+    if (bynum)
+        g_lineByNum = (FnLineByNum)bynum;
+    else if (base)
+        g_lineByNum = (FnLineByNum)((unsigned char*)base + kRvaLineByNum);
+
+    /* MainBarGUI::getMedicalPanel — RVA only, do not include MainBarGUI.h. */
+    if (base)
+        g_getMedPanel = (FnGetMedPanel)((unsigned char*)base + kRvaGetMedPanel);
+
+    /* _NV_say only — never GetRealAddress on virtual Character::say. */
+    intptr_t say = KenshiLib::GetRealAddress(&Character::_NV_say_WithARepeatLimiter);
+    if (!say)
+        say = KenshiLib::GetRealAddress(&Character::_NV_say);
+    if (say)
+        g_say = (FnSay)say;
+    else if (base)
+        g_say = (FnSay)((unsigned char*)base + kRvaSayLimit);
+    if (!g_say && base)
+        g_say = (FnSay)((unsigned char*)base + kRvaSay);
+
+    if (g_setLineProg)
+        LvLog("LimbVigor: setLineProgress resolved");
+    else
+        LvLog("LimbVigor: setLineProgress missing — medical row skipped");
+    if (g_say)
+        LvLog("LimbVigor: _NV_say resolved");
+    else
+        LvLog("LimbVigor: _NV_say missing — speech stays log-only");
 #endif
 }
 
@@ -271,6 +333,15 @@ Character* LvCharFromMed(MedicalSystem* med)
     LV_TRY { me = med->me; }
     LV_EXCEPT { me = nullptr; }
     return me;
+}
+
+MedicalSystem* LvMedFromChar(Character* me)
+{
+    if (!me) return nullptr;
+    MedicalSystem* med = nullptr;
+    LV_TRY { med = me->getMedical(); }
+    LV_EXCEPT { med = nullptr; }
+    return med;
 }
 
 int LvIsPlayerSquad(Character* me)
@@ -485,60 +556,177 @@ int LvItemLooksLikeCatalyst(Item* item)
 
 void LvSay(Character* me, const char* text)
 {
-    (void)me;
-    if (text && text[0]) LvLog(text);
+    if (!text || !text[0])
+        return;
+    LvLog(text);
+    if (!me || !LvCfg().enableSpeech || !g_say)
+        return;
+    GameStr gs;
+    GameStrSet(&gs, text);
+    LV_TRY { g_say(me, &gs); }
+    LV_EXCEPT
+    {
+        static int once = 0;
+        if (!once) { LvErr("LimbVigor: _NV_say SEH"); once = 1; }
+        g_say = nullptr;
+    }
 }
 
-static void AddTextLine(DatapanelGUI* panel, int cat, const char* name, const char* value)
+void LvNoteMainBar(void* mainbar)
 {
-    if (!g_setLineProg || !panel || !name) return;
-    GameStr key, right;
-    GameStrSet(&key, name);
-    GameStrSet(&right, value ? value : "");
-    LV_TRY { g_setLineProg(panel, &key, cat, 0.f, &right, false); }
-    LV_EXCEPT {}
+    if (mainbar)
+        g_mainBar = mainbar;
+}
+
+int LvIsSelectedCharacter(Character* me)
+{
+    if (!me)
+        return 0;
+    int yes = 0;
+    LV_TRY { yes = me->isPlayerCharacter() ? 1 : 0; }
+    LV_EXCEPT { yes = 0; }
+    return yes;
+}
+
+static void* lvMedicalPanel()
+{
+    void* med = nullptr;
+    if (g_getMedPanel && g_mainBar)
+    {
+        LV_TRY { med = g_getMedPanel(g_mainBar); }
+        LV_EXCEPT { med = nullptr; }
+    }
+    if (!med && g_mainBar)
+    {
+        LV_TRY { std::memcpy(&med, (const char*)g_mainBar + 0x188, sizeof(med)); }
+        LV_EXCEPT { med = nullptr; }
+    }
+    return med;
+}
+
+static int lvLineExists(DatapanelGUI* panel, const char* key, int cat)
+{
+    if (!g_lineExists || !panel || !key)
+        return 0;
+    GameStr gs;
+    GameStrSet(&gs, key);
+    int yes = 0;
+    LV_TRY { yes = g_lineExists(panel, &gs, cat) ? 1 : 0; }
+    LV_EXCEPT { yes = 0; }
+    return yes;
+}
+
+static int lvBloodCat(DatapanelGUI* panel)
+{
+    if (!panel)
+        return -1;
+    for (int cat = 0; cat < 4; ++cat)
+    {
+        if (lvLineExists(panel, "Blood", cat))
+            return cat;
+    }
+    return -1;
+}
+
+int LvPanelIsLeftMedical(DatapanelGUI* panel)
+{
+    if (!panel)
+        return 0;
+    void* med = lvMedicalPanel();
+    if (med && (void*)panel == med)
+        return 1;
+    if (lvBloodCat(panel) >= 0)
+        return 1;
+    return 0;
+}
+
+void LvLogMedicalPanelOnce(DatapanelGUI* panel)
+{
+    if (g_panelLogged || !panel)
+        return;
+    g_panelLogged = 1;
+
+    void* med = lvMedicalPanel();
+    const int bloodCat = lvBloodCat(panel);
+    const int match = (med && (void*)panel == med) ? 1 : 0;
+    LvLogf("LimbVigor: panel=%p medicalPanel=%p match=%d Blood=%d",
+           (void*)panel, med, match, bloodCat >= 0 ? 1 : 0);
+    if (med && !match)
+        LvLogf("LimbVigor: panel != medicalPanel; lineExists(Blood)=%d", bloodCat >= 0 ? 1 : 0);
+
+    if (g_numLines)
+    {
+        for (int cat = 0; cat < 4; ++cat)
+        {
+            int n = 0;
+            LV_TRY { n = g_numLines(panel, cat); }
+            LV_EXCEPT { n = 0; }
+            if (n <= 0)
+                continue;
+            LvLogf("LimbVigor: getNumLines(%d)=%d", cat, n);
+            if (!g_lineByNum)
+                continue;
+            for (int i = 0; i < n && i < 24; ++i)
+            {
+                void* line = nullptr;
+                LV_TRY { line = g_lineByNum(panel, cat, i); }
+                LV_EXCEPT { line = nullptr; }
+                if (!line)
+                    continue;
+                char buf[96];
+                GameStrRead((const char*)line + 0x28, buf, (int)sizeof(buf));
+                LvLogf("LimbVigor: line[%d][%d] key='%s'", cat, i, buf);
+            }
+        }
+    }
+
+    if (!med || bloodCat < 0)
+        LvLog("LimbVigor: none exists (medicalPanel missing or Blood missing)");
 }
 
 void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
 {
-    if (!med || !panel || !snap || !LvCfg().enableHud) return;
-    if (!g_setLineProg) return;
-
-    const int cat = 0;
-    GameStr key, right;
-
-    char bar1[96], bar2[96], tip[220];
-    float f1 = 0.f, f2 = 0.f;
-    LvHudLines(snap, bar1, (int)sizeof(bar1), &f1, bar2, (int)sizeof(bar2), &f2, tip, (int)sizeof(tip));
-
-    if (snap->race == RACE_SKELETON)
-    {
-        GameStrSet(&key, "Limb Vigor");
-        GameStrSet(&right, "Frames do not grow flesh.");
-        LV_TRY { g_setLineProg(panel, &key, cat, 0.f, &right, false); }
-        LV_EXCEPT {}
-        AddTextLine(panel, cat, "How", LvRaceHint(RACE_SKELETON));
+    (void)med;
+    if (!panel || !snap || !LvCfg().enableHud || !g_setLineProg || g_paintDead)
         return;
-    }
+    if (!LvPanelIsLeftMedical(panel))
+        return;
+    if (snap->race == RACE_ANIMAL)
+        return;
 
-    if (snap->race == RACE_ANIMAL) return;
+    /* Blood's category — setLineProgress ADDS the row. Do not hunt a slot. */
+    int cat = lvBloodCat(panel);
+    if (cat < 0)
+        return;
 
     const char* res = LvResourceName(snap->race);
-    char num[48];
-    std::snprintf(num, sizeof(num), "%.0f / %.0f", snap->vigor, LvCfg().maxVigor);
-    GameStrSet(&key, res && res[0] ? res : "Vigor");
-    GameStrSet(&right, num);
-    LV_TRY { g_setLineProg(panel, &key, cat, f1, &right, true); }
-    LV_EXCEPT {}
+    if (!res || !res[0])
+        res = "Vigor";
 
-    if (bar2[0])
+    const float maxv = LvCfg().maxVigor > 0.f ? LvCfg().maxVigor : 100.f;
+    float fill = snap->vigor / maxv;
+    if (fill < 0.f) fill = 0.f;
+    if (fill > 1.f) fill = 1.f;
+
+    char cap[32];
+    std::snprintf(cap, sizeof(cap), "%d / %d", (int)snap->vigor, (int)maxv);
+
+    GameStr key, text;
+    GameStrSet(&key, res);
+    GameStrSet(&text, cap);
+
+    int excepted = 0;
+    LV_TRY { g_setLineProg(panel, &key, cat, fill, &text, true); }
+    LV_EXCEPT { excepted = 1; }
+    if (excepted)
     {
-        GameStrSet(&key, "Regrowth");
-        GameStrSet(&right, bar2);
-        LV_TRY { g_setLineProg(panel, &key, cat, f2, &right, true); }
-        LV_EXCEPT {}
+        g_paintDead = 1;
+        LvErr("LimbVigor: setLineProgress SEH — medical row stopped");
+        return;
     }
-
-    AddTextLine(panel, cat, "Time", tip);
-    AddTextLine(panel, cat, "Look", "C panel + I-key LV part (no title box).");
+    if (!g_paintLogged)
+    {
+        g_paintLogged = 1;
+        LvLogf("LimbVigor: setLineProgress %s cat=%d %s", res, cat, cap);
+    }
 }

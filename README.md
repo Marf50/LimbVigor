@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-Live numbers are on the **I-key LV part**. There is no MyGUI HUD (title or in-game) — any widget create hard-kills Kenshi 1.0.65 + Dark UI. C is skills — not the HUD.
+Live numbers are a **Hemolymph / Vigor / Battle-heat** row on the **left selection medical list** (under Blood) when a character is selected. That row is added with the same `setLineProgress` call Blood itself uses. Spoken lines use `_NV_say`. I-key on the LV part is the backup. There is no MyGUI widget create — that hard-kills Kenshi 1.0.65 + Dark UI. C is skills — not the HUD. Door or building selected: no row.
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.9.6: v1.9.5 armed (`In-game — ignoring stuck gameResetting`) then hard-killed on `Blood HUD created after in-game`. Any MyGUI widget create is fatal on 1.0.65 + Dark UI — title or after In-game. This build creates no MyGUI widgets. Visible path is I-key only. Stuck-reset arm, −15 stump slotting, skip logs, and 1.9.1 stabilize stay.
+v1.9.7: after orig `getMedicalGUIData` / `_NV_getGUIData`, `setLineProgress` adds Hemolymph / Vigor / Battle-heat on `medicalPanel` (Blood’s category) every rebuild when a character is selected. `_NV_say` speaks DriveTick lines (EnableSpeech on). No `createWidget`. v1.9.5 died on WindowCX, not on `setLineProgress`. Stuck-reset arm, −15 stump slotting, skip logs, and 1.9.1 stabilize stay.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 
@@ -40,7 +40,9 @@ Documented KenshiLib methods. No TitleScreen hook. No MyGUI widgets.
 | Hook | Why |
 | --- | --- |
 | `MedicalSystem::medicalUpdate` | Tick vigor and growth; slot LV parts after in-game |
-| `MedicalSystem::getMedicalGUIData` | I-key snapshot only (C is not the HUD) |
+| `MedicalSystem::getMedicalGUIData` | After orig: add Hemolymph row on medicalPanel; I-key snapshot |
+| `Character::_NV_getGUIData` | Same add-line after orig (never `GetRealAddress` on virtual `getGUIData`) |
+| `MainBarGUI::_CONSTRUCTOR` | Stash `medicalPanel` (RVA `0x72C1E0`, no MainBarGUI.h) |
 | `MedicalSystem::applyDoctoring` | Splint Kit / stimulant starts the catalyst |
 | `InventoryItemBase::getTooltipData1` | Live Hemolymph / stage / time on the I-key LV part |
 

@@ -4,12 +4,12 @@
 // v1.9.5: any MyGUI widget create is a hard kill on Kenshi 1.0.65 +
 // Dark UI — title screen AND after In-game. Do not create
 // Kenshi_WindowCX / Button1 / GenericTextBox / FloatingPanelSkin /
-// ProgressBar / anything else. Visible path is I-key only until we
-// have a non-create HUD.
+// ProgressBar / anything else. Visible path is setLineProgress on
+// medicalPanel (how Blood itself appears) plus I-key backup.
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: no MyGUI widgets — I-key only");
+    LvLog("LimbVigor: no MyGUI widgets — medicalPanel setLineProgress + I-key");
 }
 
 void LvHudEnsureAfterInGame()

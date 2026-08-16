@@ -119,11 +119,21 @@ public:
     bool hasSimilarItem(itemType) { return false; }
     bool isInCombatMode(bool, bool) const { return false; }
     void say_WithARepeatLimiter(const std::string&) {}
+    void _NV_say_WithARepeatLimiter(const std::string&) {}
+    void _NV_say(const std::string&) {}
+    void _NV_getGUIData(DatapanelGUI*, int) {}
+    MedicalSystem* getMedical() { return nullptr; }
     bool isPlayerCharacter() const { return true; }
     bool isWithThePlayer() { return true; }
 };
 
 class Item {};
 class InventoryItemBase {};
-class DatapanelGUI {};
+class DatapanelGUI {
+public:
+    void* setLineProgress(const std::string&, int, float, const std::string&, bool) { return nullptr; }
+    bool lineExists(const std::string&, int) { return false; }
+    int getNumLines(int) { return 0; }
+    void* getLineByNum(int, int) { return nullptr; }
+};
 class CharacterAnimal {};
