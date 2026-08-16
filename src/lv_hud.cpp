@@ -24,6 +24,7 @@ void LvHudInstall() {}
 #include <mygui/MyGUI.h>
 #include <mygui/MyGUI_Gui.h>
 #include <mygui/MyGUI_Window.h>
+#include <mygui/MyGUI_Widget.h>
 #include <mygui/MyGUI_Button.h>
 
 // Snapshot is written on the game thread. We never write MyGUI after
@@ -66,7 +67,17 @@ static TitleScreen* Title_hook(TitleScreen* self)
     }
     window->setCaption("Limb Vigor");
 
-    MyGUI::Button* button = window->getClientWidget()->createWidgetReal<MyGUI::Button>(
+    MyGUI::Widget* client = window->getClientWidget();
+    if (!client)
+    {
+        LvErr("LimbVigor: title window has no client widget — static caption only");
+        g_win = window;
+        g_btn = nullptr;
+        g_ready = 1;
+        return ts;
+    }
+
+    MyGUI::Button* button = client->createWidgetReal<MyGUI::Button>(
         "Kenshi_Button1",
         0.04f, 0.10f, 0.92f, 0.80f,
         MyGUI::Align::Default,

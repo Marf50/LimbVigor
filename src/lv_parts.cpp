@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdint>
+#include <cstdlib>
 
 #if defined(LIMBVIGOR_IDE)
 #include "stubs/kenshi_ide_stubs.h"
@@ -42,40 +43,49 @@ static const int kFcsSlot[LIMB_COUNT] = {
     0  // LEFT_ARM
 };
 
+#define LV_MESH_RLEG ".\\data\\items\\robotics\\economy leg R.mesh"
+#define LV_MESH_LLEG ".\\data\\items\\robotics\\economy leg L.mesh"
+#define LV_MESH_RARM ".\\data\\items\\robotics\\economy arm R.mesh"
+#define LV_MESH_LARM ".\\data\\items\\robotics\\economy arm L.mesh"
+#define LV_ICON_RLEG ".\\data\\items\\robotics\\economy leg R.png"
+#define LV_ICON_LLEG ".\\data\\items\\robotics\\economy leg L.png"
+#define LV_ICON_RARM ".\\data\\items\\robotics\\economy arm R.png"
+#define LV_ICON_LARM ".\\data\\items\\robotics\\economy arm L.png"
+
 // 4 limbs × 5 stages. Names start with "LV " so ReadLimb can tell
 // a growing part from a real prosthetic. Grown is the finished limb.
 static const LvPartDef kParts[LIMB_COUNT][LV_PART_COUNT] = {
     // RIGHT LEG
     {
-        { "LV Stump Right Leg",    "lv-stump-r-leg", "A raw stump. Almost no push-off. Left HUD under Blood shows Hemolymph / Vigor and hours left — hover this slot for the live numbers.",           "Economy Leg (right)", 3,  30.f, 0.15f, 0.20f, 0.10f, 1.f, 1.f, 1.f, 1.f, 0.4f },
-        { "LV Budding Right Leg",  "lv-bud-r-leg",   "Flesh is budding on the stump. Hover this part: tooltip tracks resource, percent, and time. Same bar sits under Blood.",             "Economy Leg (right)", 3,  45.f, 0.35f, 0.40f, 0.25f, 1.f, 1.f, 1.f, 1.f, 0.8f },
-        { "LV Forming Right Leg",  "lv-form-r-leg",  "Bone and tendon are finding their shape. Hover for live Hemolymph / Vigor, stage percent, and hours left. HUD under Blood matches.",   "Economy Leg (right)", 3,  65.f, 0.60f, 0.65f, 0.50f, 1.f, 1.f, 1.f, 1.f, 1.4f },
-        { "LV Knitting Right Leg", "lv-knit-r-leg",  "Almost a leg. Soft. Do not kick anyone. Hover this slot or the left HUD bar under Blood for time remaining.",    "Economy Leg (right)", 3,  85.f, 0.85f, 0.85f, 0.75f, 1.f, 1.f, 1.f, 1.f, 2.0f },
-        { "LV Grown Right Leg",    "lv-grown-r-leg", "A new leg. Soft. Yours. This is the finished limb — not a robot part. The HUD bar under Blood will idle until the next stump.",                    "Economy Leg (right)", 3, 100.f, 1.00f, 1.00f, 1.00f, 1.f, 1.f, 1.f, 1.f, 2.4f },
+        { "LV Stump Right Leg",    "lv-stump-r-leg", "A raw stump. Almost no push-off. Open I and hover this slot for live Hemolymph / Vigor and hours left.",           "Economy Leg (right)", LV_MESH_RLEG, LV_ICON_RLEG, 3,  30.f, 0.15f, 0.20f, 0.10f, 1.f, 1.f, 1.f, 1.f, 0.4f },
+        { "LV Budding Right Leg",  "lv-bud-r-leg",   "Flesh is budding on the stump. Hover this I-key part for resource, percent, and time.",             "Economy Leg (right)", LV_MESH_RLEG, LV_ICON_RLEG, 3,  45.f, 0.35f, 0.40f, 0.25f, 1.f, 1.f, 1.f, 1.f, 0.8f },
+        { "LV Forming Right Leg",  "lv-form-r-leg",  "Bone and tendon are finding their shape. Hover for live Hemolymph / Vigor, stage percent, and hours left.",   "Economy Leg (right)", LV_MESH_RLEG, LV_ICON_RLEG, 3,  65.f, 0.60f, 0.65f, 0.50f, 1.f, 1.f, 1.f, 1.f, 1.4f },
+        { "LV Knitting Right Leg", "lv-knit-r-leg",  "Almost a leg. Soft. Do not kick anyone. Hover this I-key slot for time remaining.",    "Economy Leg (right)", LV_MESH_RLEG, LV_ICON_RLEG, 3,  85.f, 0.85f, 0.85f, 0.75f, 1.f, 1.f, 1.f, 1.f, 2.0f },
+        { "LV Grown Right Leg",    "lv-grown-r-leg", "A new leg. Soft. Yours. This is the finished limb — not a robot part.",                    "Economy Leg (right)", LV_MESH_RLEG, LV_ICON_RLEG, 3, 100.f, 1.00f, 1.00f, 1.00f, 1.f, 1.f, 1.f, 1.f, 2.4f },
     },
     // LEFT LEG
     {
-        { "LV Stump Left Leg",    "lv-stump-l-leg", "A raw stump. Almost no push-off. Left HUD under Blood shows Hemolymph / Vigor and hours left — hover this slot for the live numbers.",           "Economy Leg (left)", 2,  30.f, 0.15f, 0.20f, 0.10f, 1.f, 1.f, 1.f, 1.f, 0.4f },
-        { "LV Budding Left Leg",  "lv-bud-l-leg",   "Flesh is budding on the stump. Hover this part: tooltip tracks resource, percent, and time. Same bar sits under Blood.",             "Economy Leg (left)", 2,  45.f, 0.35f, 0.40f, 0.25f, 1.f, 1.f, 1.f, 1.f, 0.8f },
-        { "LV Forming Left Leg",  "lv-form-l-leg",  "Bone and tendon are finding their shape. Hover for live Hemolymph / Vigor, stage percent, and hours left. HUD under Blood matches.",   "Economy Leg (left)", 2,  65.f, 0.60f, 0.65f, 0.50f, 1.f, 1.f, 1.f, 1.f, 1.4f },
-        { "LV Knitting Left Leg", "lv-knit-l-leg",  "Almost a leg. Soft. Do not kick anyone. Hover this slot or the left HUD bar under Blood for time remaining.",    "Economy Leg (left)", 2,  85.f, 0.85f, 0.85f, 0.75f, 1.f, 1.f, 1.f, 1.f, 2.0f },
-        { "LV Grown Left Leg",    "lv-grown-l-leg", "A new leg. Soft. Yours. This is the finished limb — not a robot part. The HUD bar under Blood will idle until the next stump.",                    "Economy Leg (left)", 2, 100.f, 1.00f, 1.00f, 1.00f, 1.f, 1.f, 1.f, 1.f, 2.4f },
+        { "LV Stump Left Leg",    "lv-stump-l-leg", "A raw stump. Almost no push-off. Open I and hover this slot for live Hemolymph / Vigor and hours left.",           "Economy Leg (left)", LV_MESH_LLEG, LV_ICON_LLEG, 2,  30.f, 0.15f, 0.20f, 0.10f, 1.f, 1.f, 1.f, 1.f, 0.4f },
+        { "LV Budding Left Leg",  "lv-bud-l-leg",   "Flesh is budding on the stump. Hover this I-key part for resource, percent, and time.",             "Economy Leg (left)", LV_MESH_LLEG, LV_ICON_LLEG, 2,  45.f, 0.35f, 0.40f, 0.25f, 1.f, 1.f, 1.f, 1.f, 0.8f },
+        { "LV Forming Left Leg",  "lv-form-l-leg",  "Bone and tendon are finding their shape. Hover for live Hemolymph / Vigor, stage percent, and hours left.",   "Economy Leg (left)", LV_MESH_LLEG, LV_ICON_LLEG, 2,  65.f, 0.60f, 0.65f, 0.50f, 1.f, 1.f, 1.f, 1.f, 1.4f },
+        { "LV Knitting Left Leg", "lv-knit-l-leg",  "Almost a leg. Soft. Do not kick anyone. Hover this I-key slot for time remaining.",    "Economy Leg (left)", LV_MESH_LLEG, LV_ICON_LLEG, 2,  85.f, 0.85f, 0.85f, 0.75f, 1.f, 1.f, 1.f, 1.f, 2.0f },
+        { "LV Grown Left Leg",    "lv-grown-l-leg", "A new leg. Soft. Yours. This is the finished limb — not a robot part.",                    "Economy Leg (left)", LV_MESH_LLEG, LV_ICON_LLEG, 2, 100.f, 1.00f, 1.00f, 1.00f, 1.f, 1.f, 1.f, 1.f, 2.4f },
     },
     // RIGHT ARM
     {
-        { "LV Stump Right Arm",    "lv-stump-r-arm", "A raw stump. The hand is a memory. Left HUD under Blood shows Hemolymph / Vigor and hours left — hover this slot for the live numbers.",         "Economy Arm (right)", 1,  30.f, 1.f, 1.f, 0.10f, 0.15f, 0.20f, 0.15f, 0.10f, 0.3f },
-        { "LV Budding Right Arm",  "lv-bud-r-arm",   "Fingers are suggestions, not facts. Hover this part: tooltip tracks resource, percent, and time. Same bar sits under Blood.",        "Economy Arm (right)", 1,  45.f, 1.f, 1.f, 0.25f, 0.35f, 0.40f, 0.30f, 0.25f, 0.6f },
-        { "LV Forming Right Arm",  "lv-form-r-arm",  "A forearm you can almost trust. Hover for live Hemolymph / Vigor, stage percent, and hours left. HUD under Blood matches.",            "Economy Arm (right)", 1,  65.f, 1.f, 1.f, 0.50f, 0.60f, 0.70f, 0.55f, 0.50f, 1.1f },
-        { "LV Knitting Right Arm", "lv-knit-r-arm",  "Almost a hand. Soft. Do not make a fist. Hover this slot or the left HUD bar under Blood for time remaining.",   "Economy Arm (right)", 1,  85.f, 1.f, 1.f, 0.75f, 0.85f, 0.90f, 0.80f, 0.80f, 1.6f },
-        { "LV Grown Right Arm",    "lv-grown-r-arm", "A new arm. Soft. Yours. This is the finished limb — not a robot part. The HUD bar under Blood will idle until the next stump.",                    "Economy Arm (right)", 1, 100.f, 1.f, 1.f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.9f },
+        { "LV Stump Right Arm",    "lv-stump-r-arm", "A raw stump. The hand is a memory. Open I and hover this slot for live Hemolymph / Vigor and hours left.",         "Economy Arm (right)", LV_MESH_RARM, LV_ICON_RARM, 1,  30.f, 1.f, 1.f, 0.10f, 0.15f, 0.20f, 0.15f, 0.10f, 0.3f },
+        { "LV Budding Right Arm",  "lv-bud-r-arm",   "Fingers are suggestions, not facts. Hover this I-key part for resource, percent, and time.",        "Economy Arm (right)", LV_MESH_RARM, LV_ICON_RARM, 1,  45.f, 1.f, 1.f, 0.25f, 0.35f, 0.40f, 0.30f, 0.25f, 0.6f },
+        { "LV Forming Right Arm",  "lv-form-r-arm",  "A forearm you can almost trust. Hover for live Hemolymph / Vigor, stage percent, and hours left.",            "Economy Arm (right)", LV_MESH_RARM, LV_ICON_RARM, 1,  65.f, 1.f, 1.f, 0.50f, 0.60f, 0.70f, 0.55f, 0.50f, 1.1f },
+        { "LV Knitting Right Arm", "lv-knit-r-arm",  "Almost a hand. Soft. Do not make a fist. Hover this I-key slot for time remaining.",   "Economy Arm (right)", LV_MESH_RARM, LV_ICON_RARM, 1,  85.f, 1.f, 1.f, 0.75f, 0.85f, 0.90f, 0.80f, 0.80f, 1.6f },
+        { "LV Grown Right Arm",    "lv-grown-r-arm", "A new arm. Soft. Yours. This is the finished limb — not a robot part.",                    "Economy Arm (right)", LV_MESH_RARM, LV_ICON_RARM, 1, 100.f, 1.f, 1.f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.9f },
     },
     // LEFT ARM
     {
-        { "LV Stump Left Arm",    "lv-stump-l-arm", "A raw stump. The hand is a memory. Left HUD under Blood shows Hemolymph / Vigor and hours left — hover this slot for the live numbers.",         "Economy Arm (left)", 0,  30.f, 1.f, 1.f, 0.10f, 0.15f, 0.20f, 0.15f, 0.10f, 0.3f },
-        { "LV Budding Left Arm",  "lv-bud-l-arm",   "Fingers are suggestions, not facts. Hover this part: tooltip tracks resource, percent, and time. Same bar sits under Blood.",        "Economy Arm (left)", 0,  45.f, 1.f, 1.f, 0.25f, 0.35f, 0.40f, 0.30f, 0.25f, 0.6f },
-        { "LV Forming Left Arm",  "lv-form-l-arm",  "A forearm you can almost trust. Hover for live Hemolymph / Vigor, stage percent, and hours left. HUD under Blood matches.",            "Economy Arm (left)", 0,  65.f, 1.f, 1.f, 0.50f, 0.60f, 0.70f, 0.55f, 0.50f, 1.1f },
-        { "LV Knitting Left Arm", "lv-knit-l-arm",  "Almost a hand. Soft. Do not make a fist. Hover this slot or the left HUD bar under Blood for time remaining.",   "Economy Arm (left)", 0,  85.f, 1.f, 1.f, 0.75f, 0.85f, 0.90f, 0.80f, 0.80f, 1.6f },
-        { "LV Grown Left Arm",    "lv-grown-l-arm", "A new arm. Soft. Yours. This is the finished limb — not a robot part. The HUD bar under Blood will idle until the next stump.",                    "Economy Arm (left)", 0, 100.f, 1.f, 1.f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.9f },
+        { "LV Stump Left Arm",    "lv-stump-l-arm", "A raw stump. The hand is a memory. Open I and hover this slot for live Hemolymph / Vigor and hours left.",         "Economy Arm (left)", LV_MESH_LARM, LV_ICON_LARM, 0,  30.f, 1.f, 1.f, 0.10f, 0.15f, 0.20f, 0.15f, 0.10f, 0.3f },
+        { "LV Budding Left Arm",  "lv-bud-l-arm",   "Fingers are suggestions, not facts. Hover this I-key part for resource, percent, and time.",        "Economy Arm (left)", LV_MESH_LARM, LV_ICON_LARM, 0,  45.f, 1.f, 1.f, 0.25f, 0.35f, 0.40f, 0.30f, 0.25f, 0.6f },
+        { "LV Forming Left Arm",  "lv-form-l-arm",  "A forearm you can almost trust. Hover for live Hemolymph / Vigor, stage percent, and hours left.",            "Economy Arm (left)", LV_MESH_LARM, LV_ICON_LARM, 0,  65.f, 1.f, 1.f, 0.50f, 0.60f, 0.70f, 0.55f, 0.50f, 1.1f },
+        { "LV Knitting Left Arm", "lv-knit-l-arm",  "Almost a hand. Soft. Do not make a fist. Hover this I-key slot for time remaining.",   "Economy Arm (left)", LV_MESH_LARM, LV_ICON_LARM, 0,  85.f, 1.f, 1.f, 0.75f, 0.85f, 0.90f, 0.80f, 0.80f, 1.6f },
+        { "LV Grown Left Arm",    "lv-grown-l-arm", "A new arm. Soft. Yours. This is the finished limb — not a robot part.",                    "Economy Arm (left)", LV_MESH_LARM, LV_ICON_LARM, 0, 100.f, 1.f, 1.f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.9f },
     },
 };
 
@@ -129,13 +139,6 @@ static const RobotLimbs::Limb kGameLimb[LIMB_COUNT] = {
     RobotLimbs::LEFT_LEG,
     RobotLimbs::RIGHT_ARM,
     RobotLimbs::LEFT_ARM
-};
-
-static const char* kEconomyName[LIMB_COUNT] = {
-    "Economy Leg (right)",
-    "Economy Leg (left)",
-    "Economy Arm (right)",
-    "Economy Arm (left)"
 };
 
 // RootObjectFactory.h pulls boost/thread (auto-links a .lib we do not ship).
@@ -220,7 +223,7 @@ static void* ExeBase()
     return (void*)exe;
 }
 
-static GameData* LookupData(const char* stringId, const char* name)
+static GameData* LookupOurData(const char* stringId, const char* name)
 {
     if (!ou) return nullptr;
     GameData* gd = nullptr;
@@ -243,6 +246,255 @@ static GameData* LookupData(const char* stringId, const char* name)
         LV_EXCEPT { gd = nullptr; }
     }
     return gd;
+}
+
+static int StrHasI(const char* hay, const char* needle)
+{
+    if (!hay || !needle || !needle[0]) return 0;
+    for (const char* h = hay; *h; ++h)
+    {
+        const char* a = h;
+        const char* b = needle;
+        while (*a && *b)
+        {
+            char ca = *a, cb = *b;
+            if (ca >= 'A' && ca <= 'Z') ca = (char)(ca + 32);
+            if (cb >= 'A' && cb <= 'Z') cb = (char)(cb + 32);
+            if (ca != cb) break;
+            ++a;
+            ++b;
+        }
+        if (!*b) return 1;
+    }
+    return 0;
+}
+
+// GameData::filesdata lives at 0x1F8 (boost unordered_map<string,string>).
+// Do not call find() — that would compile a VS2022 walk into our DLL.
+// Walk the map object and one level of heap nodes for GameStr keys/paths.
+static int DataHasMeshIcon(GameData* gd)
+{
+    if (!gd) return 0;
+    const char* map = (const char*)(const void*)gd + 0x1F8;
+    int sawMesh = 0;
+    int sawIcon = 0;
+
+    for (int i = 0; i < 8; ++i)
+    {
+        void* ptr = nullptr;
+        std::memcpy(&ptr, map + i * (int)sizeof(void*), sizeof(ptr));
+        if (!ptr) continue;
+        const char* bucket = (const char*)ptr;
+        for (int b = 0; b < 24; ++b)
+        {
+            void* node = nullptr;
+            std::memcpy(&node, bucket + b * (int)sizeof(void*), sizeof(node));
+            if (!node) continue;
+            const char* key = (const char*)node + sizeof(void*);
+            const char* val = key + 32; // MSVC 2010 std::string
+            char k[64] = {};
+            char v[160] = {};
+            if (GameStrRead(key, k, (int)sizeof(k)))
+            {
+                if (StrHasI(k, "mesh") && GameStrRead(val, v, (int)sizeof(v)) && v[0])
+                    sawMesh = 1;
+                if (StrHasI(k, "icon") && GameStrRead(val, v, (int)sizeof(v)) && v[0])
+                    sawIcon = 1;
+            }
+            if (GameStrRead(val, v, (int)sizeof(v)))
+            {
+                if (StrHasI(v, ".mesh")) sawMesh = 1;
+                if (StrHasI(v, ".png") || StrHasI(v, ".dds")) sawIcon = 1;
+            }
+        }
+    }
+    return (sawMesh && sawIcon) ? 1 : 0;
+}
+
+static int DataLooksEmptyFiles(GameData* gd)
+{
+    if (!gd) return 1;
+    const char* map = (const char*)(const void*)gd + 0x1F8;
+    for (int off = 8; off <= 56; off += 8)
+    {
+        std::uint64_t n = 0;
+        std::memcpy(&n, map + off, sizeof(n));
+        if (n >= 2 && n <= 16)
+            return 0;
+    }
+    return 1;
+}
+
+static int ReadI32(const unsigned char* p, int* off, int size, int* out)
+{
+    if (!p || !off || !out || *off + 4 > size) return 0;
+    std::memcpy(out, p + *off, 4);
+    *off += 4;
+    return 1;
+}
+
+static int ReadModStr(const unsigned char* p, int* off, int size, char* out, int outsz)
+{
+    int n = 0;
+    if (!ReadI32(p, off, size, &n)) return 0;
+    if (n < 0 || n > 4000 || *off + n > size) return 0;
+    if (out && outsz > 0)
+    {
+        int c = n < outsz - 1 ? n : outsz - 1;
+        std::memcpy(out, p + *off, (size_t)c);
+        out[c] = 0;
+    }
+    *off += n;
+    return 1;
+}
+
+// On-disk LimbVigor.mod next to the DLL. Fail closed if FileValues are missing.
+static int ModRecordHasMeshIcon(const char* stringId)
+{
+    if (!stringId || !stringId[0]) return 0;
+    const char* dir = LvPluginDir();
+    char path[MAX_PATH];
+    if (dir && dir[0])
+        std::snprintf(path, sizeof(path), "%s\\LimbVigor.mod", dir);
+    else
+        std::snprintf(path, sizeof(path), "LimbVigor.mod");
+
+    FILE* f = nullptr;
+#if defined(_MSC_VER)
+    if (fopen_s(&f, path, "rb") != 0) f = nullptr;
+#else
+    f = std::fopen(path, "rb");
+#endif
+    if (!f) return 0;
+
+    unsigned char* buf = nullptr;
+    int size = 0;
+    if (std::fseek(f, 0, SEEK_END) == 0)
+    {
+        long n = std::ftell(f);
+        if (n > 32 && n < 2 * 1024 * 1024)
+        {
+            size = (int)n;
+            buf = (unsigned char*)std::malloc((size_t)size);
+            if (buf)
+            {
+                std::rewind(f);
+                if ((int)std::fread(buf, 1, (size_t)size, f) != size)
+                {
+                    std::free(buf);
+                    buf = nullptr;
+                }
+            }
+        }
+    }
+    std::fclose(f);
+    if (!buf) return 0;
+
+    int off = 0;
+    int type = 0, ver = 0, lastId = 0, count = 0;
+    int ok = 0;
+    if (ReadI32(buf, &off, size, &type) && type == 16
+     && ReadI32(buf, &off, size, &ver)
+     && ReadModStr(buf, &off, size, nullptr, 0)
+     && ReadModStr(buf, &off, size, nullptr, 0)
+     && ReadModStr(buf, &off, size, nullptr, 0)
+     && ReadModStr(buf, &off, size, nullptr, 0)
+     && ReadI32(buf, &off, size, &lastId)
+     && ReadI32(buf, &off, size, &count)
+     && count > 0 && count <= 64)
+    {
+        for (int i = 0; i < count; ++i)
+        {
+            const int start = off;
+            int length = 0, itype = 0, iid = 0;
+            char sid[80] = {};
+            if (!ReadI32(buf, &off, size, &length)) break;
+            if (!ReadI32(buf, &off, size, &itype)) break;
+            if (!ReadI32(buf, &off, size, &iid)) break;
+            if (!ReadModStr(buf, &off, size, nullptr, 0)) break;
+            if (!ReadModStr(buf, &off, size, sid, (int)sizeof(sid))) break;
+            int chg = 0;
+            if (!ReadI32(buf, &off, size, &chg)) break;
+
+            int nbool = 0;
+            if (!ReadI32(buf, &off, size, &nbool) || nbool < 0 || nbool > 32) break;
+            for (int b = 0; b < nbool; ++b)
+            {
+                if (!ReadModStr(buf, &off, size, nullptr, 0)) { nbool = -1; break; }
+                if (off >= size) { nbool = -1; break; }
+                off += 1;
+            }
+            if (nbool < 0) break;
+
+            int nfloat = 0;
+            if (!ReadI32(buf, &off, size, &nfloat) || nfloat < 0 || nfloat > 64) break;
+            for (int fl = 0; fl < nfloat; ++fl)
+            {
+                if (!ReadModStr(buf, &off, size, nullptr, 0)) { nfloat = -1; break; }
+                off += 4;
+            }
+            if (nfloat < 0) break;
+
+            int nint = 0;
+            if (!ReadI32(buf, &off, size, &nint) || nint < 0 || nint > 64) break;
+            for (int iv = 0; iv < nint; ++iv)
+            {
+                if (!ReadModStr(buf, &off, size, nullptr, 0)) { nint = -1; break; }
+                off += 4;
+            }
+            if (nint < 0) break;
+
+            int nvec3 = 0, nvec4 = 0;
+            if (!ReadI32(buf, &off, size, &nvec3) || nvec3 != 0) break;
+            if (!ReadI32(buf, &off, size, &nvec4) || nvec4 != 0) break;
+
+            int nstr = 0;
+            if (!ReadI32(buf, &off, size, &nstr) || nstr < 0 || nstr > 16) break;
+            for (int s = 0; s < nstr; ++s)
+            {
+                if (!ReadModStr(buf, &off, size, nullptr, 0)) { nstr = -1; break; }
+                if (!ReadModStr(buf, &off, size, nullptr, 0)) { nstr = -1; break; }
+            }
+            if (nstr < 0) break;
+
+            int nfile = 0;
+            if (!ReadI32(buf, &off, size, &nfile) || nfile < 0 || nfile > 16) break;
+            int mesh = 0, icon = 0;
+            for (int fv = 0; fv < nfile; ++fv)
+            {
+                char key[40] = {};
+                char val[200] = {};
+                if (!ReadModStr(buf, &off, size, key, (int)sizeof(key))) { nfile = -1; break; }
+                if (!ReadModStr(buf, &off, size, val, (int)sizeof(val))) { nfile = -1; break; }
+                if (StrHasI(key, "mesh") && val[0] && StrHasI(val, ".mesh")) mesh = 1;
+                if (StrHasI(key, "icon") && val[0]) icon = 1;
+            }
+            if (nfile < 0) break;
+
+            if (std::strcmp(sid, stringId) == 0)
+            {
+                ok = (mesh && icon) ? 1 : 0;
+                break;
+            }
+            off = start + length;
+            if (off <= start || off > size) break;
+        }
+    }
+    std::free(buf);
+    return ok;
+}
+
+static int RecordCanEquip(GameData* gd, const LvPartDef* def)
+{
+    if (!gd || !def) return 0;
+    if (DataHasMeshIcon(gd)) return 1;
+    if (DataLooksEmptyFiles(gd))
+        return 0;
+    // Walk inconclusive — trust the .mod we shipped next to the DLL.
+    if (def->mesh && def->mesh[0] && def->icon && def->icon[0]
+     && ModRecordHasMeshIcon(def->stringId))
+        return 1;
+    return 0;
 }
 
 static Item* MakeItem(GameData* gd)
@@ -315,22 +567,19 @@ int LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage)
         return 0;
     }
 
-    GameData* gd = LookupData(def->stringId, def->name);
-    const char* src = "ours";
-    if (!gd)
-    {
-        gd = LookupData(nullptr, def->vanillaVisual);
-        src = "economy";
-    }
-    if (!gd)
-    {
-        gd = LookupData(nullptr, kEconomyName[limbId]);
-        src = "economy-slot";
-    }
+    GameData* gd = LookupOurData(def->stringId, def->name);
     if (!gd)
     {
         failUntil[limbId] = now + 15000u;
-        LvLogf("LimbVigor: no GameData for %s (or %s)", def->name, def->vanillaVisual);
+        LvLogf("LimbVigor: no LimbVigor.mod GameData for %s — skip (not using Economy)",
+            def->name);
+        return 0;
+    }
+    if (!RecordCanEquip(gd, def))
+    {
+        failUntil[limbId] = now + 15000u;
+        LvLogf("LimbVigor: mesh-less GameData for %s — skip (not using Economy)",
+            def->name);
         return 0;
     }
 
@@ -350,8 +599,8 @@ int LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage)
     }
 
     failUntil[limbId] = 0;
-    LvLogf("LimbVigor: slotted %s (%s) on %s",
-        def->name, src, LvLimbLabel((LimbId)limbId));
+    LvLogf("LimbVigor: slotted %s (ours) on %s",
+        def->name, LvLimbLabel((LimbId)limbId));
     return 1;
 }
 

@@ -27,6 +27,8 @@
 #include <kenshi/Enums.h>
 #include <kenshi/Item.h>
 #include <kenshi/gui/DatapanelGUI.h>
+#include <kenshi/Globals.h>
+#include <kenshi/GameWorld.h>
 #endif
 
 #include <cstdio>
@@ -105,6 +107,33 @@ void LvGameInit()
     else if (base)
         g_setLineProg = (FnSetLineProg)((unsigned char*)base + kRvaSetLineProg);
     LvLog(g_setLineProg ? "LimbVigor: game helpers ready" : "LimbVigor: no setLineProgress — HUD will stay empty");
+#endif
+}
+
+int LvWorldInGame()
+{
+#if defined(LIMBVIGOR_IDE)
+    return 1;
+#else
+    // Do not touch Character here. Title / save-load medical ticks
+    // still fire; isWithThePlayer() on a half-built pawn is what
+    // v1.9.0 did every frame.
+    if (!ou) return 0;
+    if (!ou->initialized) return 0;
+    if (!ou->player) return 0;
+    if (ou->gameResetting) return 0;
+
+    void* base = ExeBase();
+    if (base)
+    {
+        typedef bool (*FnLoading)(GameWorld*);
+        FnLoading fn = (FnLoading)((unsigned char*)base + 0x784C40);
+        int loading = 1;
+        LV_TRY { loading = fn(ou) ? 1 : 0; }
+        LV_EXCEPT { loading = 1; }
+        if (loading) return 0;
+    }
+    return 1;
 #endif
 }
 
@@ -288,136 +317,17 @@ void LvReadSnap(MedicalSystem* med, CharSnap* io)
 
 int LvRestoreLimb(MedicalSystem* med, int limbId)
 {
-    if (!med || limbId < 0 || limbId >= LIMB_COUNT) return 0;
-    const RobotLimbs::Limb limb = kGameLimb[limbId];
-
-    LimbState before = LIMB_ORIGINAL;
-    LV_TRY { before = med->getLimbState(limb); }
-    LV_EXCEPT { before = LIMB_ORIGINAL; }
-
-    MedicalSystem::HealthPartStatus* part = nullptr;
-    LV_TRY { part = med->getPart(limb); }
-    LV_EXCEPT { part = nullptr; }
-
-    float flesh = 0.f;
-    float mx = 100.f;
-    int robotic = 0;
-    LimbState partState = LIMB_ORIGINAL;
-    if (part)
+    // Unused. DriveTick slots LV Grown via LvEquipGrowthPart.
+    // Do NOT call setLimb(ORIGINAL) at 100%. Do not re-hook this.
+    (void)med;
+    (void)limbId;
+    static int once = 0;
+    if (!once)
     {
-        LV_TRY
-        {
-            mx = part->_maxHealth;
-            flesh = part->flesh;
-            robotic = part->isRobotic() ? 1 : 0;
-            partState = part->getRobotLimbState();
-        }
-        LV_EXCEPT { flesh = 0.f; }
-        if (mx < 1.f || mx > 10000.f) mx = 100.f;
+        LvLog("LimbVigor: LvRestoreLimb is unused — grown part stays, no setLimb(ORIGINAL)");
+        once = 1;
     }
-
-    LvLogf("LimbVigor: restore %s — state %d part %d flesh %.1f/%.0f robotic %d",
-        LvLimbLabel((LimbId)limbId), (int)before, (int)partState, flesh, mx, robotic);
-
-    Item* worn = nullptr;
-    LV_TRY
-    {
-        RobotLimbs* robots = med->robotLimbs;
-        if (robots) worn = robots->getLimb(limb);
-    }
-    LV_EXCEPT { worn = nullptr; }
-    const int ours = worn && LvIsGrowthPart(worn) ? 1 : 0;
-
-    if (robotic && partState == LIMB_REPLACED && !ours)
-    {
-        LvLogf("LimbVigor: refuse restore %s — prosthetic occupies the socket",
-            LvLimbLabel((LimbId)limbId));
-        return 0;
-    }
-    if (before == LIMB_REPLACED && !ours)
-    {
-        LvLogf("LimbVigor: refuse restore %s — replaced", LvLimbLabel((LimbId)limbId));
-        return 0;
-    }
-
-    // Attached healthy flesh — do not rip it off.
-    if (flesh > mx * 0.08f && before == LIMB_ORIGINAL && partState == LIMB_ORIGINAL)
-        return 1;
-
-    const float start = (mx * LvCfg().restoredFlesh > 1.f)
-        ? mx * LvCfg().restoredFlesh
-        : mx * 0.22f;
-
-    if (part)
-    {
-        LV_TRY
-        {
-            part->flesh = start;
-            part->updateDerivedHealths();
-        }
-        LV_EXCEPT {}
-    }
-
-    int ok = 0;
-    if (ours || before == LIMB_STUMP || before == LIMB_CRUSHED
-     || partState == LIMB_STUMP || partState == LIMB_CRUSHED
-     || partState == LIMB_REPLACED)
-    {
-        if (ours)
-            LvClearGrowthPart(med, limbId);
-
-        RobotLimbs* robots = nullptr;
-        LV_TRY { robots = med->robotLimbs; }
-        LV_EXCEPT { robots = nullptr; }
-        if (robots)
-        {
-            LV_TRY
-            {
-                robots->setLimb(limb, LIMB_ORIGINAL, nullptr);
-                ok = 1;
-            }
-            LV_EXCEPT { ok = 0; }
-        }
-        LV_TRY { med->setRobotLimbItem(limb, nullptr, true); }
-        LV_EXCEPT {}
-    }
-    else
-    {
-        ok = 1;
-    }
-
-    if (part)
-    {
-        LV_TRY
-        {
-            part->flesh = start;
-            part->updateDerivedHealths();
-        }
-        LV_EXCEPT {}
-    }
-
-    LV_TRY { med->validateHealthValues(); }
-    LV_EXCEPT {}
-    LV_TRY { med->updateStats(); }
-    LV_EXCEPT {}
-
-    LimbState after = before;
-    float afterFlesh = flesh;
-    LV_TRY { after = med->getLimbState(limb); }
-    LV_EXCEPT {}
-    if (part)
-    {
-        LV_TRY { afterFlesh = part->flesh; }
-        LV_EXCEPT {}
-    }
-    LvLogf("LimbVigor: restore %s after — state %d flesh %.1f (wrote %.1f)",
-        LvLimbLabel((LimbId)limbId), (int)after, afterFlesh, start);
-
-    if (after == LIMB_STUMP || after == LIMB_CRUSHED)
-        return 0;
-    if (afterFlesh > 0.f)
-        return 1;
-    return ok;
+    return 0;
 }
 
 int LvHasSplint(Character* me)

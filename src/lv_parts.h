@@ -21,7 +21,9 @@ struct LvPartDef
     const char* name;          // I-key slot title, "LV " prefix
     const char* stringId;      // GameData stringID
     const char* desc;
-    const char* vanillaVisual; // Economy limb used if our .mod item is missing
+    const char* vanillaVisual; // Economy limb whose mesh/icon we reference — never createItem this
+    const char* mesh;          // FileValue path (required)
+    const char* icon;          // FileValue path (required)
     int         slot;          // RobotLimbs::Limb / FCS LimbSlot
     float       hp;
     float       athletics;

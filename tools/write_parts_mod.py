@@ -9,6 +9,11 @@ Format matches OpenConstructionSet DataFileType.Mod + OcsWriter:
 
 LimbReplacement = 111. Slot numbers match RobotLimbs::Limb:
   LEFT_ARM=0 RIGHT_ARM=1 LEFT_LEG=2 RIGHT_LEG=3
+
+FileValue mesh/icon are required. createItem cannot equip a mesh-less
+record. Paths reuse the vanilla Economy limb visuals (same files the
+game already ships). C++ still refuses a mesh-less GameData hit and
+never createItem()s an Economy prosthetic.
 """
 from __future__ import annotations
 
@@ -28,48 +33,64 @@ DESC = (
     "Growth stages are real limb parts (I-key slot). Needs RE_Kenshi."
 )
 
+# Vanilla Economy visuals. FCS FileValue keys for LIMB_REPLACEMENT:
+#   mesh, mesh female, icon
+# Paths are the game-root form FCS writes when you pick a file under data/.
+MESH_BY_LIMB = {
+    "r-leg": r".\data\items\robotics\economy leg R.mesh",
+    "l-leg": r".\data\items\robotics\economy leg L.mesh",
+    "r-arm": r".\data\items\robotics\economy arm R.mesh",
+    "l-arm": r".\data\items\robotics\economy arm L.mesh",
+}
+ICON_BY_LIMB = {
+    "r-leg": r".\data\items\robotics\economy leg R.png",
+    "l-leg": r".\data\items\robotics\economy leg L.png",
+    "r-arm": r".\data\items\robotics\economy arm R.png",
+    "l-arm": r".\data\items\robotics\economy arm L.png",
+}
+
 # (limb_key, stage, name, string_id, desc, slot, hp, ath, stl, swim, dex, stren, combat, thievery, weight)
 PARTS = [
     ("r-leg", "stump", "LV Stump Right Leg", "lv-stump-r-leg",
-     "A raw stump. Almost no push-off. Left HUD under Blood shows Hemolymph / Vigor and hours left — hover this slot for the live numbers.", 3, 30, 0.15, 0.20, 0.10, 1.0, 1.0, 1.0, 1.0, 0.4),
+     "A raw stump. Almost no push-off. Open I and hover this slot for live Hemolymph / Vigor and hours left.", 3, 30, 0.15, 0.20, 0.10, 1.0, 1.0, 1.0, 1.0, 0.4),
     ("r-leg", "bud", "LV Budding Right Leg", "lv-bud-r-leg",
-     "Flesh is budding on the stump. Hover this part: tooltip tracks resource, percent, and time. Same bar sits under Blood.", 3, 45, 0.35, 0.40, 0.25, 1.0, 1.0, 1.0, 1.0, 0.8),
+     "Flesh is budding on the stump. Hover this I-key part for resource, percent, and time.", 3, 45, 0.35, 0.40, 0.25, 1.0, 1.0, 1.0, 1.0, 0.8),
     ("r-leg", "form", "LV Forming Right Leg", "lv-form-r-leg",
-     "Bone and tendon are finding their shape. Hover for live Hemolymph / Vigor, stage percent, and hours left. HUD under Blood matches.", 3, 65, 0.60, 0.65, 0.50, 1.0, 1.0, 1.0, 1.0, 1.4),
+     "Bone and tendon are finding their shape. Hover for live Hemolymph / Vigor, stage percent, and hours left.", 3, 65, 0.60, 0.65, 0.50, 1.0, 1.0, 1.0, 1.0, 1.4),
     ("r-leg", "knit", "LV Knitting Right Leg", "lv-knit-r-leg",
-     "Almost a leg. Soft. Do not kick anyone. Hover this slot or the left HUD bar under Blood for time remaining.", 3, 85, 0.85, 0.85, 0.75, 1.0, 1.0, 1.0, 1.0, 2.0),
+     "Almost a leg. Soft. Do not kick anyone. Hover this I-key slot for time remaining.", 3, 85, 0.85, 0.85, 0.75, 1.0, 1.0, 1.0, 1.0, 2.0),
     ("r-leg", "grown", "LV Grown Right Leg", "lv-grown-r-leg",
-     "A new leg. Soft. Yours. This is the finished limb — not a robot part. The HUD bar under Blood will idle until the next stump.", 3, 100, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.4),
+     "A new leg. Soft. Yours. This is the finished limb — not a robot part.", 3, 100, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.4),
     ("l-leg", "stump", "LV Stump Left Leg", "lv-stump-l-leg",
-     "A raw stump. Almost no push-off. Left HUD under Blood shows Hemolymph / Vigor and hours left — hover this slot for the live numbers.", 2, 30, 0.15, 0.20, 0.10, 1.0, 1.0, 1.0, 1.0, 0.4),
+     "A raw stump. Almost no push-off. Open I and hover this slot for live Hemolymph / Vigor and hours left.", 2, 30, 0.15, 0.20, 0.10, 1.0, 1.0, 1.0, 1.0, 0.4),
     ("l-leg", "bud", "LV Budding Left Leg", "lv-bud-l-leg",
-     "Flesh is budding on the stump. Hover this part: tooltip tracks resource, percent, and time. Same bar sits under Blood.", 2, 45, 0.35, 0.40, 0.25, 1.0, 1.0, 1.0, 1.0, 0.8),
+     "Flesh is budding on the stump. Hover this I-key part for resource, percent, and time.", 2, 45, 0.35, 0.40, 0.25, 1.0, 1.0, 1.0, 1.0, 0.8),
     ("l-leg", "form", "LV Forming Left Leg", "lv-form-l-leg",
-     "Bone and tendon are finding their shape. Hover for live Hemolymph / Vigor, stage percent, and hours left. HUD under Blood matches.", 2, 65, 0.60, 0.65, 0.50, 1.0, 1.0, 1.0, 1.0, 1.4),
+     "Bone and tendon are finding their shape. Hover for live Hemolymph / Vigor, stage percent, and hours left.", 2, 65, 0.60, 0.65, 0.50, 1.0, 1.0, 1.0, 1.0, 1.4),
     ("l-leg", "knit", "LV Knitting Left Leg", "lv-knit-l-leg",
-     "Almost a leg. Soft. Do not kick anyone. Hover this slot or the left HUD bar under Blood for time remaining.", 2, 85, 0.85, 0.85, 0.75, 1.0, 1.0, 1.0, 1.0, 2.0),
+     "Almost a leg. Soft. Do not kick anyone. Hover this I-key slot for time remaining.", 2, 85, 0.85, 0.85, 0.75, 1.0, 1.0, 1.0, 1.0, 2.0),
     ("l-leg", "grown", "LV Grown Left Leg", "lv-grown-l-leg",
-     "A new leg. Soft. Yours. This is the finished limb — not a robot part. The HUD bar under Blood will idle until the next stump.", 2, 100, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.4),
+     "A new leg. Soft. Yours. This is the finished limb — not a robot part.", 2, 100, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.4),
     ("r-arm", "stump", "LV Stump Right Arm", "lv-stump-r-arm",
-     "A raw stump. The hand is a memory. Left HUD under Blood shows Hemolymph / Vigor and hours left — hover this slot for the live numbers.", 1, 30, 1.0, 1.0, 0.10, 0.15, 0.20, 0.15, 0.10, 0.3),
+     "A raw stump. The hand is a memory. Open I and hover this slot for live Hemolymph / Vigor and hours left.", 1, 30, 1.0, 1.0, 0.10, 0.15, 0.20, 0.15, 0.10, 0.3),
     ("r-arm", "bud", "LV Budding Right Arm", "lv-bud-r-arm",
-     "Fingers are suggestions, not facts. Hover this part: tooltip tracks resource, percent, and time. Same bar sits under Blood.", 1, 45, 1.0, 1.0, 0.25, 0.35, 0.40, 0.30, 0.25, 0.6),
+     "Fingers are suggestions, not facts. Hover this I-key part for resource, percent, and time.", 1, 45, 1.0, 1.0, 0.25, 0.35, 0.40, 0.30, 0.25, 0.6),
     ("r-arm", "form", "LV Forming Right Arm", "lv-form-r-arm",
-     "A forearm you can almost trust. Hover for live Hemolymph / Vigor, stage percent, and hours left. HUD under Blood matches.", 1, 65, 1.0, 1.0, 0.50, 0.60, 0.70, 0.55, 0.50, 1.1),
+     "A forearm you can almost trust. Hover for live Hemolymph / Vigor, stage percent, and hours left.", 1, 65, 1.0, 1.0, 0.50, 0.60, 0.70, 0.55, 0.50, 1.1),
     ("r-arm", "knit", "LV Knitting Right Arm", "lv-knit-r-arm",
-     "Almost a hand. Soft. Do not make a fist. Hover this slot or the left HUD bar under Blood for time remaining.", 1, 85, 1.0, 1.0, 0.75, 0.85, 0.90, 0.80, 0.80, 1.6),
+     "Almost a hand. Soft. Do not make a fist. Hover this I-key slot for time remaining.", 1, 85, 1.0, 1.0, 0.75, 0.85, 0.90, 0.80, 0.80, 1.6),
     ("r-arm", "grown", "LV Grown Right Arm", "lv-grown-r-arm",
-     "A new arm. Soft. Yours. This is the finished limb — not a robot part. The HUD bar under Blood will idle until the next stump.", 1, 100, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.9),
+     "A new arm. Soft. Yours. This is the finished limb — not a robot part.", 1, 100, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.9),
     ("l-arm", "stump", "LV Stump Left Arm", "lv-stump-l-arm",
-     "A raw stump. The hand is a memory. Left HUD under Blood shows Hemolymph / Vigor and hours left — hover this slot for the live numbers.", 0, 30, 1.0, 1.0, 0.10, 0.15, 0.20, 0.15, 0.10, 0.3),
+     "A raw stump. The hand is a memory. Open I and hover this slot for live Hemolymph / Vigor and hours left.", 0, 30, 1.0, 1.0, 0.10, 0.15, 0.20, 0.15, 0.10, 0.3),
     ("l-arm", "bud", "LV Budding Left Arm", "lv-bud-l-arm",
-     "Fingers are suggestions, not facts. Hover this part: tooltip tracks resource, percent, and time. Same bar sits under Blood.", 0, 45, 1.0, 1.0, 0.25, 0.35, 0.40, 0.30, 0.25, 0.6),
+     "Fingers are suggestions, not facts. Hover this I-key part for resource, percent, and time.", 0, 45, 1.0, 1.0, 0.25, 0.35, 0.40, 0.30, 0.25, 0.6),
     ("l-arm", "form", "LV Forming Left Arm", "lv-form-l-arm",
-     "A forearm you can almost trust. Hover for live Hemolymph / Vigor, stage percent, and hours left. HUD under Blood matches.", 0, 65, 1.0, 1.0, 0.50, 0.60, 0.70, 0.55, 0.50, 1.1),
+     "A forearm you can almost trust. Hover for live Hemolymph / Vigor, stage percent, and hours left.", 0, 65, 1.0, 1.0, 0.50, 0.60, 0.70, 0.55, 0.50, 1.1),
     ("l-arm", "knit", "LV Knitting Left Arm", "lv-knit-l-arm",
-     "Almost a hand. Soft. Do not make a fist. Hover this slot or the left HUD bar under Blood for time remaining.", 0, 85, 1.0, 1.0, 0.75, 0.85, 0.90, 0.80, 0.80, 1.6),
+     "Almost a hand. Soft. Do not make a fist. Hover this I-key slot for time remaining.", 0, 85, 1.0, 1.0, 0.75, 0.85, 0.90, 0.80, 0.80, 1.6),
     ("l-arm", "grown", "LV Grown Left Arm", "lv-grown-l-arm",
-     "A new arm. Soft. Yours. This is the finished limb — not a robot part. The HUD bar under Blood will idle until the next stump.", 0, 100, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.9),
+     "A new arm. Soft. Yours. This is the finished limb — not a robot part.", 0, 100, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.9),
 ]
 
 
@@ -106,11 +127,21 @@ def put_pair_s(buf: bytearray, key: str, value: str) -> None:
     put_str(buf, value)
 
 
+def put_pair_b(buf: bytearray, key: str, value: bool) -> None:
+    put_str(buf, key)
+    buf.append(1 if value else 0)
+
+
 def write_item(part: tuple, item_id: int) -> bytes:
     (
-        _limb, _stage, name, sid, desc, slot, hp,
+        limb, _stage, name, sid, desc, slot, hp,
         ath, stl, swim, dex, stren, combat, thievery, weight,
     ) = part
+    mesh = MESH_BY_LIMB[limb]
+    icon = ICON_BY_LIMB[limb]
+    if not mesh or not icon or ".mesh" not in mesh:
+        raise SystemExit(f"{sid} missing mesh/icon FileValue")
+
     body = bytearray()
     put_i32(body, LIMB_REPLACEMENT)
     put_i32(body, item_id)
@@ -118,8 +149,13 @@ def write_item(part: tuple, item_id: int) -> bytes:
     put_str(body, sid)
     put_u32(body, CHANGE_NEW)
 
-    # bools
-    put_i32(body, 0)
+    # bools — auto icon from the male mesh if the png path is wrong
+    bools = [("auto icon image", True)]
+    bools.sort(key=lambda x: x[0])
+    put_i32(body, len(bools))
+    for k, v in bools:
+        put_pair_b(body, k, v)
+
     # floats — keys alphabetical (OCS writer sorts)
     floats = [
         ("athletics mult", ath),
@@ -168,8 +204,16 @@ def write_item(part: tuple, item_id: int) -> bytes:
     for k, v in strings:
         put_pair_s(body, k, v)
 
-    # FileValue (mesh / icon) — none; plugin falls back to Economy visual
-    put_i32(body, 0)
+    # FileValue mesh / icon — required. Never ship a mesh-less record.
+    files = [
+        ("icon", icon),
+        ("mesh", mesh),
+        ("mesh female", mesh),
+    ]
+    files.sort(key=lambda x: x[0])
+    put_i32(body, len(files))
+    for k, v in files:
+        put_pair_s(body, k, v)
 
     # reference categories, instances
     put_i32(body, 0)
@@ -239,8 +283,58 @@ def parse_mod(data: bytes) -> dict:
         _chg = take_i32()
         if itype != LIMB_REPLACEMENT:
             raise SystemExit(f"item {iid} type {itype} != {LIMB_REPLACEMENT}")
+
+        nbool = take_i32()
+        for _b in range(nbool):
+            take_str()
+            off += 1
+        nfloat = take_i32()
+        for _f in range(nfloat):
+            take_str()
+            off += 4
+        nint = take_i32()
+        for _i in range(nint):
+            take_str()
+            off += 4
+        nvec3 = take_i32()
+        off += nvec3 * (4 + 12)  # key length is inside take_str; this is wrong if we skip
+        # vec3/vec4 counts are 0 in our writer — refuse anything else
+        if nvec3 != 0:
+            raise SystemExit(f"{sid} unexpected vec3 count {nvec3}")
+        nvec4 = take_i32()
+        if nvec4 != 0:
+            raise SystemExit(f"{sid} unexpected vec4 count {nvec4}")
+        nstr = take_i32()
+        for _s in range(nstr):
+            take_str()
+            take_str()
+        nfile = take_i32()
+        files = {}
+        for _fv in range(nfile):
+            key = take_str()
+            path = take_str()
+            files[key] = path
+        if nfile < 2:
+            raise SystemExit(f"{sid} has {nfile} FileValues — mesh/icon required")
+        if "mesh" not in files or not files["mesh"]:
+            raise SystemExit(f"{sid} missing FileValue mesh")
+        if ".mesh" not in files["mesh"]:
+            raise SystemExit(f"{sid} mesh path has no .mesh: {files['mesh']}")
+        if "icon" not in files or not files["icon"]:
+            raise SystemExit(f"{sid} missing FileValue icon")
+        if "mesh female" not in files or not files["mesh female"]:
+            raise SystemExit(f"{sid} missing FileValue mesh female")
+
+        nref = take_i32()
+        if nref != 0:
+            raise SystemExit(f"{sid} unexpected ref categories {nref}")
+        ninst = take_i32()
+        if ninst != 0:
+            raise SystemExit(f"{sid} unexpected instances {ninst}")
+
         names.append(f"{iid}:{sid}")
-        off = start + length
+        if off != start + length:
+            raise SystemExit(f"{sid} parse ended at {off}, expected {start + length}")
         if off > len(data):
             raise SystemExit("item overran file")
     if off != len(data):
@@ -261,7 +355,7 @@ def write_info(path: Path, mod_filename: str, title: str) -> None:
         "    <string>Races</string>\n"
         "  </tags>\n"
         "  <visibility>0</visibility>\n"
-        "  <lastUpdate>2026-08-13</lastUpdate>\n"
+        "  <lastUpdate>2026-08-16</lastUpdate>\n"
         "</ModData>\n",
         encoding="utf-8",
     )
@@ -282,6 +376,7 @@ def main() -> None:
     print(f"wrote {mod_path} ({len(data)} bytes)")
     print(f"items {header['item_count']} lastId {header['last_id']}")
     print(" ".join(header["names"]))
+    print("FileValue mesh/icon present on all 20 LimbReplacement records")
 
 
 if __name__ == "__main__":

@@ -178,6 +178,20 @@ int main()
         Expect(LvPartFor(LIMB_LEFT_LEG, LV_PART_GROWN)
             && std::strstr(LvPartFor(LIMB_LEFT_LEG, LV_PART_GROWN)->name, "Grown"),
             "grown part is named Grown");
+        {
+            int missing = 0;
+            for (int limb = 0; limb < LIMB_COUNT; ++limb)
+            {
+                for (int st = 0; st < LV_PART_COUNT; ++st)
+                {
+                    const LvPartDef* d = LvPartFor(limb, st);
+                    if (!d || !d->mesh || !std::strstr(d->mesh, ".mesh")
+                     || !d->icon || !d->icon[0])
+                        ++missing;
+                }
+            }
+            Expect(missing == 0, "all 20 parts have FileValue mesh/icon paths");
+        }
         Expect(LvPartFor(-1, 0) == nullptr, "bad limb rejected");
         Expect(LvPartSlotForLimb(LIMB_LEFT_ARM) == 0, "left arm FCS slot 0");
         Expect(LvPartSlotForLimb(LIMB_RIGHT_LEG) == 3, "right leg FCS slot 3");

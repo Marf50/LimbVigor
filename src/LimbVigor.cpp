@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.9.0 — static HUD, I-key numbers. Ticks 45s, parts 90s after your squad is seen.");
+        LvLog("LimbVigor: ready v1.9.1 — static HUD, I-key numbers. No Character until in-game. No Economy fallback.");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

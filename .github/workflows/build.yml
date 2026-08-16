@@ -18,6 +18,7 @@ jobs:
           cmake -S . -B build-test -DLIMBVIGOR_BUILD_TESTS=ON
           cmake --build build-test --target lv_sim_test -j
           ./build-test/lv_sim_test
+          python3 tools/write_parts_mod.py --out-dir /tmp/lvmod
 
   build-dll:
     name: MSVC x64 Release
