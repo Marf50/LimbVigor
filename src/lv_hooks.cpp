@@ -44,7 +44,6 @@ static int      g_hudHave = 0;
 static int g_inTick = 0;
 static int g_loggedInGame = 0;
 static int g_oncePlayer = 0;
-static int g_cPaintOk = 1;
 
 static unsigned NowMs()
 {
@@ -181,6 +180,8 @@ static void DriveTick(MedicalSystem* med, float frameTime)
         g_loggedInGame = 1;
         LvLog("LimbVigor: In-game");
     }
+    // Blood HUD bar — after In-game only. No Character. No TitleScreen.
+    LvHudEnsureAfterInGame();
     if (IsDead(med))
     {
         if (!g_oncePlayer) LogSkip("dead");
@@ -324,9 +325,9 @@ static void hook_medUpdate(MedicalSystem* self, float frameTime)
 static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
 {
     if (orig_medGui) orig_medGui(self, panel);
-    if (!self || !panel || !LvCfg().enableHud) return;
-    // C panel setLineProgress only after in-game. GameStr here
-    // crashed loads in v1.9.1; title MyGUI is still forbidden.
+    if (!self || !panel) return;
+    // Snapshot only for I-key. C is skills — not the HUD. Do not
+    // setLineProgress here (wrong surface; GameStr crashed loads).
     if (!LvWorldInGame()) return;
     Character* who = LvCharFromMed(self);
     if (!LvIsPlayerSquad(who)) return;
@@ -338,17 +339,6 @@ static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
             g_hudSnap = *live;
             g_hudHave = 1;
             LvHudNote(live);
-            if (g_cPaintOk)
-            {
-                int excepted = 0;
-                LV_TRY { LvPaintHud(self, panel, live); }
-                LV_EXCEPT { excepted = 1; }
-                if (excepted)
-                {
-                    g_cPaintOk = 0;
-                    LvLog("LimbVigor: C panel paint excepted — I-key still live");
-                }
-            }
         }
     }
     LV_EXCEPT

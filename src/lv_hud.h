@@ -2,9 +2,11 @@
 
 #include "lv_types.h"
 
-// No TitleScreen hook. No MyGUI widgets.
-// Visible HUD is C (getMedicalGUIData after in-game) + I-key.
-void LvHudInstall();                  // no-op log: no title MyGUI
+// No TitleScreen hook. No title MyGUI.
+// After In-game: left-stack Hemolymph/Vigor bar under the typical Blood slot.
+// I-key tooltip is the backup (lv_hooks g_hudHave / hook_tip1).
+void LvHudInstall(); // log only — do not create widgets
+void LvHudEnsureAfterInGame(); // create the Blood HUD bar; no Character
 void LvHudPaint(const CharSnap* snap);
 void LvHudHide();
-void LvHudNote(const CharSnap* snap); // no-op if there is no window
+void LvHudNote(const CharSnap* snap);

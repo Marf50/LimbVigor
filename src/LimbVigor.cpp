@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.9.3 — I-key + C after in-game, no title MyGUI");
+        LvLog("LimbVigor: ready v1.9.4 — Blood HUD bar after in-game, no title MyGUI");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

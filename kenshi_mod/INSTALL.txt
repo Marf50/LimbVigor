@@ -23,13 +23,16 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-There is no title-screen Limb Vigor box and no Blood HUD bars.
+After the world is in-game, a new bar sits on the left HUD
+under Blood: Hemolymph / Vigor / Battle-heat (fill + number).
 
-After the world is in-game: open C for Hemolymph / Vigor /
-stage next to Blood, and open I and hover a Limb Vigor
-stump/bud/knit/grown item for the same numbers.
+I-key is the backup — hover a Limb Vigor stump/bud/knit/grown
+item for the same numbers.
 
-v1.9.3: no title MyGUI. C + I-key only after in-game.
+C is skills. Do not look there. There is no title-screen box
+and no ProgressBar skin.
+
+v1.9.4: Blood HUD bar after in-game, no title MyGUI.
 No Character until the world is in-game. LimbVigor.mod
 records have mesh/icon. A mesh-less hit is skipped — we
 never slot an Economy prosthetic as a fake LV part.
