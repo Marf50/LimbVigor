@@ -24,21 +24,22 @@ https://www.nexusmods.com/kenshi/mods/847
 Where the numbers are
 ---------------------
 Select a character. The left medical list (Blood)
-gets Hemolymph / Vigor / Battle-heat and a
+gets Hemolymph / Vigor / Battle-heat, a
 Regrowth line (left leg budding 30% or the
-block reason) via setLineProgress. Spoken lines
-appear over the character.
+block reason), and a Wait line (~3h in this
+bed. or Too much bleeding. Bandage first.)
+via setLineProgress. Spoken lines appear over
+the character.
 
 I-key on a stump/bud/knit/grown item is the backup.
 C is skills. Door / building: no medical row.
 
 This build does not create widgets. No layout file.
 
-v1.9.9: growth line + harden medicalPanel + -15
-slot, no load-time GUI hooks. After orig, two
-setLineProgress rows on Blood's category:
-Hemolymph/Vigor/Battle-heat and Regrowth
-(left leg budding 30% or the block reason).
+v1.10: ETA line on medicalPanel, no load-time
+GUI hooks. After orig, three setLineProgress
+rows on Blood's category: Hemolymph/Vigor/
+Battle-heat, Regrowth, and Wait (LvEtaText).
 In-game gate before Character / DatapanelGUI.
 -15 empty socket slots LV Stump, or LV Grown
 if persist >=99.5. No ctor / font / _NV_update

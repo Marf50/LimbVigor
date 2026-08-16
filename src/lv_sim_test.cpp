@@ -160,6 +160,14 @@ int main()
         Expect(!std::strstr(bar2, "Blood") && !std::strstr(bar2, "Hunger"),
             "HUD bar 2 is not a reserved Blood/Hunger key");
         Expect(tip[0] != 0, "HUD tooltip line is never empty");
+        {
+            char eta[96];
+            LvEtaText(&c, eta, 96);
+            Expect(eta[0] != 0, "ETA text is filled for an eligible hive");
+            Expect(std::strstr(eta, "h") != nullptr || std::strstr(eta, "hour") != nullptr
+                || std::strstr(eta, "day") != nullptr,
+                "ETA text is a wait time");
+        }
         LvItemTooltipText(&c, hover, 256);
         Expect(std::strstr(hover, "Hemolymph") != nullptr, "I-key tooltip has Hemolymph");
         Expect(std::strstr(hover, "budding") != nullptr, "I-key tooltip has stage");
@@ -178,6 +186,26 @@ int main()
         Expect(std::strstr(bar2, "30%") == nullptr, "blocked bar 2 is the reason, not a percent");
         Expect(bar2[0] != 0, "blocked bar 2 is not empty");
         Expect(f2 == 0.f, "blocked bar 2 fill is empty");
+        {
+            char eta[96];
+            LvEtaText(&c, eta, 96);
+            Expect(std::strstr(eta, "Splint") != nullptr || std::strstr(eta, "toughness") != nullptr,
+                "blocked ETA is the wait reason");
+        }
+    }
+
+    {
+        CharSnap c = Hive();
+        c.inBed = 1;
+        c.vigor = 80.f;
+        c.progress[LIMB_RIGHT_LEG] = 90.f;
+        char eta[96];
+        LvEtaText(&c, eta, 96);
+        Expect(std::strstr(eta, "bed") != nullptr, "bed ETA mentions the bed");
+        c.inBed = 0;
+        c.bleedRate = 50.f;
+        LvEtaText(&c, eta, 96);
+        Expect(std::strstr(eta, "bleeding") != nullptr, "bleed ETA says bandage first");
     }
 
     {

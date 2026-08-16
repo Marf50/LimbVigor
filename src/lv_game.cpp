@@ -766,7 +766,7 @@ void LvClearHud(DatapanelGUI* panel)
 {
     if (!panel || !g_removeLine)
         return;
-    static const char* kOurs[] = { "Hemolymph", "Vigor", "Battle-heat", "Regrowth", nullptr };
+    static const char* kOurs[] = { "Hemolymph", "Vigor", "Battle-heat", "Regrowth", "Wait", nullptr };
     for (int cat = 0; cat < 4; ++cat)
     {
         for (int i = 0; kOurs[i]; ++i)
@@ -810,7 +810,10 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     const char* res = LvResourceName(snap->race);
     if (!res || !res[0])
         res = "Vigor";
-    if (IsReservedKey(res) || IsReservedKey("Regrowth"))
+    if (IsReservedKey(res) || IsReservedKey("Regrowth") || IsReservedKey("Wait")
+        || KeyEqI("Wait", res) || KeyEqI("Wait", "Regrowth")
+        || KeyEqI("Wait", "Hemolymph") || KeyEqI("Wait", "Vigor")
+        || KeyEqI("Wait", "Battle-heat"))
     {
         lvNoneExists();
         return;
@@ -825,9 +828,12 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     for (int i = 0; kKeep[i] && i < 8; ++i)
         had[i] = lvLineExists(panel, kKeep[i], cat);
 
-    char bar1[96], bar2[96], tip[8];
+    char bar1[96], bar2[96], tip[96], eta[96];
     float fill1 = 0.f, fill2 = 0.f;
     LvHudLines(snap, bar1, (int)sizeof(bar1), &fill1, bar2, (int)sizeof(bar2), &fill2, tip, (int)sizeof(tip));
+    LvEtaText(snap, eta, (int)sizeof(eta));
+    if (!eta[0] && tip[0])
+        std::snprintf(eta, sizeof(eta), "%s", tip);
 
     const float maxv = LvCfg().maxVigor > 0.f ? LvCfg().maxVigor : 100.f;
     float fill = snap->vigor / maxv;
@@ -877,6 +883,38 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
         LV_EXCEPT {}
     }
 
+    if (eta[0])
+    {
+        float waitFill = 0.f;
+        const float hours = LvHoursToFinish(snap);
+        const int stump = LvFirstStump(snap);
+        if (hours >= 0.f && stump >= 0)
+        {
+            waitFill = snap->progress[stump] / 100.f;
+            if (waitFill < 0.f) waitFill = 0.f;
+            if (waitFill > 1.f) waitFill = 1.f;
+        }
+        GameStr wkey, wtext;
+        GameStrSet(&wkey, "Wait");
+        GameStrSet(&wtext, eta);
+        LV_TRY { g_setLineProg(panel, &wkey, cat, waitFill, &wtext, true); }
+        LV_EXCEPT { excepted = 1; }
+        if (excepted)
+        {
+            g_paintDead = 1;
+            lvNoneExists();
+            LvErr("LimbVigor: setLineProgress SEH — Wait row stopped");
+            return;
+        }
+    }
+    else if (g_removeLine)
+    {
+        GameStr gone;
+        GameStrSet(&gone, "Wait");
+        LV_TRY { g_removeLine(panel, &gone, cat); }
+        LV_EXCEPT {}
+    }
+
     int ate = 0;
     if (!lvLineExists(panel, "Blood", cat))
         ate = 1;
@@ -899,5 +937,7 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
         LvLogf("LimbVigor: setLineProgress %s cat=%d %s", res, cat, cap);
         if (bar2[0])
             LvLogf("LimbVigor: setLineProgress Regrowth cat=%d %s", cat, bar2);
+        if (eta[0])
+            LvLogf("LimbVigor: setLineProgress Wait cat=%d %s", cat, eta);
     }
 }

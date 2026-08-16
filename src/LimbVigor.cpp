@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.9.9 — growth line + harden medicalPanel + -15 slot, no load-time GUI hooks");
+        LvLog("LimbVigor: ready v1.10 — ETA line on medicalPanel, no load-time GUI hooks");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }
