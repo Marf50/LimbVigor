@@ -766,7 +766,7 @@ void LvClearHud(DatapanelGUI* panel)
 {
     if (!panel || !g_removeLine)
         return;
-    static const char* kOurs[] = { "Hemolymph", "Vigor", "Battle-heat", nullptr };
+    static const char* kOurs[] = { "Hemolymph", "Vigor", "Battle-heat", "Regrowth", nullptr };
     for (int cat = 0; cat < 4; ++cat)
     {
         for (int i = 0; kOurs[i]; ++i)
@@ -810,7 +810,7 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     const char* res = LvResourceName(snap->race);
     if (!res || !res[0])
         res = "Vigor";
-    if (IsReservedKey(res))
+    if (IsReservedKey(res) || IsReservedKey("Regrowth"))
     {
         lvNoneExists();
         return;
@@ -824,6 +824,10 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     int had[8] = {};
     for (int i = 0; kKeep[i] && i < 8; ++i)
         had[i] = lvLineExists(panel, kKeep[i], cat);
+
+    char bar1[96], bar2[96], tip[8];
+    float fill1 = 0.f, fill2 = 0.f;
+    LvHudLines(snap, bar1, (int)sizeof(bar1), &fill1, bar2, (int)sizeof(bar2), &fill2, tip, (int)sizeof(tip));
 
     const float maxv = LvCfg().maxVigor > 0.f ? LvCfg().maxVigor : 100.f;
     float fill = snap->vigor / maxv;
@@ -848,6 +852,31 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
         return;
     }
 
+    if (bar2[0])
+    {
+        if (fill2 < 0.f) fill2 = 0.f;
+        if (fill2 > 1.f) fill2 = 1.f;
+        GameStr gkey, gtext;
+        GameStrSet(&gkey, "Regrowth");
+        GameStrSet(&gtext, bar2);
+        LV_TRY { g_setLineProg(panel, &gkey, cat, fill2, &gtext, true); }
+        LV_EXCEPT { excepted = 1; }
+        if (excepted)
+        {
+            g_paintDead = 1;
+            lvNoneExists();
+            LvErr("LimbVigor: setLineProgress SEH — Regrowth row stopped");
+            return;
+        }
+    }
+    else if (g_removeLine)
+    {
+        GameStr gone;
+        GameStrSet(&gone, "Regrowth");
+        LV_TRY { g_removeLine(panel, &gone, cat); }
+        LV_EXCEPT {}
+    }
+
     int ate = 0;
     if (!lvLineExists(panel, "Blood", cat))
         ate = 1;
@@ -868,5 +897,7 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     {
         g_paintLogged = 1;
         LvLogf("LimbVigor: setLineProgress %s cat=%d %s", res, cat, cap);
+        if (bar2[0])
+            LvLogf("LimbVigor: setLineProgress Regrowth cat=%d %s", cat, bar2);
     }
 }

@@ -2,15 +2,15 @@
 
 Throwaway save. Tick the box. Write the last I-key tooltip line and anything in `RE_Kenshi_log.txt`.
 
-**Where to look:** select a **character** after In-game. The selection list (Blood) should show Hemolymph / Vigor / Battle-heat via `setLineProgress`. Must NOT crash on save load (no MainBar ctor / font / `_NV_update` / `_NV_setObject`). Door / non-character: do not add the line (`removeLine` only on the after-orig medical path). If none exists: `_NV_say` only and `LimbVigor: none exists`. No layout. No sibling create.
+**Where to look:** select a **character** after In-game. The selection list (Blood) should show Hemolymph / Vigor / Battle-heat and a second `Regrowth` line via `setLineProgress`. Must NOT crash on save load (no MainBar ctor / font / `_NV_update` / `_NV_setObject`). Door / non-character: do not add either line (`removeLine` only on the after-orig medical path). If none exists: `_NV_say` only and `LimbVigor: none exists`. No layout. No sibling create.
 
 Every ~15s the log prints `LimbVigor: Boop  Hemolymph 38/100  left leg 4% dormant stump`.
 
 Send the notes back and the plugin gets patched.
 
-- [ ] **Reaches the menu.** `ready v1.9.9 — harden medicalPanel setLineProgress + -15 slot, no load-time GUI hooks` then `Main menu loaded`. Must NOT log `HUD created at title screen` or `Blood HUD created after in-game`. Must NOT die after title create / at ~12s with `Log manager destructor`. Must NOT hook MainBarGUI ctor / changeFontSize / `_NV_update` / `_NV_setObject`.
+- [ ] **Reaches the menu.** `ready v1.9.9 — growth line + harden medicalPanel + -15 slot, no load-time GUI hooks` then `Main menu loaded`. Must NOT log `HUD created at title screen` or `Blood HUD created after in-game`. Must NOT die after title create / at ~12s with `Log manager destructor`. Must NOT hook MainBarGUI ctor / changeFontSize / `_NV_update` / `_NV_setObject`.
 - [ ] **Loads the save.** `LimbVigor: In-game` (or `In-game — ignoring stuck gameResetting`) then `player squad seen`. A −15 empty stump must get an LV part (`slotted LV Stump/Grown … (-15 empty socket)`) or a logged skip saying why. If it does not tick, the log must say **why**. Must NOT touch Character during title / save load. Must NOT crash after In-game.
-- [ ] **Visible after in-game.** Select a character. Selection list (Blood) gets Hemolymph / Vigor / Battle-heat (`72 / 100`) via `setLineProgress` on Blood’s category. Log: `panel=` vs `medicalPanel=` / `lineExists(Blood)` / `getNumLines` / every `key=`. Blood / Head / limbs / Hunger unchanged. Spoken line. Open **I** as backup. C stays skills. Door / non-character: do not add (`removeLine` on after-orig path only). If none exists: `_NV_say` only and `LimbVigor: none exists`.
+- [ ] **Visible after in-game.** Select a character. Selection list (Blood) gets Hemolymph / Vigor / Battle-heat (`72 / 100`) and a second `Regrowth` line (`left leg budding 30%` or the block reason). Blood / Head / limbs / Hunger unchanged. Spoken line on stump / stage / grown. Open **I** as backup. C stays skills. Door / non-character: both lines gone. If none exists: `_NV_say` only.
 - [ ] **Heartbeat.** After ~15s in-game, RE_Kenshi_log.txt has a `LimbVigor: <name>  Hemolymph …` line. It must NOT spam `restored limb 0` every frame.
 - [ ] **New game.** Same — no crash at the first medical panel. No MyGUI create.
 - [ ] **Shows in the Mods list.** `Kenshi/mods/LimbVigor/LimbVigor.mod` exists. Launcher lists LimbVigor. Enable it after RE_Kenshi.

@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-Live numbers are written onto the **selection info panel** (`setLineProgress` Hemolymph / Vigor / Battle-heat on Blood’s category). Spoken lines use `_NV_say`. I-key on the LV part is the backup. C is skills — not the HUD. Door or anything non-character: the Hemolymph line is hidden. If a line cannot be added without overwriting Blood / Head / limbs / Hunger, log `LimbVigor: none exists` and ship `_NV_say` only. No layout file. No widget create.
+Live numbers are written onto the **selection info panel** (`setLineProgress` Hemolymph / Vigor / Battle-heat plus a `Regrowth` line on Blood’s category). Spoken lines use `_NV_say`. I-key on the LV part is the backup. C is skills — not the HUD. Door or anything non-character: both lines are hidden. If a line cannot be added without overwriting Blood / Head / limbs / Hunger, log `LimbVigor: none exists` and ship `_NV_say` only. No layout file. No widget create.
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.9.9: harden medicalPanel `setLineProgress`. After orig `getMedicalGUIData` / `_NV_getGUIData` only. Do not touch Character or write DatapanelGUI until `LvWorldInGame()`. Paint only if In-game + character selected + Blood. −15 empty socket still slots LV Stump, or LV Grown if persist ≥99.5. No load-time GUI hooks. No ctor stash.
+v1.9.9: two `setLineProgress` rows on the medical panel after orig only — Hemolymph/Vigor/Battle-heat and `Regrowth` (`left leg budding 30%` or the block reason from `LvHudLines` bar2). In-game gate before Character / DatapanelGUI. −15 empty socket slots LV Stump, or LV Grown if persist ≥99.5. No load-time GUI hooks.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 
@@ -40,7 +40,7 @@ Documented KenshiLib methods. No TitleScreen hook. No widget create.
 | Hook | Why |
 | --- | --- |
 | `MedicalSystem::medicalUpdate` | Tick vigor and growth; slot LV parts after in-game (snapshot only, no MyGUI) |
-| `MedicalSystem::getMedicalGUIData` | After orig: In-game gate first (no Character). Then `setLineProgress` if selected + Blood |
+| `MedicalSystem::getMedicalGUIData` | After orig: In-game gate first (no Character). Then `setLineProgress` (resource + `Regrowth`) if selected + Blood |
 | `Character::_NV_getGUIData` | Same after orig. In-game gate before `getMedical()`. `GetRealAddress` on `_NV_` only |
 | `MedicalSystem::applyDoctoring` | Splint Kit / stimulant starts the catalyst |
 | `InventoryItemBase::getTooltipData1` | I-key tooltip RVA `0x7A8E30` (never `GetRealAddress` on the virtual) |

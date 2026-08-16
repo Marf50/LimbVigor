@@ -24,25 +24,25 @@ https://www.nexusmods.com/kenshi/mods/847
 Where the numbers are
 ---------------------
 Select a character. The left medical list (Blood)
-gets Hemolymph / Vigor / Battle-heat via
-setLineProgress. Spoken lines appear over the
-character.
+gets Hemolymph / Vigor / Battle-heat and a
+Regrowth line (left leg budding 30% or the
+block reason) via setLineProgress. Spoken lines
+appear over the character.
 
 I-key on a stump/bud/knit/grown item is the backup.
 C is skills. Door / building: no medical row.
 
 This build does not create widgets. No layout file.
 
-v1.9.9: harden medicalPanel setLineProgress + -15
-slot, no load-time GUI hooks. In-game gate before
-any Character / DatapanelGUI write. After orig
-getMedicalGUIData / _NV_getGUIData only when
-In-game + character selected + Blood. -15 empty
-socket slots LV Stump, or LV Grown if persist
->=99.5 (log: slotted … (-15 empty socket)). No
-ctor, no changeFontSize, no _NV_update, no
-_NV_setObject. If none exists: _NV_say only.
-Arms even if gameResetting stays stuck.
+v1.9.9: growth line + harden medicalPanel + -15
+slot, no load-time GUI hooks. After orig, two
+setLineProgress rows on Blood's category:
+Hemolymph/Vigor/Battle-heat and Regrowth
+(left leg budding 30% or the block reason).
+In-game gate before Character / DatapanelGUI.
+-15 empty socket slots LV Stump, or LV Grown
+if persist >=99.5. No ctor / font / _NV_update
+/ _NV_setObject. If none exists: _NV_say only.
 
 Overwrite both LimbVigor.dll and LimbVigor.mod. Keep
 LimbVigor.progress.

@@ -155,10 +155,29 @@ int main()
         Expect(std::strstr(bar1, "42") != nullptr, "HUD bar 1 shows vigor");
         Expect(std::strstr(bar2, "right leg") != nullptr, "HUD bar 2 names the stump");
         Expect(std::strstr(bar2, "budding") != nullptr, "HUD bar 2 shows stage");
+        Expect(std::strstr(bar2, "30%") != nullptr, "HUD bar 2 shows percent");
+        Expect(f2 > 0.29f && f2 < 0.31f, "HUD bar 2 fill is 30%");
+        Expect(!std::strstr(bar2, "Blood") && !std::strstr(bar2, "Hunger"),
+            "HUD bar 2 is not a reserved Blood/Hunger key");
         Expect(tip[0] != 0, "HUD tooltip line is never empty");
         LvItemTooltipText(&c, hover, 256);
         Expect(std::strstr(hover, "Hemolymph") != nullptr, "I-key tooltip has Hemolymph");
         Expect(std::strstr(hover, "budding") != nullptr, "I-key tooltip has stage");
+    }
+
+    {
+        CharSnap c = Hive();
+        c.race = RACE_HUMAN;
+        c.toughness = 10;
+        c.medic = 5;
+        c.progress[LIMB_RIGHT_LEG] = 30.f;
+        char bar1[96], bar2[96], tip[220];
+        float f1 = 0.f, f2 = 0.f;
+        LvHudLines(&c, bar1, 96, &f1, bar2, 96, &f2, tip, 220);
+        Expect(std::strstr(bar2, "right leg") != nullptr, "blocked bar 2 still names the stump");
+        Expect(std::strstr(bar2, "30%") == nullptr, "blocked bar 2 is the reason, not a percent");
+        Expect(bar2[0] != 0, "blocked bar 2 is not empty");
+        Expect(f2 == 0.f, "blocked bar 2 fill is empty");
     }
 
     {
