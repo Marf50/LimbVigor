@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-v1.18 paints Hemolymph / Vigor / Battle-heat on **LifeBar1Datapanel only**, found with `Gui::findWidget` (throw=false). It does not walk the Gui tree (v1.17's walk SEH'd). It does not treat `medicalPanel` at MainBar+0x188 as a DatapanelGUI (that pointer is MedicalDatapanel*). It does not paint Goal/State. If LifeBar1Datapanel cannot take `setLineProgress`, it logs why and skips. No widget create.
+v1.19 paints Hemolymph / Vigor / Battle-heat on **LifeBar1Datapanel only**, found with MainBarGUI `_getWidget` (RVA `0x723780`). Runtime layout names are BaseLayout-prefixed, so `Gui::findWidgetT("LifeBar1")` is null. It does not call the MainBar ctor (`0x72C1E0`). It does not walk the Gui tree. It does not treat `medicalPanel` at MainBar+0x188 as a DatapanelGUI. It does not paint Goal/State. If LifeBar1Datapanel cannot take `setLineProgress`, it logs why and skips. No widget create.
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.18: `findWidget` LifeBar1 / LifeBar1Datapanel / LifeBar1Value / LifeBar1Green / HealthText / MedicalPanel, then `setLineProgress` on LifeBar1Datapanel if that panel can take a line. Dark UI has no LifeBar10 — Blood is LifeBar1. v1.17 bound Gui correctly and found the Dark UI layout, but the full tree walk SEH'd and the layout dump capped before LifeBar1Datapanel. No tree walk. No Goal/State paint. No load-time GUI hooks.
+v1.19: MainBar `_getWidget` for LifeBar1* (prefix-aware). v1.18 bound `findWidgetT` and every name was null because wraps::BaseLayout prefixes the runtime names. 3-arg `findWidgetT(name, prefix, throw=false)` is backup only. No tree walk. No Goal/State paint. No MainBar ctor. No load-time GUI hooks.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 
@@ -40,7 +40,7 @@ Documented KenshiLib methods. No TitleScreen hook. No widget create.
 | Hook | Why |
 | --- | --- |
 | `MedicalSystem::medicalUpdate` | Tick vigor and growth; slot LV parts after in-game (snapshot only, no MyGUI) |
-| `MedicalSystem::getMedicalGUIData` | After orig: In-game gate first (no Character). findWidget LifeBar1*; paint LifeBar1Datapanel only |
+| `MedicalSystem::getMedicalGUIData` | After orig: In-game gate first (no Character). MainBar `_getWidget` LifeBar1*; paint LifeBar1Datapanel only |
 | `Character::_NV_getGUIData` | Same after orig. In-game gate before `getMedical()`. `GetRealAddress` on `_NV_` only |
 | `MedicalSystem::applyDoctoring` | Splint Kit / stimulant starts the catalyst |
 | `InventoryItemBase::getTooltipData1` | I-key tooltip RVA `0x7A8E30` (never `GetRealAddress` on the virtual) |

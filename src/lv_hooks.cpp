@@ -406,7 +406,7 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
     if (!LvWorldInGame())
         return;
 
-    /* findWidget / key dump. Isolated — must not skip Bind / growth. */
+    /* _getWidget / key dump. Isolated — must not skip Bind / growth. */
     LV_TRY { LvWalkSelPanel(panel); }
     LV_EXCEPT
     {
