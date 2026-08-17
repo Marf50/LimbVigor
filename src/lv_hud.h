@@ -3,7 +3,7 @@
 #include "lv_types.h"
 
 // I-key tooltip snapshot only. No TitleScreen. No widget create.
-// No layout file. Visible path is DatapanelGUI setLineProgress (lv_game).
+// No layout file. Visible path is Widget::setCaption on LifeBar1 (lv_game).
 void LvHudInstall();
 void LvHudEnsureAfterInGame();
 void LvHudPaint(const CharSnap* snap);

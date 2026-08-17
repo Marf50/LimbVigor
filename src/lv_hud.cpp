@@ -2,13 +2,13 @@
 
 #include "lv_config.h"
 
-// I-key tooltip snapshot only. v1.20 paints Hemolymph on
-// LifeBar1Datapanel only if lookup is SEH-safe. No _getWidget
-// retry after probe SEH. No tree walk. No createWidget. No ctor.
+// I-key tooltip snapshot only. v1.21 setCaption on LifeBar1 /
+// Blood-caption if the hunt finds it. No Datapanel. No setSize.
+// No _getWidget retry after SEH. No tree walk. No createWidget.
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: HUD is SEH-safe LifeBar1Datapanel lookup — no tree walk, no load-time GUI hooks");
+    LvLog("LimbVigor: HUD is setCaption on LifeBar1 if found — no Datapanel, no setSize, no tree walk");
 }
 
 void LvHudEnsureAfterInGame() {}

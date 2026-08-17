@@ -23,12 +23,12 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-v1.20 person-select is SEH-safe.
-It looks up LifeBar1Datapanel and
-paints there only if safe. On GUI
-SEH it skips paint and does not
-retry _getWidget. It does not walk
-the Gui tree or paint Goal/State.
+v1.21 hunts MainBar widgets and
+setCaption Hemolymph on LifeBar1
+if found. Person only. Door stays
+a door. No Datapanel. No setSize.
+On GUI SEH it skips paint and does
+not retry _getWidget.
 
 Spoken lines appear over the character.
 I-key on a stump/bud/knit/grown item is
@@ -36,9 +36,9 @@ the backup.
 
 This build does not create widgets. No layout file.
 
-v1.20: person-select SEH-safe
-_getWidget, skip paint on fail,
-no tree walk.
+v1.21: hunt MainBar widgets +
+setCaption Hemolymph if found,
+no Datapanel.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 

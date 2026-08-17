@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.20 — person-select SEH-safe _getWidget, skip paint on fail, no tree walk");
+        LvLog("LimbVigor: ready v1.21 — hunt MainBar widgets + setCaption Hemolymph if found, no Datapanel");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }
