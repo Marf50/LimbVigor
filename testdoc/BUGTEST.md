@@ -2,15 +2,15 @@
 
 Throwaway save. Tick the box. Write the last I-key tooltip line and anything in `RE_Kenshi_log.txt`.
 
-**Where to look:** select a **character** after In-game. v1.15 is a **dump**, not a paint. RE_Kenshi_log.txt should list every DatapanelGUI (`dump panel=…`, `dump getNumLines`, `dump line[c][i] key='…'`) and a full MyGUI tree (`mygui name='…' type='…' parent='…' visible=N children=N`). Must NOT `setLineProgress Hemolymph`. Must NOT crash on save load (no MainBar ctor / font / `_NV_update` / `_NV_setObject`). No layout. No createWidget.
+**Where to look:** select a **character** after In-game. v1.16 is a **dump**, not a paint. RE_Kenshi_log.txt should list DatapanelGUI keys, `mygui export '…'`, `neighbor self/parent/sibling/child`, and `layout widget name='…'` from Dark UI / vanilla `Kenshi_MainPanel.layout` (disk only). Must NOT say `exports missing` and skip the rest. Must NOT `setLineProgress Hemolymph`. No createWidget. No layout load.
 
 Every ~15s the log prints `LimbVigor: Boop  Hemolymph 38/100  left leg 4% dormant`.
 
 Send the notes back and the plugin gets patched.
 
-- [ ] **Reaches the menu.** `ready v1.15 — full MyGUI tree dump after In-game, no paint, no load-time GUI hooks` then `Main menu loaded`. Must NOT log `HUD created at title screen` or `Blood HUD created after in-game`. Must NOT die after title create / at ~12s with `Log manager destructor`. Must NOT hook MainBarGUI ctor / changeFontSize / `_NV_update` / `_NV_setObject`.
+- [ ] **Reaches the menu.** `ready v1.16 — MyGUI export list + parent/sibling walk from Goal/State widget, no paint` then `Main menu loaded`. Must NOT log `HUD created at title screen` or `Blood HUD created after in-game`. Must NOT die after title create / at ~12s with `Log manager destructor`. Must NOT hook MainBarGUI ctor / changeFontSize / `_NV_update` / `_NV_setObject`.
 - [ ] **Loads the save.** `LimbVigor: In-game` (or `In-game — ignoring stuck gameResetting`) then `player squad seen`. A −15 empty stump must get an LV part (`slotted LV Stump/Grown … (-15 empty socket)`) or a logged skip saying why. If it does not tick, the log must say **why**. Must NOT touch Character during title / save load. Must NOT crash after In-game.
-- [ ] **Panel + MyGUI dump, no paint.** Select a **person**. Log dumps every panel key (v1.14) and one full MyGUI tree (`mygui name=… type=… parent=… visible=… children=…`). No name pre-filter. Cap is 400 lines. No `setLineProgress Hemolymph`. Send `RE_Kenshi_log.txt`. Open **I** as backup.
+- [ ] **Export list + neighbor walk, no paint.** Select a **person**. Log has `mygui export` lines, a `neighbor` walk from the Goal/State panel, and layout names if Dark UI / vanilla ships `Kenshi_MainPanel.layout`. No `setLineProgress Hemolymph`. Send `RE_Kenshi_log.txt`.
 - [ ] **HUD SEH does not kill growth.** If a HUD write excepts, growth / heartbeat keep ticking. Must NOT latch `medical row stopped` forever. Must NOT log 500+ empty panel walks. Must NOT die after one `medical tick SEH`.
 - [ ] **Selected body, not the player pawn.** Select a **hired Hive** and a **hired Shek**. Same two lines for that body (Hemolymph / Battle-heat + their stump). I-key snap matches the selected body. Door / building: both lines gone. Must NOT only paint the player character.
 - [ ] **First-stump bark.** A new stump (not an already-missing limb on load) speaks once: Hive `The stump itches. It will grow.` / Shek `The stump wants a fight, or a splint.` / Human `The stump will not grow on its own.` Hired squad bodies bark too. Must NOT spam every tick or on save load.

@@ -2,8 +2,8 @@
 
 #include "lv_config.h"
 
-// I-key tooltip snapshot only. v1.15 dumps Datapanel keys + one MyGUI
-// tree. No paint. No MyGUI create. No layout file.
+// I-key tooltip snapshot only. v1.16 dumps Datapanel keys, MyGUI
+// exports, and Goal/State neighbors. No paint. No layout load.
 
 void LvHudInstall()
 {

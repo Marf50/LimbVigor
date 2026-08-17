@@ -23,11 +23,11 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-v1.15 dumps every selection DatapanelGUI
-after In-game (keys, getNumLines, match)
-and one full MyGUI widget tree
-(name, type, parent, visible, children).
-It does not paint Hemolymph.
+v1.16 dumps DatapanelGUI keys, the
+MyGUIEngine export list, a parent/sibling
+walk from the Goal/State widget, and
+medical names from Kenshi_MainPanel.layout
+on disk. It does not paint Hemolymph.
 
 Spoken lines appear over the character.
 I-key on a stump/bud/knit/grown item is
@@ -35,8 +35,8 @@ the backup.
 
 This build does not create widgets. No layout file.
 
-v1.15: full MyGUI tree dump after In-game,
-no paint, no load-time GUI hooks.
+v1.16: MyGUI export list + parent/sibling
+walk from Goal/State widget, no paint.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 
