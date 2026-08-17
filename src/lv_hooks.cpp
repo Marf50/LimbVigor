@@ -406,12 +406,12 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
     if (!LvWorldInGame())
         return;
 
-    /* Probe only. Walk SEH is isolated — must not skip Bind / growth. */
+    /* findWidget / key dump. Isolated — must not skip Bind / growth. */
     LV_TRY { LvWalkSelPanel(panel); }
     LV_EXCEPT
     {
         static int once = 0;
-        if (!once) { LvErr("LimbVigor: GUI walk SEH — growth continues"); once = 1; }
+        if (!once) { LvErr("LimbVigor: GUI probe SEH — growth continues"); once = 1; }
     }
 
     CharSnap* live = nullptr;
@@ -422,6 +422,21 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
         g_hudSnap = *live;
         g_hudHave = 1;
         LvHudNote(live);
+    }
+
+    /* Paint only LifeBar1Datapanel. Never the hook panel (Goal/State)
+     * and never medicalPanel MedicalDatapanel*. Door / animal clears. */
+    LV_TRY
+    {
+        if (!who || !LvIsSelectedCharacter(who) || (live && live->race == RACE_ANIMAL))
+            LvClearHud(nullptr);
+        else if (live)
+            LvPaintHud(med, nullptr, live);
+    }
+    LV_EXCEPT
+    {
+        static int once = 0;
+        if (!once) { LvErr("LimbVigor: HUD paint SEH — growth continues"); once = 1; }
     }
 }
 

@@ -2,13 +2,13 @@
 
 #include "lv_config.h"
 
-// I-key tooltip snapshot only. v1.17 dumps Datapanel keys, Gui's
-// Singleton widget tree, and Kenshi_MainPanel.layout names from disk.
-// No paint. No layout load.
+// I-key tooltip snapshot only. v1.18 paints Hemolymph on
+// LifeBar1Datapanel via findWidget + setLineProgress. No tree walk.
+// No layout load. No createWidget.
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: HUD is after-orig dump — no paint, no load-time GUI hooks");
+    LvLog("LimbVigor: HUD is findWidget LifeBar1Datapanel — no tree walk, no load-time GUI hooks");
 }
 
 void LvHudEnsureAfterInGame() {}

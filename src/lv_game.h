@@ -31,9 +31,9 @@ int       LvIsPlayerSquad(Character* me);
 int       LvIsSelectedCharacter(Character* me); // squad body the panel is drawing — not isPlayerCharacter()
 int       LvPanelIsLeftMedical(DatapanelGUI* panel); // live key "Blood" only — v1.14 does not guess-paint
 int       LvPanelHasBlood(DatapanelGUI* panel); // live key "Blood" on a real line
-void      LvWalkSelPanel(DatapanelGUI* panel); // keys + Gui Singleton tree + disk layout names
-void      LvClearHud(DatapanelGUI* panel); // resource + Limb Vigor + lowercase limbs + leftover Regrowth/Wait
-void      LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap); // v1.17: no paint
+void      LvWalkSelPanel(DatapanelGUI* panel); // keys + findWidget LifeBar1* (no tree walk)
+void      LvClearHud(DatapanelGUI* panel); // LifeBar1Datapanel only — never Goal/State
+void      LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap); // LifeBar1Datapanel only
 int       LvReadMsvcString(const void* strObj, char* out, int outsz);
 int       LvItemLooksLikeCatalyst(Item* item);
 void      LvResolvePluginDirFromSelf();

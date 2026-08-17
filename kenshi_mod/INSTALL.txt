@@ -23,12 +23,12 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-v1.17 dumps DatapanelGUI keys, binds
-Gui's Singleton getInstancePtr, walks
-that widget tree, and reads medical
-names from Kenshi_MainPanel.layout on
-disk (game root / mods / workshop).
-It does not paint Hemolymph.
+v1.18 findWidget LifeBar1Datapanel
+and setLineProgress there only
+(Hemolymph / Vigor / Battle-heat +
+stump line). It does not walk the
+Gui tree. It does not paint Goal/State
+or treat medicalPanel as DatapanelGUI.
 
 Spoken lines appear over the character.
 I-key on a stump/bud/knit/grown item is
@@ -36,8 +36,8 @@ the backup.
 
 This build does not create widgets. No layout file.
 
-v1.17: Gui getInstancePtr + full widget
-tree, no paint.
+v1.18: findWidget LifeBar1Datapanel,
+setLineProgress there only, no tree walk.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 

@@ -680,6 +680,18 @@ static int g_dumpSummary = 0;
 static int g_extraDump = 0;
 static void* g_dumpSeen[24] = {};
 static int g_dumpSeenN = 0;
+static void* g_hookReject = nullptr; /* Goal/State DatapanelGUI* — never paint */
+static DatapanelGUI* g_lifeBarPanel = nullptr;
+
+static int lvPanelHasGoalKeys(DatapanelGUI* p)
+{
+    if (!p)
+        return 0;
+    return (lvLiveKeyCat(p, "Goal") >= 0
+         || lvLiveKeyCat(p, "State") >= 0
+         || lvLiveKeyCat(p, "Encumbrance:") >= 0
+         || lvLiveKeyCat(p, "Current Skill") >= 0) ? 1 : 0;
+}
 
 static int lvDumpSeen(void* p)
 {
@@ -704,9 +716,9 @@ static void lvDumpSummary()
         return;
     g_dumpSummary = 1;
     if (g_dumpBlood)
-        LvLog("LimbVigor: dump saw live key Blood — not painting this build");
+        LvLog("LimbVigor: dump saw live key Blood on a DatapanelGUI — still not a paint target");
     else
-        LvLog("LimbVigor: dump: no DatapanelGUI has live key Blood — not painting");
+        LvLog("LimbVigor: dump: no DatapanelGUI has live key Blood (expected — Blood is LifeBar1)");
 }
 
 static void lvDumpOnePanel(DatapanelGUI* panel, const char* src)
@@ -770,42 +782,45 @@ static void lvDumpExtrasOnce()
     g_extraDump = 1;
 
     void* med = lvMedicalPanel();
-    if (med)
-        lvDumpOnePanel((DatapanelGUI*)med, "medicalPanel");
-    else
-        LvLog("LimbVigor: dump medicalPanel=null");
-
+    /* Addendum: MainBar+0x188 is MedicalDatapanel*, not DatapanelGUI.
+     * getNumLines=0 there is a type mismatch, not an empty panel. */
+    LvLogf("LimbVigor: medicalPanel=%p is MedicalDatapanel* (MainBar+0x188) — not DatapanelGUI, not setLineProgress",
+           med);
     lvDumpSummary();
 }
 
 #if !defined(LIMBVIGOR_IDE)
-/* v1.17: bind Gui's Singleton getInstancePtr (exact x64 symbol, not
- * the first getInstancePtr — ClipboardManager stole that in v1.16),
- * walk that Gui's widget tree, read Kenshi_MainPanel.layout from the
- * game/workshop disk. Do not treat DatapanelGUI* as Widget*.
- * No createWidget. Names via GameStr. No GetRealAddress on virtuals. */
+/* v1.18: bind Gui::findWidgetT (throw=false) and look up LifeBar1*.
+ * Do not walk the Gui tree (v1.17 walk SEH'd). Do not treat
+ * DatapanelGUI* as Widget*. Do not treat medicalPanel / 0x188 as
+ * DatapanelGUI. No createWidget. Names via GameStr. */
 
 typedef void*         (*FnGuiInst)();
+typedef void*         (*FnFindW)(void* gui, const GameStr* name, unsigned char throwFlag);
 typedef const void*   (*FnGetName)(void* self);
 typedef std::size_t   (*FnChildN)(void* self);
-typedef void*         (*FnChildAt)(void* self, std::size_t i);
-typedef void*         (*FnParent)(void* self);
 typedef unsigned char (*FnVisible)(void* self);
+typedef const void*   (*FnCaption)(void* self);
 
 static FnGuiInst  g_guiInst  = nullptr;
+static FnFindW    g_findW    = nullptr;
+static FnGuiInst  g_wmInst   = nullptr;
+static FnFindW    g_wmFind   = nullptr;
 static FnGetName  g_wName    = nullptr;
 static FnChildN   g_wCount   = nullptr;
-static FnChildAt  g_wAt      = nullptr;
-static FnParent   g_wParent  = nullptr;
 static FnVisible  g_wVis     = nullptr;
+static FnCaption  g_wCaption = nullptr;
 static int        g_exportDumped = 0;
-static int        g_layoutDumped = 0;
-static int        g_treeDumped = 0;
+static int        g_foundLogged = 0;
+static int        g_lifeBarWhy = 0;
+static const char* g_findSym = nullptr;
 
-/* MSVC x64 MyGUI: Gui's Singleton, not ClipboardManager / InputManager.
-   v1.16 used lvHasI(..., "Gui") which matches the "Gui" inside "MyGUI". */
 static const char kGuiGetInstanceExact[] =
     "?getInstancePtr@?$Singleton@VGui@MyGUI@@@MyGUI@@SAPEAVGui@2@XZ";
+static const char kFindWidgetTExact[] =
+    "?findWidgetT@Gui@MyGUI@@QEAAPEAVWidget@2@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@_N@Z";
+static const char kWmGetInstanceExact[] =
+    "?getInstancePtr@?$Singleton@VWidgetManager@MyGUI@@@MyGUI@@SAPEAVWidgetManager@2@XZ";
 
 static int lvHasI(const char* hay, const char* needle)
 {
@@ -829,6 +844,21 @@ static int lvHasI(const char* hay, const char* needle)
     return 0;
 }
 
+static int lvMangledStringArgs(const char* n)
+{
+    int c = 0;
+    if (!n) return 0;
+    for (const char* p = n; *p; ++p)
+    {
+        if (std::strncmp(p, "basic_string", 12) == 0)
+        {
+            c++;
+            p += 11;
+        }
+    }
+    return c;
+}
+
 static int lvIsOtherMyGuiSingleton(const char* n)
 {
     return (lvHasI(n, "Clipboard") || lvHasI(n, "InputManager")
@@ -843,8 +873,6 @@ static int lvIsOtherMyGuiSingleton(const char* n)
          || lvHasI(n, "LogManager")) ? 1 : 0;
 }
 
-/* Gui's Singleton getInstancePtr only. Do not take the first
- * getInstancePtr — "Gui" is a substring of every "MyGUI" symbol. */
 static int lvIsGuiSingletonGetInstance(const char* n)
 {
     if (!n || !lvHasI(n, "getInstancePtr"))
@@ -858,14 +886,28 @@ static int lvIsGuiSingletonGetInstance(const char* n)
     return 0;
 }
 
-static int lvExportWanted(const char* n)
+static int lvIsGuiFindWidgetT2(const char* n)
 {
-    return (lvHasI(n, "Widget")
-         || lvHasI(n, "getName")
-         || lvHasI(n, "getChild")
-         || lvHasI(n, "getParent")
-         || lvHasI(n, "getByName")
-         || lvHasI(n, "getInstancePtr")) ? 1 : 0;
+    if (!n || lvHasI(n, "createWidget") || lvHasI(n, "destroyWidget"))
+        return 0;
+    if (!lvHasI(n, "findWidget"))
+        return 0;
+    if (lvHasI(n, "WidgetManager"))
+        return 0;
+    if (!lvHasI(n, "@Gui@MyGUI") && !std::strstr(n, "VGui@MyGUI"))
+        return 0;
+    if (!lvHasI(n, "_N"))
+        return 0;
+    return lvMangledStringArgs(n) == 1 ? 1 : 0;
+}
+
+static int lvIsWmFindById2(const char* n)
+{
+    if (!n || !lvHasI(n, "findById") || !lvHasI(n, "WidgetManager"))
+        return 0;
+    if (!lvHasI(n, "_N"))
+        return 0;
+    return lvMangledStringArgs(n) == 1 ? 1 : 0;
 }
 
 static void lvTryBindExport(const char* n, void* addr)
@@ -876,6 +918,24 @@ static void lvTryBindExport(const char* n, void* addr)
     {
         g_guiInst = (FnGuiInst)addr;
         LvLogf("LimbVigor: mygui bind getInstancePtr '%s'", n);
+    }
+    if (!g_findW && lvIsGuiFindWidgetT2(n))
+    {
+        g_findW = (FnFindW)addr;
+        g_findSym = n;
+        LvLogf("LimbVigor: mygui bind findWidget '%s'", n);
+    }
+    if (!g_wmInst && lvHasI(n, "getInstancePtr") && lvHasI(n, "WidgetManager")
+     && lvHasI(n, "Singleton"))
+    {
+        g_wmInst = (FnGuiInst)addr;
+        LvLogf("LimbVigor: mygui bind WidgetManager getInstancePtr '%s'", n);
+    }
+    if (!g_wmFind && lvIsWmFindById2(n))
+    {
+        g_wmFind = (FnFindW)addr;
+        if (!g_findSym) g_findSym = n;
+        LvLogf("LimbVigor: mygui bind WidgetManager findById '%s'", n);
     }
     if (!g_wName && lvHasI(n, "getName") && lvHasI(n, "Widget")
      && !lvHasI(n, "getNameAt") && !lvHasI(n, "getNameBy"))
@@ -888,22 +948,17 @@ static void lvTryBindExport(const char* n, void* addr)
         g_wCount = (FnChildN)addr;
         LvLogf("LimbVigor: mygui bind getChildCount '%s'", n);
     }
-    if (!g_wAt && lvHasI(n, "getChildAt") && lvHasI(n, "Widget"))
-    {
-        g_wAt = (FnChildAt)addr;
-        LvLogf("LimbVigor: mygui bind getChildAt '%s'", n);
-    }
-    if (!g_wParent && lvHasI(n, "getParent") && lvHasI(n, "Widget")
-     && !lvHasI(n, "getParentSize") && !lvHasI(n, "getParentInfo"))
-    {
-        g_wParent = (FnParent)addr;
-        LvLogf("LimbVigor: mygui bind getParent '%s'", n);
-    }
     if (!g_wVis && lvHasI(n, "getVisible") && lvHasI(n, "Widget")
      && !lvHasI(n, "Inherited") && !lvHasI(n, "setVisible"))
     {
         g_wVis = (FnVisible)addr;
         LvLogf("LimbVigor: mygui bind getVisible '%s'", n);
+    }
+    if (!g_wCaption && lvHasI(n, "getCaption") && lvHasI(n, "Widget")
+     && !lvHasI(n, "setCaption"))
+    {
+        g_wCaption = (FnCaption)addr;
+        LvLogf("LimbVigor: mygui bind getCaption '%s'", n);
     }
 }
 
@@ -929,50 +984,50 @@ static void lvDumpMyGuiExports()
     }
     LvLogf("LimbVigor: mygui module=%p", (void*)mod);
 
+    FARPROC exactGui = GetProcAddress(mod, kGuiGetInstanceExact);
+    if (exactGui)
+    {
+        g_guiInst = (FnGuiInst)exactGui;
+        LvLogf("LimbVigor: mygui bind getInstancePtr EXACT '%s'", kGuiGetInstanceExact);
+    }
+    static const char kFindWidgetTConst[] =
+        "?findWidgetT@Gui@MyGUI@@QEBAPEAVWidget@2@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@_N@Z";
+    FARPROC exactFind = GetProcAddress(mod, kFindWidgetTExact);
+    if (!exactFind)
+        exactFind = GetProcAddress(mod, kFindWidgetTConst);
+    if (exactFind)
+    {
+        g_findW = (FnFindW)exactFind;
+        g_findSym = GetProcAddress(mod, kFindWidgetTExact) ? kFindWidgetTExact : kFindWidgetTConst;
+        LvLogf("LimbVigor: mygui bind findWidget EXACT '%s'", g_findSym);
+    }
+    else
+        LvLog("LimbVigor: mygui exact findWidgetT missing — scanning exports");
+    FARPROC exactWm = GetProcAddress(mod, kWmGetInstanceExact);
+    if (exactWm)
+        g_wmInst = (FnGuiInst)exactWm;
+
     const unsigned char* base = (const unsigned char*)(const void*)mod;
     IMAGE_DOS_HEADER dos;
     std::memcpy(&dos, base, sizeof(dos));
     if (dos.e_magic != IMAGE_DOS_SIGNATURE || dos.e_lfanew < 0 || dos.e_lfanew > 0x1000)
-    {
-        LvLog("LimbVigor: mygui export list — bad DOS header");
         return;
-    }
     IMAGE_NT_HEADERS64 nt;
     std::memcpy(&nt, base + dos.e_lfanew, sizeof(nt));
     if (nt.Signature != IMAGE_NT_SIGNATURE)
-    {
-        LvLog("LimbVigor: mygui export list — bad NT header");
         return;
-    }
     const IMAGE_DATA_DIRECTORY dir = nt.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
     if (!dir.VirtualAddress || dir.Size < sizeof(IMAGE_EXPORT_DIRECTORY))
-    {
-        LvLog("LimbVigor: mygui export list — no export directory");
         return;
-    }
     IMAGE_EXPORT_DIRECTORY exp;
     std::memcpy(&exp, base + dir.VirtualAddress, sizeof(exp));
     if (!exp.NumberOfNames || exp.NumberOfNames > 20000)
-    {
-        LvLogf("LimbVigor: mygui export list — NumberOfNames=%u", (unsigned)exp.NumberOfNames);
         return;
-    }
-
-    FARPROC exact = GetProcAddress(mod, kGuiGetInstanceExact);
-    if (exact)
-    {
-        g_guiInst = (FnGuiInst)exact;
-        LvLogf("LimbVigor: mygui bind getInstancePtr EXACT '%s'", kGuiGetInstanceExact);
-    }
-    else
-        LvLog("LimbVigor: mygui exact Gui getInstancePtr missing — scanning exports");
 
     const DWORD* names = (const DWORD*)(base + exp.AddressOfNames);
     const WORD* ords = (const WORD*)(base + exp.AddressOfNameOrdinals);
     const DWORD* funcs = (const DWORD*)(base + exp.AddressOfFunctions);
-    int loggedWidget = 0;
-    int loggedGetInst = 0;
-    const int widgetCap = 80;
+    int loggedFind = 0;
     for (DWORD i = 0; i < exp.NumberOfNames; ++i)
     {
         DWORD nrva = 0;
@@ -1000,30 +1055,20 @@ static void lvDumpMyGuiExports()
         if (!en[0])
             continue;
         void* addr = (void*)(base + frva);
-        /* Scan every export so Gui's getInstancePtr cannot hide behind a cap. */
         lvTryBindExport(en, addr);
-        if (lvHasI(en, "getInstancePtr"))
+        if (lvHasI(en, "findWidget") || lvHasI(en, "findById"))
         {
-            LvLogf("LimbVigor: mygui export getInstancePtr '%s' %p%s",
-                   en, addr,
-                   lvIsGuiSingletonGetInstance(en) ? " [Gui Singleton]" : "");
-            loggedGetInst++;
-        }
-        else if (lvExportWanted(en) && loggedWidget < widgetCap)
-        {
-            LvLogf("LimbVigor: mygui export '%s' %p", en, addr);
-            loggedWidget++;
+            LvLogf("LimbVigor: mygui export find '%s' %p", en, addr);
+            loggedFind++;
         }
     }
-    if (loggedWidget >= widgetCap)
-        LvLogf("LimbVigor: mygui Widget export log capped at %d (scan uncapped names=%u)",
-               widgetCap, (unsigned)exp.NumberOfNames);
-    LvLogf("LimbVigor: mygui export names=%u getInstancePtr listed=%d Widget listed=%d bind name=%d childN=%d childAt=%d parent=%d vis=%d gui=%d",
-           (unsigned)exp.NumberOfNames, loggedGetInst, loggedWidget,
-           g_wName ? 1 : 0, g_wCount ? 1 : 0, g_wAt ? 1 : 0,
-           g_wParent ? 1 : 0, g_wVis ? 1 : 0, g_guiInst ? 1 : 0);
-    if (!g_wName) LvLog("LimbVigor: mygui bind getName missing");
-    if (!g_guiInst) LvLog("LimbVigor: mygui bind Gui getInstancePtr missing after full export scan");
+    LvLogf("LimbVigor: mygui find exports=%d bind gui=%d findWidget=%d wm=%d name=%d vis=%d childN=%d caption=%d",
+           loggedFind, g_guiInst ? 1 : 0, g_findW ? 1 : 0, g_wmFind ? 1 : 0,
+           g_wName ? 1 : 0, g_wVis ? 1 : 0, g_wCount ? 1 : 0, g_wCaption ? 1 : 0);
+    if (g_findSym)
+        LvLogf("LimbVigor: mygui findWidget symbol '%s'", g_findSym);
+    if (!g_findW && !g_wmFind)
+        LvLog("LimbVigor: mygui findWidget missing after full export scan");
 }
 
 static int lvGameStrLooksName(const char* s)
@@ -1039,203 +1084,111 @@ static int lvGameStrLooksName(const char* s)
         if (c < 32 || c > 126)
             return 0;
     }
-    return n >= 1 ? 1 : 0;
-}
-
-static int lvWidgetName(void* w, char* out, int n)
-{
-    if (!w || !out || n < 2)
-        return 0;
-    out[0] = 0;
-    if (g_wName)
-    {
-        const void* s = nullptr;
-        int seh = 0;
-        LV_TRY { s = g_wName(w); }
-        LV_EXCEPT { s = nullptr; seh = 1; }
-        if (!seh && s)
-        {
-            GameStrRead(s, out, n);
-            return 1;
-        }
-    }
-    for (int off = 0x20; off <= 0x180; off += 8)
-    {
-        char buf[96];
-        buf[0] = 0;
-        LV_TRY { GameStrRead((const char*)w + off, buf, (int)sizeof(buf)); }
-        LV_EXCEPT { buf[0] = 0; }
-        if (lvGameStrLooksName(buf))
-        {
-            std::snprintf(out, (size_t)n, "%s", buf);
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static int lvLooksLikeType(const char* s)
-{
-    if (!s || !s[0])
-        return 0;
-    int n = 0;
-    if (!((s[0] >= 'A' && s[0] <= 'Z') || (s[0] >= 'a' && s[0] <= 'z')))
-        return 0;
-    for (; s[n]; ++n)
-    {
-        char c = s[n];
-        if (n > 40)
-            return 0;
-        if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
-           || (c >= '0' && c <= '9') || c == '_'))
-            return 0;
-    }
-    return n >= 3 ? 1 : 0;
-}
-
-/* IObject::getTypeName is vtable[1] after the dtor. Call that slot only.
- * Do not probe other slots (could run a destructor or a write). */
-static void lvWidgetType(void* w, char* out, int n)
-{
-    if (out && n > 0)
-        out[0] = 0;
-    if (!w || !out || n < 2)
-        return;
-    void** vt = nullptr;
-    LV_TRY { std::memcpy(&vt, w, sizeof(vt)); }
-    LV_EXCEPT { vt = nullptr; }
-    if (!vt || !vt[1])
-        return;
-    char buf[64];
-    buf[0] = 0;
-    int ok = 0;
-    LV_TRY
-    {
-        const void* s = ((FnGetName)vt[1])(w);
-        if (s && GameStrRead(s, buf, (int)sizeof(buf)) && lvLooksLikeType(buf))
-            ok = 1;
-    }
-    LV_EXCEPT { ok = 0; }
-    if (ok)
-        std::snprintf(out, (size_t)n, "%s", buf);
-}
-
-static int lvIsWidget(void* w)
-{
-    if (!w)
-        return 0;
-    char n[8];
-    if (g_wName)
-        return lvWidgetName(w, n, (int)sizeof(n));
-    void* vt = nullptr;
-    LV_TRY { std::memcpy(&vt, w, sizeof(vt)); }
-    LV_EXCEPT { vt = nullptr; }
-    return vt ? 1 : 0;
-}
-
-static int lvVecAt(void* obj, int off, void*** start, int* count)
-{
-    void** s = nullptr;
-    void** e = nullptr;
-    void** c = nullptr;
-    LV_TRY
-    {
-        std::memcpy(&s, (const char*)obj + off, sizeof(s));
-        std::memcpy(&e, (const char*)obj + off + (int)sizeof(void*), sizeof(e));
-        std::memcpy(&c, (const char*)obj + off + 2 * (int)sizeof(void*), sizeof(c));
-    }
-    LV_EXCEPT { return 0; }
-    if (!s || !e || e < s || !c || c < e)
-        return 0;
-    const std::ptrdiff_t bytes = (char*)e - (char*)s;
-    if (bytes <= 0 || (bytes % (int)sizeof(void*)) != 0)
-        return 0;
-    const int n = (int)(bytes / (int)sizeof(void*));
-    if (n < 1 || n > 256)
-        return 0;
-    *start = s;
-    *count = n;
     return 1;
 }
 
-static int lvSeenHas(void** seen, int n, void* p)
+static void lvReadCaption(const void* s, char* out, int n)
 {
-    for (int i = 0; i < n; ++i)
-        if (seen[i] == p)
-            return 1;
-    return 0;
-}
-
-static void lvEnqueueKids(void* w, void** q, int* qn, int qmax, void** seen, int seenN)
-{
-    if (!w)
+    if (!out || n < 2)
         return;
-    if (g_wCount && g_wAt)
+    out[0] = 0;
+    if (!s)
+        return;
+    if (GameStrRead(s, out, n) && lvGameStrLooksName(out))
+        return;
+    out[0] = 0;
+    size_t size = 0, cap = 0;
+    LV_TRY
     {
-        std::size_t n = 0;
-        int seh = 0;
-        LV_TRY { n = g_wCount(w); }
-        LV_EXCEPT { n = 0; seh = 1; }
-        if (!seh && n > 0 && n <= 256)
-        {
-            for (std::size_t i = 0; i < n && *qn < qmax; ++i)
-            {
-                void* c = nullptr;
-                LV_TRY { c = g_wAt(w, i); }
-                LV_EXCEPT { c = nullptr; }
-                if (!c || lvSeenHas(seen, seenN, c) || lvSeenHas(q, *qn, c))
-                    continue;
-                if (lvIsWidget(c))
-                    q[(*qn)++] = c;
-            }
-        }
+        std::memcpy(&size, (const char*)s + 16, sizeof(size));
+        std::memcpy(&cap, (const char*)s + 24, sizeof(cap));
     }
-    for (int off = 0; off <= 0x1C0; off += (int)sizeof(void*))
+    LV_EXCEPT { return; }
+    if (size == 0 || size > 64 || cap > (size_t)1 << 20)
+        return;
+    const wchar_t* src = nullptr;
+    LV_TRY
     {
-        void** start = nullptr;
-        int n = 0;
-        if (!lvVecAt(w, off, &start, &n))
-            continue;
-        int good = 0;
-        for (int i = 0; i < n && i < 8; ++i)
+        if (cap > 7)
+            std::memcpy(&src, s, sizeof(src));
+        else
+            src = (const wchar_t*)s;
+    }
+    LV_EXCEPT { src = nullptr; }
+    if (!src)
+        return;
+    int o = 0;
+    LV_TRY
+    {
+        for (size_t i = 0; i < size && o < n - 1; ++i)
         {
-            if (lvIsWidget(start[i]))
-                good++;
-        }
-        if (good < 1)
-            continue;
-        for (int i = 0; i < n && *qn < qmax; ++i)
-        {
-            void* c = start[i];
-            if (!c || lvSeenHas(seen, seenN, c) || lvSeenHas(q, *qn, c))
+            unsigned c = (unsigned)src[i];
+            if (c == 0)
+                break;
+            if (c < 32 || c > 126)
                 continue;
-            if (lvIsWidget(c))
-                q[(*qn)++] = c;
+            out[o++] = (char)c;
         }
+        out[o] = 0;
     }
+    LV_EXCEPT { out[0] = 0; }
 }
 
-static void lvLogWidget(const char* tag, void* w)
+static void* lvFindWidget(const char* name)
+{
+    if (!name || !name[0])
+        return nullptr;
+    GameStr gs;
+    GameStrSet(&gs, name);
+    const unsigned char noThrow = 0;
+    if (g_findW && g_guiInst)
+    {
+        void* gui = nullptr;
+        LV_TRY { gui = g_guiInst(); }
+        LV_EXCEPT { gui = nullptr; }
+        if (gui)
+        {
+            void* w = nullptr;
+            int seh = 0;
+            LV_TRY { w = g_findW(gui, &gs, noThrow); }
+            LV_EXCEPT { w = nullptr; seh = 1; }
+            if (seh)
+            {
+                static int once = 0;
+                if (!once) { LvErr("LimbVigor: findWidget SEH — growth continues"); once = 1; }
+                return nullptr;
+            }
+            return w;
+        }
+    }
+    if (g_wmFind && g_wmInst)
+    {
+        void* wm = nullptr;
+        LV_TRY { wm = g_wmInst(); }
+        LV_EXCEPT { wm = nullptr; }
+        if (wm)
+        {
+            void* w = nullptr;
+            LV_TRY { w = g_wmFind(wm, &gs, noThrow); }
+            LV_EXCEPT { w = nullptr; }
+            return w;
+        }
+    }
+    return nullptr;
+}
+
+static void lvLogFound(const char* want, void* w)
 {
     if (!w)
+    {
+        LvLogf("LimbVigor: findWidget '%s' = null", want);
         return;
-    char name[96];
-    char type[64];
-    name[0] = 0;
-    type[0] = 0;
-    lvWidgetName(w, name, (int)sizeof(name));
-    lvWidgetType(w, type, (int)sizeof(type));
+    }
     int vis = -1;
     if (g_wVis)
     {
         LV_TRY { vis = g_wVis(w) ? 1 : 0; }
         LV_EXCEPT { vis = -1; }
-    }
-    void* parent = nullptr;
-    if (g_wParent)
-    {
-        LV_TRY { parent = g_wParent(w); }
-        LV_EXCEPT { parent = nullptr; }
     }
     int kids = -1;
     if (g_wCount)
@@ -1247,406 +1200,209 @@ static void lvLogWidget(const char* tag, void* w)
         if (!seh && n <= 256)
             kids = (int)n;
     }
-    LvLogf("LimbVigor: %s %p name='%s' type='%s' parent=%p visible=%d children=%d",
-           tag, w, name, type[0] ? type : "?", parent, vis, kids);
+    char cap[96];
+    cap[0] = 0;
+    if (g_wCaption)
+    {
+        const void* s = nullptr;
+        LV_TRY { s = g_wCaption(w); }
+        LV_EXCEPT { s = nullptr; }
+        if (s)
+            lvReadCaption(s, cap, (int)sizeof(cap));
+    }
+    LvLogf("LimbVigor: findWidget '%s' ptr=%p vis=%d childN=%d caption='%s'",
+           want, w, vis, kids, cap);
 }
 
-static void lvDumpTreeIfPossible()
+static int lvCouldBeDatapanel(void* p)
 {
-    if (g_treeDumped)
-        return;
-    g_treeDumped = 1;
-    if (!g_guiInst)
+    if (!p || !g_numLines)
+        return 0;
+    if (p == lvMedicalPanel())
+        return 0;
+    if (g_hookReject && p == g_hookReject)
+        return 0;
+    for (int cat = 0; cat < 4; ++cat)
     {
-        LvLog("LimbVigor: mygui full tree skipped — Gui getInstancePtr not bound");
-        return;
+        int n = -1;
+        int seh = 0;
+        LV_TRY { n = g_numLines((DatapanelGUI*)p, cat); }
+        LV_EXCEPT { n = -1; seh = 1; }
+        if (seh || n < 0 || n > 32)
+            return 0;
     }
-    void* gui = nullptr;
-    LV_TRY { gui = g_guiInst(); }
-    LV_EXCEPT { gui = nullptr; }
-    if (!gui)
-    {
-        LvLog("LimbVigor: mygui full tree skipped — Gui instance null");
-        return;
-    }
-
-    const int kMax = 1500;
-    const int kLog = 400;
-    void* seen[1500];
-    void* q[1500];
-    int seenN = 0;
-    int qn = 0;
-
-    for (int off = 0; off <= 0x80; off += (int)sizeof(void*))
-    {
-        void** start = nullptr;
-        int n = 0;
-        if (!lvVecAt(gui, off, &start, &n))
-            continue;
-        int good = 0;
-        for (int i = 0; i < n && i < 8; ++i)
-            if (lvIsWidget(start[i]))
-                good++;
-        if (good < 1)
-            continue;
-        for (int i = 0; i < n && qn < kMax; ++i)
-        {
-            void* c = start[i];
-            if (c && !lvSeenHas(q, qn, c) && lvIsWidget(c))
-                q[qn++] = c;
-        }
-    }
-    if (qn == 0)
-    {
-        LvLog("LimbVigor: mygui full tree — no root widgets on Gui");
-        return;
-    }
-
-    LvLog("LimbVigor: mygui tree dump begin");
-    int logged = 0;
-    int qi = 0;
-    while (qi < qn && seenN < kMax)
-    {
-        void* w = q[qi++];
-        if (!w || lvSeenHas(seen, seenN, w))
-            continue;
-        seen[seenN++] = w;
-        if (logged < kLog)
-        {
-            lvLogWidget("mygui", w);
-            logged++;
-        }
-        lvEnqueueKids(w, q, &qn, kMax, seen, seenN);
-    }
-    if (logged >= kLog)
-        LvLogf("LimbVigor: mygui tree dump capped at %d (visited=%d queued=%d)",
-               kLog, seenN, qn);
-    LvLogf("LimbVigor: mygui tree dump end visited=%d logged=%d", seenN, logged);
+    if (lvPanelHasGoalKeys((DatapanelGUI*)p))
+        return 0;
+    return 1;
 }
 
-static int lvLayoutMedical(const char* name)
+static void* lvScanAttached(void* widget)
 {
-    return (lvHasI(name, "Blood")
-         || lvHasI(name, "Head")
-         || lvHasI(name, "Hunger")
-         || lvHasI(name, "LifeBar")
-         || lvHasI(name, "Progress")
-         || lvHasI(name, "medical")) ? 1 : 0;
-}
-
-static void lvParseLayoutFile(const char* path)
-{
-    if (!path || !path[0])
-        return;
-    FILE* f = nullptr;
-#if defined(_MSC_VER)
-    if (fopen_s(&f, path, "rb") != 0) f = nullptr;
-#else
-    f = std::fopen(path, "rb");
-#endif
-    if (!f)
+    if (!widget)
+        return nullptr;
+    for (int off = 8; off <= 0x200; off += (int)sizeof(void*))
     {
-        LvLogf("LimbVigor: layout miss '%s'", path);
-        return;
-    }
-    if (std::fseek(f, 0, SEEK_END) != 0)
-    {
-        std::fclose(f);
-        return;
-    }
-    long sz = std::ftell(f);
-    if (sz < 32 || sz > 2 * 1024 * 1024)
-    {
-        std::fclose(f);
-        LvLogf("LimbVigor: layout skip size=%ld '%s'", sz, path);
-        return;
-    }
-    char* buf = (char*)std::malloc((size_t)sz + 1);
-    if (!buf)
-    {
-        std::fclose(f);
-        return;
-    }
-    std::rewind(f);
-    size_t got = std::fread(buf, 1, (size_t)sz, f);
-    std::fclose(f);
-    buf[got] = 0;
-    LvLogf("LimbVigor: layout read '%s' bytes=%u", path, (unsigned)got);
-
-    int hits = 0;
-    const int cap = 80;
-    for (char* p = buf; *p; ++p)
-    {
-        if (p[0] != 'n' || p[1] != 'a' || p[2] != 'm' || p[3] != 'e' || p[4] != '=')
+        void* p = nullptr;
+        LV_TRY { std::memcpy(&p, (const char*)widget + off, sizeof(p)); }
+        LV_EXCEPT { p = nullptr; }
+        if (!p || p == widget || p == lvMedicalPanel())
             continue;
-        char q = p[5];
-        if (q != '"' && q != '\'')
-            continue;
-        p += 6;
-        char name[96];
-        int n = 0;
-        while (p[n] && p[n] != q && n < 95)
+        if (lvCouldBeDatapanel(p))
         {
-            name[n] = p[n];
-            ++n;
+            LvLogf("LimbVigor: DatapanelGUI %p attached on LifeBar1Datapanel+0x%X", p, off);
+            return p;
         }
-        name[n] = 0;
-        if (!lvLayoutMedical(name))
+    }
+    void* med = lvMedicalPanel();
+    if (!med)
+        return nullptr;
+    for (int off = 0; off <= 0x400; off += (int)sizeof(void*))
+    {
+        void* slot = nullptr;
+        LV_TRY { std::memcpy(&slot, (const char*)med + off, sizeof(slot)); }
+        LV_EXCEPT { slot = nullptr; }
+        if (slot != widget)
             continue;
-        char typ[64];
-        typ[0] = 0;
-        char* line = p;
-        while (line > buf && *line != '<')
-            --line;
-        char* end = p;
-        while (*end && *end != '>')
-            ++end;
-        for (char* t = line; t < end; ++t)
+        for (int d = -0x40; d <= 0x40; d += (int)sizeof(void*))
         {
-            if (t[0] == 't' && t[1] == 'y' && t[2] == 'p' && t[3] == 'e' && t[4] == '=')
+            const int at = off + d;
+            if (at < 0 || at > 0x400)
+                continue;
+            void* emb = (char*)med + at;
+            if (emb != med && lvCouldBeDatapanel(emb))
             {
-                char tq = t[5];
-                if (tq != '"' && tq != '\'')
-                    continue;
-                t += 6;
-                int k = 0;
-                while (t[k] && t[k] != tq && k < 63)
-                {
-                    typ[k] = t[k];
-                    ++k;
-                }
-                typ[k] = 0;
-                break;
+                LvLogf("LimbVigor: DatapanelGUI embedded in MedicalDatapanel+0x%X (LifeBar1Datapanel slot 0x%X)",
+                       at, off);
+                return emb;
+            }
+            void* p = nullptr;
+            LV_TRY { std::memcpy(&p, (const char*)med + at, sizeof(p)); }
+            LV_EXCEPT { p = nullptr; }
+            if (p && p != widget && p != med && lvCouldBeDatapanel(p))
+            {
+                LvLogf("LimbVigor: DatapanelGUI %p next to LifeBar1Datapanel in MedicalDatapanel+0x%X",
+                       p, at);
+                return p;
             }
         }
-        if (hits < cap)
-        {
-            LvLogf("LimbVigor: layout widget name='%s' type='%s'", name, typ[0] ? typ : "?");
-            hits++;
-        }
     }
-    if (hits >= cap)
-        LvLogf("LimbVigor: layout widget list capped at %d", cap);
-    LvLogf("LimbVigor: layout medical-name hits=%d", hits);
-    std::free(buf);
+    return nullptr;
 }
 
-static void lvDirOf(char* path)
+static void lvWhyOnce(const char* why)
 {
-    if (!path)
+    if (g_lifeBarWhy)
         return;
-    char* slash = nullptr;
-    for (char* p = path; *p; ++p)
-        if (*p == '\\' || *p == '/') slash = p;
-    if (slash) *slash = 0;
+    g_lifeBarWhy = 1;
+    LvLog(why);
 }
 
-static int lvFileExistsA(const char* path)
+static void lvResolveLifeBar()
 {
-    if (!path || !path[0])
-        return 0;
-    const DWORD a = GetFileAttributesA(path);
-    return (a != INVALID_FILE_ATTRIBUTES && !(a & FILE_ATTRIBUTE_DIRECTORY)) ? 1 : 0;
-}
-
-static int lvPathEqI(const char* a, const char* b)
-{
-    if (!a || !b)
-        return 0;
-    while (*a && *b)
+    lvDumpMyGuiExports();
+    void* names[6];
+    static const char* kNames[] = {
+        "MedicalPanel", "LifeBar1", "LifeBar1Datapanel",
+        "LifeBar1Value", "LifeBar1Green", "HealthText"
+    };
+    for (int i = 0; i < 6; ++i)
     {
-        char ca = *a, cb = *b;
-        if (ca >= 'A' && ca <= 'Z') ca = (char)(ca + 32);
-        if (cb >= 'A' && cb <= 'Z') cb = (char)(cb + 32);
-        if (ca == '/') ca = '\\';
-        if (cb == '/') cb = '\\';
-        if (ca != cb) return 0;
-        ++a;
-        ++b;
+        names[i] = lvFindWidget(kNames[i]);
+        if (!g_foundLogged)
+            lvLogFound(kNames[i], names[i]);
     }
-    return (!*a && !*b) ? 1 : 0;
-}
+    if (!g_foundLogged)
+    {
+        g_foundLogged = 1;
+        if (g_findSym)
+            LvLogf("LimbVigor: findWidget bound '%s'", g_findSym);
+    }
 
-static void lvAddRoot(char roots[][MAX_PATH], int* n, int maxn, const char* dir)
-{
-    if (!dir || !dir[0] || !n || *n >= maxn)
+    void* w = names[2];
+    if (!w)
+    {
+        lvWhyOnce("LimbVigor: LifeBar1Datapanel findWidget=null — not painting, not creating a widget");
+        g_lifeBarPanel = nullptr;
         return;
-    for (int i = 0; i < *n; ++i)
-        if (lvPathEqI(roots[i], dir))
-            return;
-    std::snprintf(roots[*n], MAX_PATH, "%s", dir);
-    (*n)++;
-}
-
-static void lvWalkUpGameRoots(const char* start, char roots[][MAX_PATH], int* n, int maxn)
-{
-    if (!start || !start[0])
+    }
+    if (lvCouldBeDatapanel(w))
+    {
+        g_lifeBarPanel = (DatapanelGUI*)w;
+        LvLogf("LimbVigor: LifeBar1Datapanel Widget* %p accepts getNumLines — using as DatapanelGUI", w);
         return;
-    char cur[MAX_PATH];
-    std::snprintf(cur, MAX_PATH, "%s", start);
-    for (int up = 0; up < 8 && *n < maxn; ++up)
-    {
-        char exe[MAX_PATH];
-        char lay[MAX_PATH];
-        std::snprintf(exe, MAX_PATH, "%s\\kenshi_x64.exe", cur);
-        std::snprintf(lay, MAX_PATH, "%s\\data\\gui\\layout\\Kenshi_MainPanel.layout", cur);
-        if (lvFileExistsA(exe) || lvFileExistsA(lay))
-            lvAddRoot(roots, n, maxn, cur);
-        char parent[MAX_PATH];
-        std::snprintf(parent, MAX_PATH, "%s", cur);
-        lvDirOf(parent);
-        if (!parent[0] || lvPathEqI(parent, cur))
-            break;
-        std::snprintf(cur, MAX_PATH, "%s", parent);
     }
-}
-
-static void lvScanKidsForLayout(const char* parent, int* nfound)
-{
-    if (!parent || !parent[0])
+    void* att = lvScanAttached(w);
+    if (att)
+    {
+        g_lifeBarPanel = (DatapanelGUI*)att;
         return;
-    char pat[MAX_PATH];
-    std::snprintf(pat, MAX_PATH, "%s\\*", parent);
-    WIN32_FIND_DATAA fd;
-    HANDLE h = FindFirstFileA(pat, &fd);
-    if (h == INVALID_HANDLE_VALUE)
-        return;
-    int tried = 0;
-    do
-    {
-        if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
-            continue;
-        if (fd.cFileName[0] == '.')
-            continue;
-        char lay[MAX_PATH];
-        std::snprintf(lay, MAX_PATH, "%s\\%s\\gui\\layout\\Kenshi_MainPanel.layout",
-                      parent, fd.cFileName);
-        if (lvFileExistsA(lay))
-        {
-            lvParseLayoutFile(lay);
-            if (nfound) (*nfound)++;
-        }
-        tried++;
-        if (tried >= 64)
-            break;
-    } while (FindNextFileA(h, &fd));
-    FindClose(h);
-}
-
-/* v1.16 used kenshi_x64 / GetModuleHandle(nullptr) and landed in
-   ...\Kenshi\RE_Kenshi\ — layout is under the game root, mods, or
-   steamapps\workshop\content\233860. Disk read only; do not load. */
-static void lvDumpLayoutOnce()
-{
-    if (g_layoutDumped)
-        return;
-    g_layoutDumped = 1;
-
-    char roots[12][MAX_PATH];
-    int nroots = 0;
-
-    HMODULE mygui = lvMyGuiMod();
-    if (mygui)
-    {
-        char p[MAX_PATH];
-        p[0] = 0;
-        GetModuleFileNameA(mygui, p, MAX_PATH);
-        LvLogf("LimbVigor: layout anchor MyGUIEngine '%s'", p);
-        lvDirOf(p);
-        lvAddRoot(roots, &nroots, 12, p);
-        lvWalkUpGameRoots(p, roots, &nroots, 12);
     }
-
-    HMODULE k = GetModuleHandleA("kenshi_x64.exe");
-    if (!k) k = GetModuleHandleA("kenshi_GOG_x64.exe");
-    if (k)
-    {
-        char p[MAX_PATH];
-        p[0] = 0;
-        GetModuleFileNameA(k, p, MAX_PATH);
-        LvLogf("LimbVigor: layout anchor kenshi exe '%s'", p);
-        lvDirOf(p);
-        lvAddRoot(roots, &nroots, 12, p);
-    }
-
-    const char* plug = LvPluginDir();
-    if (plug && plug[0])
-    {
-        LvLogf("LimbVigor: layout anchor plugin '%s'", plug);
-        lvWalkUpGameRoots(plug, roots, &nroots, 12);
-    }
-
-    char self[MAX_PATH];
-    self[0] = 0;
-    GetModuleFileNameA(nullptr, self, MAX_PATH);
-    if (self[0])
-    {
-        lvDirOf(self);
-        lvWalkUpGameRoots(self, roots, &nroots, 12);
-    }
-
-    int nfound = 0;
-    for (int i = 0; i < nroots; ++i)
-    {
-        LvLogf("LimbVigor: layout root '%s'", roots[i]);
-        char lay[MAX_PATH];
-        std::snprintf(lay, MAX_PATH, "%s\\data\\gui\\layout\\Kenshi_MainPanel.layout",
-                      roots[i]);
-        if (lvFileExistsA(lay))
-        {
-            lvParseLayoutFile(lay);
-            nfound++;
-        }
-        else
-            LvLogf("LimbVigor: layout miss '%s'", lay);
-
-        char mods[MAX_PATH];
-        std::snprintf(mods, MAX_PATH, "%s\\mods", roots[i]);
-        lvScanKidsForLayout(mods, &nfound);
-
-        char cur[MAX_PATH];
-        std::snprintf(cur, MAX_PATH, "%s", roots[i]);
-        for (int up = 0; up < 5; ++up)
-        {
-            char ws[MAX_PATH];
-            std::snprintf(ws, MAX_PATH, "%s\\workshop\\content\\233860", cur);
-            lvScanKidsForLayout(ws, &nfound);
-            char parent[MAX_PATH];
-            std::snprintf(parent, MAX_PATH, "%s", cur);
-            lvDirOf(parent);
-            if (!parent[0] || lvPathEqI(parent, cur))
-                break;
-            std::snprintf(cur, MAX_PATH, "%s", parent);
-        }
-    }
-    LvLogf("LimbVigor: layout files found=%d roots=%d", nfound, nroots);
+    g_lifeBarPanel = nullptr;
+    lvWhyOnce("LimbVigor: LifeBar1Datapanel is a Widget, no DatapanelGUI attached — not painting, not creating a widget");
 }
 
 static void lvDumpMyGuiOnce()
 {
     if (!LvWorldInGame())
         return;
-    lvDumpMyGuiExports();
-    lvDumpLayoutOnce();
-    lvDumpTreeIfPossible();
+    lvResolveLifeBar();
 }
 #else
 static void lvDumpMyGuiOnce() {}
+static void lvResolveLifeBar() {}
+static void lvWhyOnce(const char* why) { (void)why; }
 #endif
+
+static int KeyEqI(const char* a, const char* b)
+{
+    if (!a || !b) return 0;
+    while (*a && *b)
+    {
+        char ca = *a, cb = *b;
+        if (ca >= 'A' && ca <= 'Z') ca = (char)(ca + 32);
+        if (cb >= 'A' && cb <= 'Z') cb = (char)(cb + 32);
+        if (ca != cb) return 0;
+        ++a;
+        ++b;
+    }
+    return *a == 0 && *b == 0 ? 1 : 0;
+}
+
+/* Title-Case Kenshi rows only. "left leg" is ours and must not match "Left Leg". */
+static int IsReservedKey(const char* key)
+{
+    static const char* kRes[] = {
+        "Blood", "Head", "Hunger",
+        "Left Arm", "Right Arm", "Left Leg", "Right Leg",
+        nullptr
+    };
+    if (!key || !key[0]) return 1;
+    for (int i = 0; kRes[i]; ++i)
+        if (std::strcmp(key, kRes[i]) == 0)
+            return 1;
+    return 0;
+}
+
+static int IsBannedHudKey(const char* key)
+{
+    static const char* kBan[] = {
+        "Time", "Look", "How", "Need", "Regrowth", "Wait", nullptr
+    };
+    if (!key || !key[0]) return 1;
+    for (int i = 0; kBan[i]; ++i)
+        if (KeyEqI(key, kBan[i]))
+            return 1;
+    return 0;
+}
 
 void LvWalkSelPanel(DatapanelGUI* panel)
 {
     if (!panel || !LvWorldInGame())
         return;
     lvDumpOnePanel(panel, "hook");
+    if (lvPanelHasGoalKeys(panel) && !g_hookReject)
+        g_hookReject = (void*)panel;
     lvDumpExtrasOnce();
-    if (g_dumpBlood && !g_dumpSummary)
-    {
-        g_dumpSummary = 1;
-        LvLog("LimbVigor: dump saw live key Blood — not painting this build");
-    }
-    else
-        lvDumpSummary();
     lvDumpMyGuiOnce();
 }
 
@@ -1660,9 +1416,34 @@ static void lvRemoveKey(DatapanelGUI* panel, const char* key, int cat)
     LV_EXCEPT {}
 }
 
+static DatapanelGUI* lvPaintDest()
+{
+    lvResolveLifeBar();
+    DatapanelGUI* dest = g_lifeBarPanel;
+    if (!dest)
+        return nullptr;
+    if ((void*)dest == lvMedicalPanel())
+    {
+        lvWhyOnce("LimbVigor: refusing medicalPanel MedicalDatapanel* as setLineProgress dest");
+        g_lifeBarPanel = nullptr;
+        return nullptr;
+    }
+    if (lvPanelHasGoalKeys(dest) || (g_hookReject && (void*)dest == g_hookReject))
+    {
+        lvWhyOnce("LimbVigor: refusing Goal/State panel — not painting");
+        g_lifeBarPanel = nullptr;
+        return nullptr;
+    }
+    return dest;
+}
+
 void LvClearHud(DatapanelGUI* panel)
 {
-    if (!panel || !g_removeLine)
+    (void)panel;
+    DatapanelGUI* dest = g_lifeBarPanel;
+    if (!dest || !g_removeLine)
+        return;
+    if ((void*)dest == lvMedicalPanel() || lvPanelHasGoalKeys(dest))
         return;
     static const char* kOurs[] = {
         "Hemolymph", "Vigor", "Battle-heat", "Limb Vigor",
@@ -1670,27 +1451,127 @@ void LvClearHud(DatapanelGUI* panel)
         "Regrowth", "Wait",
         nullptr
     };
-    /* Only remove keys we can see on a live line. lineExists lies. */
     for (int i = 0; kOurs[i]; ++i)
     {
-        int cat = lvLiveKeyCat(panel, kOurs[i]);
+        int cat = lvLiveKeyCat(dest, kOurs[i]);
         if (cat >= 0)
-            lvRemoveKey(panel, kOurs[i], cat);
+            lvRemoveKey(dest, kOurs[i], cat);
     }
 }
 
 void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
 {
-    (void)med;
-    (void)snap;
-    /* v1.15 probe: never paint. */
-    if (!panel || !LvWorldInGame())
+    (void)panel;
+    if (!snap || !LvCfg().enableHud || !LvWorldInGame())
         return;
-    if (lvLiveKeyCat(panel, "Blood") < 0)
+    if (snap->race == RACE_ANIMAL)
+    {
+        LvClearHud(nullptr);
         return;
+    }
+    if (med && !LvIsPlayerSquad(LvCharFromMed(med)))
+        return;
+
+    DatapanelGUI* dest = lvPaintDest();
+    if (!dest)
+        return;
+    if (!g_setLineProg)
+    {
+        lvWhyOnce("LimbVigor: setLineProgress missing — LifeBar1Datapanel not painted");
+        return;
+    }
+
+    const char* key1 = LvHudResourceKey(snap);
+    if (!key1 || !key1[0] || IsReservedKey(key1) || IsBannedHudKey(key1))
+        return;
+
+    char bar1[96], bar2[96], limbKey[32];
+    float fill1 = 0.f, fill2 = 0.f;
+    LvHudLines(snap, bar1, (int)sizeof(bar1), &fill1, bar2, (int)sizeof(bar2), &fill2, limbKey, (int)sizeof(limbKey));
+    if (!bar1[0])
+        return;
+    if (fill1 < 0.f) fill1 = 0.f;
+    if (fill1 > 1.f) fill1 = 1.f;
+
+    /* Empty overlay panel: no Blood DataPanelLine. Use cat 0.
+     * Do not write Blood / LifeBar1Green / LifeBar1Value. */
+    int cat = 0;
+    GameStr gkey, gtext;
+    GameStrSet(&gkey, key1);
+    GameStrSet(&gtext, bar1);
+    int excepted = 0;
+    LV_TRY { g_setLineProg(dest, &gkey, cat, fill1, &gtext, true); }
+    LV_EXCEPT { excepted = 1; }
+    if (excepted)
+    {
+        static int once = 0;
+        if (!once)
+        {
+            once = 1;
+            LvErr("LimbVigor: setLineProgress SEH on LifeBar1Datapanel — will retry, growth continues");
+        }
+        return;
+    }
+    if (lvLiveKeyCat(dest, key1) < 0)
+    {
+        lvWhyOnce("LimbVigor: setLineProgress on LifeBar1Datapanel did not create a line — not guess-painting Goal/State");
+        return;
+    }
+
+    static const char* kLimbKeys[] = {
+        "left leg", "right leg", "left arm", "right arm", nullptr
+    };
+    if (bar2[0] && limbKey[0] && !IsReservedKey(limbKey) && !IsBannedHudKey(limbKey))
+    {
+        if (fill2 < 0.f) fill2 = 0.f;
+        if (fill2 > 1.f) fill2 = 1.f;
+        GameStr lkey, ltext;
+        GameStrSet(&lkey, limbKey);
+        GameStrSet(&ltext, bar2);
+        LV_TRY { g_setLineProg(dest, &lkey, cat, fill2, &ltext, true); }
+        LV_EXCEPT { excepted = 1; }
+        if (excepted)
+        {
+            static int once = 0;
+            if (!once)
+            {
+                once = 1;
+                LvErr("LimbVigor: setLineProgress SEH — stump row, will retry, growth continues");
+            }
+            return;
+        }
+        for (int i = 0; kLimbKeys[i]; ++i)
+        {
+            if (!KeyEqI(kLimbKeys[i], limbKey))
+            {
+                int oc = lvLiveKeyCat(dest, kLimbKeys[i]);
+                if (oc >= 0)
+                    lvRemoveKey(dest, kLimbKeys[i], oc);
+            }
+        }
+    }
+    else
+    {
+        for (int i = 0; kLimbKeys[i]; ++i)
+        {
+            int oc = lvLiveKeyCat(dest, kLimbKeys[i]);
+            if (oc >= 0)
+                lvRemoveKey(dest, kLimbKeys[i], oc);
+        }
+    }
+    {
+        int oc = lvLiveKeyCat(dest, "Regrowth");
+        if (oc >= 0) lvRemoveKey(dest, "Regrowth", oc);
+        oc = lvLiveKeyCat(dest, "Wait");
+        if (oc >= 0) lvRemoveKey(dest, "Wait", oc);
+    }
+
     if (!g_paintLogged)
     {
         g_paintLogged = 1;
-        LvLog("LimbVigor: dump saw live key Blood — not painting this build");
+        LvLogf("LimbVigor: setLineProgress %s cat=%d %s on LifeBar1Datapanel %p",
+               key1, cat, bar1, (void*)dest);
+        if (bar2[0] && limbKey[0])
+            LvLogf("LimbVigor: setLineProgress %s cat=%d %s", limbKey, cat, bar2);
     }
 }

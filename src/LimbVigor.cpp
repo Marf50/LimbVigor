@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.17 — Gui getInstancePtr + full widget tree, no paint");
+        LvLog("LimbVigor: ready v1.18 — findWidget LifeBar1Datapanel, setLineProgress there only, no tree walk");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }
