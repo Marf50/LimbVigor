@@ -78,7 +78,7 @@ static FnGetMedPanel  g_getMedPanel = nullptr;
 static FnSay          g_say         = nullptr;
 static int            g_gameReady   = 0;
 static int            g_paintLogged = 0;
-static int            g_paintDead   = 0;
+static int            g_paintSehOnce = 0;
 static int            g_noneLogged  = 0;
 
 static void* ExeBase()
@@ -636,16 +636,63 @@ static int lvLineExists(DatapanelGUI* panel, const char* key, int cat)
     return yes;
 }
 
+/* v1.12: lineExists("Blood") was true on the skills panel (Current Skill /
+ * Encumbrance / Goal / State) and on empty getNumLines==0 panels. Do not
+ * trust it. A real vitals row is a live DataPanelLine whose key string
+ * is "Blood". getNumLines==0 means there is no Blood row. */
+static int lvReadLineKey(void* line, char* out, int outsz)
+{
+    if (!line || !out || outsz < 2)
+        return 0;
+    out[0] = 0;
+    /* DataPanelLine::keyValue @ 0x28 */
+    GameStrRead((const char*)line + 0x28, out, outsz);
+    return out[0] ? 1 : 0;
+}
+
+static int lvLiveKeyCat(DatapanelGUI* panel, const char* key)
+{
+    if (!panel || !key || !key[0] || !g_numLines || !g_lineByNum)
+        return -1;
+    for (int cat = 0; cat < 4; ++cat)
+    {
+        int n = 0;
+        LV_TRY { n = g_numLines(panel, cat); }
+        LV_EXCEPT { n = 0; }
+        if (n <= 0)
+            continue;
+        for (int i = 0; i < n && i < 24; ++i)
+        {
+            void* line = nullptr;
+            LV_TRY { line = g_lineByNum(panel, cat, i); }
+            LV_EXCEPT { line = nullptr; }
+            if (!line)
+                continue;
+            char buf[96];
+            if (!lvReadLineKey(line, buf, (int)sizeof(buf)))
+                continue;
+            if (std::strcmp(buf, key) == 0)
+                return cat;
+        }
+    }
+    return -1;
+}
+
+static int lvLooksLikeSkills(DatapanelGUI* panel)
+{
+    return (lvLiveKeyCat(panel, "Current Skill") >= 0
+         || lvLiveKeyCat(panel, "Encumbrance") >= 0
+         || lvLiveKeyCat(panel, "Goal") >= 0
+         || lvLiveKeyCat(panel, "State") >= 0) ? 1 : 0;
+}
+
 static int lvBloodCat(DatapanelGUI* panel)
 {
     if (!panel)
         return -1;
-    for (int cat = 0; cat < 4; ++cat)
-    {
-        if (lvLineExists(panel, "Blood", cat))
-            return cat;
-    }
-    return -1;
+    if (lvLooksLikeSkills(panel))
+        return -1;
+    return lvLiveKeyCat(panel, "Blood");
 }
 
 static int KeyEqI(const char* a, const char* b)
@@ -706,15 +753,11 @@ int LvPanelIsLeftMedical(DatapanelGUI* panel)
 {
     if (!panel)
         return 0;
-    void* med = lvMedicalPanel(); /* MedicalDatapanel* */
-    /* Same address: MedicalDatapanel is the DatapanelGUI the hook received. */
-    if (med && (void*)panel == med)
-        return 1;
-    /* Different pointer: do not cast MedicalDatapanel* and write to it.
-     * Identify the hook's DatapanelGUI* via Blood (what orig just wrote). */
-    if (lvBloodCat(panel) >= 0)
-        return 1;
-    return 0;
+    /* Pointer match is not enough — v1.12 match=1 with getNumLines=0
+     * still had no Blood row. Skills panel is not vitals. */
+    if (lvLooksLikeSkills(panel))
+        return 0;
+    return lvBloodCat(panel) >= 0 ? 1 : 0;
 }
 
 int LvPanelHasBlood(DatapanelGUI* panel)
@@ -727,58 +770,56 @@ void LvWalkSelPanel(DatapanelGUI* panel)
     if (!panel)
         return;
 
-    static void* seenPtr[6] = {};
-    static int seenBlood[6] = {};
+    /* Once per distinct pointer. A 6-slot (ptr, blood) cache overflowed
+     * in v1.12 and logged 500+ empty walks. */
+    static void* seenPtr[16] = {};
     static int seenN = 0;
-    const int hasBlood = lvBloodCat(panel) >= 0 ? 1 : 0;
     for (int i = 0; i < seenN; ++i)
     {
-        if (seenPtr[i] == (void*)panel && seenBlood[i] == hasBlood)
+        if (seenPtr[i] == (void*)panel)
             return;
     }
-    if (seenN < 6)
-    {
-        seenPtr[seenN] = (void*)panel;
-        seenBlood[seenN] = hasBlood;
-        seenN++;
-    }
+    if (seenN >= 16)
+        return;
+    seenPtr[seenN++] = (void*)panel;
 
     void* med = lvMedicalPanel();
     const int match = (med && (void*)panel == med) ? 1 : 0;
-    LvLogf("LimbVigor: panel=%p medicalPanel=%p match=%d lineExists(Blood)=%d",
-           (void*)panel, med, match, hasBlood);
+    const int liveBlood = lvBloodCat(panel);
+    const int lie = lvLineExists(panel, "Blood", liveBlood >= 0 ? liveBlood : 0);
+    LvLogf("LimbVigor: panel=%p medicalPanel=%p match=%d liveBlood=%d lineExists(Blood)=%d",
+           (void*)panel, med, match, liveBlood, lie);
 
-    if (g_numLines)
+    if (!g_numLines)
+        return;
+    for (int cat = 0; cat < 4; ++cat)
     {
-        for (int cat = 0; cat < 4; ++cat)
+        int n = 0;
+        LV_TRY { n = g_numLines(panel, cat); }
+        LV_EXCEPT { n = 0; }
+        if (n <= 0)
+            continue;
+        LvLogf("LimbVigor: getNumLines(%d)=%d", cat, n);
+        if (!g_lineByNum)
+            continue;
+        for (int i = 0; i < n && i < 24; ++i)
         {
-            int n = 0;
-            LV_TRY { n = g_numLines(panel, cat); }
-            LV_EXCEPT { n = 0; }
-            LvLogf("LimbVigor: getNumLines(%d)=%d", cat, n);
-            if (n <= 0 || !g_lineByNum)
+            void* line = nullptr;
+            LV_TRY { line = g_lineByNum(panel, cat, i); }
+            LV_EXCEPT { line = nullptr; }
+            if (!line)
                 continue;
-            for (int i = 0; i < n && i < 24; ++i)
-            {
-                void* line = nullptr;
-                LV_TRY { line = g_lineByNum(panel, cat, i); }
-                LV_EXCEPT { line = nullptr; }
-                if (!line)
-                    continue;
-                /* DataPanelLine::keyValue @ 0x28 */
-                char buf[96];
-                GameStrRead((const char*)line + 0x28, buf, (int)sizeof(buf));
-                LvLogf("LimbVigor: line[%d][%d] key='%s'", cat, i, buf);
-            }
+            char buf[96];
+            if (!lvReadLineKey(line, buf, (int)sizeof(buf)))
+                continue;
+            LvLogf("LimbVigor: line[%d][%d] key='%s'", cat, i, buf);
         }
     }
 }
 
 static void lvRemoveKey(DatapanelGUI* panel, const char* key, int cat)
 {
-    if (!panel || !g_removeLine || !key || !key[0])
-        return;
-    if (!lvLineExists(panel, key, cat))
+    if (!panel || !g_removeLine || !key || !key[0] || cat < 0)
         return;
     GameStr gs;
     GameStrSet(&gs, key);
@@ -796,16 +837,18 @@ void LvClearHud(DatapanelGUI* panel)
         "Regrowth", "Wait",
         nullptr
     };
-    for (int cat = 0; cat < 4; ++cat)
+    /* Only remove keys we can see on a live line. lineExists lies. */
+    for (int i = 0; kOurs[i]; ++i)
     {
-        for (int i = 0; kOurs[i]; ++i)
+        int cat = lvLiveKeyCat(panel, kOurs[i]);
+        if (cat >= 0)
             lvRemoveKey(panel, kOurs[i], cat);
     }
 }
 
 void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
 {
-    if (!panel || !snap || !LvCfg().enableHud || g_paintDead)
+    if (!panel || !snap || !LvCfg().enableHud)
         return;
     if (!LvWorldInGame())
         return;
@@ -846,7 +889,7 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     };
     int had[8] = {};
     for (int i = 0; kKeep[i] && i < 8; ++i)
-        had[i] = lvLineExists(panel, kKeep[i], cat);
+        had[i] = (lvLiveKeyCat(panel, kKeep[i]) == cat) ? 1 : 0;
 
     char bar1[96], bar2[96], limbKey[32];
     float fill1 = 0.f, fill2 = 0.f;
@@ -868,9 +911,11 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     LV_EXCEPT { excepted = 1; }
     if (excepted)
     {
-        g_paintDead = 1;
-        lvNoneExists();
-        LvErr("LimbVigor: setLineProgress SEH — medical row stopped");
+        if (!g_paintSehOnce)
+        {
+            g_paintSehOnce = 1;
+            LvErr("LimbVigor: setLineProgress SEH — will retry when Blood is a live row");
+        }
         return;
     }
 
@@ -888,37 +933,50 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
         LV_EXCEPT { excepted = 1; }
         if (excepted)
         {
-            g_paintDead = 1;
-            lvNoneExists();
-            LvErr("LimbVigor: setLineProgress SEH — stump row stopped");
+            if (!g_paintSehOnce)
+            {
+                g_paintSehOnce = 1;
+                LvErr("LimbVigor: setLineProgress SEH — stump row, will retry");
+            }
             return;
         }
         for (int i = 0; kLimbKeys[i]; ++i)
         {
             if (!KeyEqI(kLimbKeys[i], limbKey))
-                lvRemoveKey(panel, kLimbKeys[i], cat);
+            {
+                int oc = lvLiveKeyCat(panel, kLimbKeys[i]);
+                if (oc >= 0)
+                    lvRemoveKey(panel, kLimbKeys[i], oc);
+            }
         }
     }
     else
     {
         for (int i = 0; kLimbKeys[i]; ++i)
-            lvRemoveKey(panel, kLimbKeys[i], cat);
+        {
+            int oc = lvLiveKeyCat(panel, kLimbKeys[i]);
+            if (oc >= 0)
+                lvRemoveKey(panel, kLimbKeys[i], oc);
+        }
     }
-    lvRemoveKey(panel, "Regrowth", cat);
-    lvRemoveKey(panel, "Wait", cat);
+    {
+        int oc = lvLiveKeyCat(panel, "Regrowth");
+        if (oc >= 0) lvRemoveKey(panel, "Regrowth", oc);
+        oc = lvLiveKeyCat(panel, "Wait");
+        if (oc >= 0) lvRemoveKey(panel, "Wait", oc);
+    }
 
     int ate = 0;
-    if (!lvLineExists(panel, "Blood", cat))
+    if (lvLiveKeyCat(panel, "Blood") != cat)
         ate = 1;
     for (int i = 0; kKeep[i] && i < 8; ++i)
     {
-        if (had[i] && !lvLineExists(panel, kKeep[i], cat))
+        if (had[i] && lvLiveKeyCat(panel, kKeep[i]) != cat)
             ate = 1;
     }
     if (ate)
     {
         LvClearHud(panel);
-        g_paintDead = 1;
         lvNoneExists();
         return;
     }

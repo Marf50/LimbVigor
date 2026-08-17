@@ -196,7 +196,16 @@ static void DriveTick(MedicalSystem* med, float frameTime)
         if (!g_oncePlayer) LogSkip("dead");
         return;
     }
-    if (g_inTick) return;
+    if (g_inTick)
+    {
+        static int rec = 0;
+        if (!rec)
+        {
+            rec = 1;
+            LvErr("LimbVigor: medical tick latch recovered — growth continues");
+        }
+        g_inTick = 0;
+    }
 
     Character* who = nullptr;
     LV_TRY { who = LvCharFromMed(med); }
@@ -219,106 +228,135 @@ static void DriveTick(MedicalSystem* med, float frameTime)
     if (dtHours > 2.f) dtHours = 2.f;
 
     g_inTick = 1;
-    LV_TRY
+
+    CharSnap* live = nullptr;
+    LV_TRY { live = Bind(med); }
+    LV_EXCEPT
     {
-        CharSnap* live = Bind(med);
-        if (!live)
+        live = nullptr;
+        static int once = 0;
+        if (!once) { LvErr("LimbVigor: bind SEH"); once = 1; }
+    }
+
+    if (!live)
+    {
+        LogSkip("bind failed (no name)");
+    }
+    else
+    {
+        if (!g_oncePlayer)
         {
-            LogSkip("bind failed (no name)");
+            g_oncePlayer = 1;
+            LvLog("LimbVigor: player squad seen — I-key snap live, ticks on, parts on");
+        }
+
+        /* I-key follows the body the medical panel last drew.
+         * Do not stamp every ticking squad pawn into g_hudSnap. */
+        if (g_hudHave && live->name[0]
+            && std::strcmp(g_hudSnap.name, live->name) == 0)
+        {
+            g_hudSnap = *live;
+            LvHudNote(live);
+        }
+
+        if (live->race == RACE_SKELETON)
+        {
+            LogSkip("skeleton — vigor not applied");
+        }
+        else if (live->race == RACE_ANIMAL)
+        {
+            LogSkip("animal — vigor not applied");
         }
         else
         {
-            if (!g_oncePlayer)
-            {
-                g_oncePlayer = 1;
-                LvLog("LimbVigor: player squad seen — I-key snap live, ticks on, parts on");
-            }
-
-            /* I-key follows the body the medical panel last drew.
-             * Do not stamp every ticking squad pawn into g_hudSnap. */
-            if (g_hudHave && live->name[0]
-                && std::strcmp(g_hudSnap.name, live->name) == 0)
-            {
-                g_hudSnap = *live;
-                LvHudNote(live);
-            }
-
-            if (live->race == RACE_SKELETON)
-            {
-                LogSkip("skeleton — vigor not applied");
-            }
-            else if (live->race == RACE_ANIMAL)
-            {
-                LogSkip("animal — vigor not applied");
-            }
-            else
-            {
             TickResult r;
-            LvTick(live, dtHours, &r);
-            LvMarkDirty();
-
-            if (r.speech[0]) LvSay(who, r.speech);
-
-            LvSyncGrowthParts(med, live);
-
-            if (r.stageChanged >= 0 && r.stageChanged < LIMB_COUNT)
+            LvClearResult(&r);
+            LV_TRY
             {
-                const int st = r.stageValue;
-                if (st >= 0 && st < LV_PART_COUNT)
-                    LvEquipGrowthPart(med, r.stageChanged, st);
+                LvTick(live, dtHours, &r);
+                LvMarkDirty();
+            }
+            LV_EXCEPT
+            {
+                static int once = 0;
+                if (!once) { LvErr("LimbVigor: LvTick SEH — HUD isolated, will retry"); once = 1; }
             }
 
-            if (r.restored >= 0 && r.restored < LIMB_COUNT && live->restoreLock <= 0.f)
+            LV_TRY
             {
-                const int limb = r.restored;
-                CharSnap now;
-                std::memset(&now, 0, sizeof(now));
-                LvReadSnap(med, &now);
-                const LimbKind gameLimb = now.limbs[limb];
-                if (gameLimb == LIMB_KIND_WHOLE || gameLimb == LIMB_KIND_PROSTHETIC)
+                if (r.speech[0]) LvSay(who, r.speech);
+            }
+            LV_EXCEPT
+            {
+                static int once = 0;
+                if (!once) { LvErr("LimbVigor: say SEH — growth continues"); once = 1; }
+            }
+
+            LV_TRY
+            {
+                LvSyncGrowthParts(med, live);
+
+                if (r.stageChanged >= 0 && r.stageChanged < LIMB_COUNT)
                 {
-                    live->limbs[limb] = gameLimb;
-                    live->progress[limb] = 0.f;
-                    live->lastStage[limb] = -1;
-                    LvLogf("LimbVigor: %s %s already attached — clearing 100%%",
-                        live->name, LvLimbLabel((LimbId)limb));
+                    const int st = r.stageValue;
+                    if (st >= 0 && st < LV_PART_COUNT)
+                        LvEquipGrowthPart(med, r.stageChanged, st);
                 }
-                else if (LvEquipGrowthPart(med, limb, LV_PART_GROWN))
+
+                if (r.restored >= 0 && r.restored < LIMB_COUNT && live->restoreLock <= 0.f)
                 {
-                    live->limbs[limb] = LIMB_KIND_WHOLE;
-                    live->progress[limb] = 0.f;
-                    live->lastStage[limb] = LV_PART_GROWN;
-                    if (!r.speech[0])
+                    const int limb = r.restored;
+                    CharSnap now;
+                    std::memset(&now, 0, sizeof(now));
+                    LvReadSnap(med, &now);
+                    const LimbKind gameLimb = now.limbs[limb];
+                    if (gameLimb == LIMB_KIND_WHOLE || gameLimb == LIMB_KIND_PROSTHETIC)
                     {
-                        char grown[96];
-                        std::snprintf(grown, sizeof(grown), "The %s has grown back.",
-                            LvLimbLabel((LimbId)limb));
-                        LvSay(who, grown);
+                        live->limbs[limb] = gameLimb;
+                        live->progress[limb] = 0.f;
+                        live->lastStage[limb] = -1;
+                        LvLogf("LimbVigor: %s %s already attached — clearing 100%%",
+                            live->name, LvLimbLabel((LimbId)limb));
                     }
-                    LvLogf("LimbVigor: slotted grown part on %s %s",
-                        live->name, LvLimbLabel((LimbId)limb));
+                    else if (LvEquipGrowthPart(med, limb, LV_PART_GROWN))
+                    {
+                        live->limbs[limb] = LIMB_KIND_WHOLE;
+                        live->progress[limb] = 0.f;
+                        live->lastStage[limb] = LV_PART_GROWN;
+                        if (!r.speech[0])
+                        {
+                            char grown[96];
+                            std::snprintf(grown, sizeof(grown), "The %s has grown back.",
+                                LvLimbLabel((LimbId)limb));
+                            LvSay(who, grown);
+                        }
+                        LvLogf("LimbVigor: slotted grown part on %s %s",
+                            live->name, LvLimbLabel((LimbId)limb));
+                    }
+                    else
+                    {
+                        live->limbs[limb] = LIMB_KIND_STUMP;
+                        live->progress[limb] = 100.f;
+                        live->restoreLock = 20.f / secPerHour;
+                        LvEquipGrowthPart(med, limb, LV_PART_KNITTING);
+                        LvLogf("LimbVigor: grown part deferred on %s %s — knitting stays",
+                            live->name, LvLimbLabel((LimbId)limb));
+                    }
                 }
-                else
-                {
-                    live->limbs[limb] = LIMB_KIND_STUMP;
-                    live->progress[limb] = 100.f;
-                    live->restoreLock = 20.f / secPerHour;
-                    LvEquipGrowthPart(med, limb, LV_PART_KNITTING);
-                    LvLogf("LimbVigor: grown part deferred on %s %s — knitting stays",
-                        live->name, LvLimbLabel((LimbId)limb));
-                }
+            }
+            LV_EXCEPT
+            {
+                static int once = 0;
+                if (!once) { LvErr("LimbVigor: parts SEH — growth numbers kept"); once = 1; }
             }
 
-            Heartbeat(live);
-            }
+            LV_TRY { Heartbeat(live); }
+            LV_EXCEPT {}
         }
-        LvPersistSave(0);
     }
-    LV_EXCEPT
-    {
-        static int once = 0;
-        if (!once) { LvErr("LimbVigor: medical tick SEH"); once = 1; }
-    }
+
+    LV_TRY { LvPersistSave(0); }
+    LV_EXCEPT {}
     g_inTick = 0;
 }
 

@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.12 — selected-body HUD + first-stump bark, two-line medicalPanel, no load-time GUI hooks");
+        LvLog("LimbVigor: ready v1.13 — real Blood row only, HUD SEH does not kill growth, two-line medicalPanel");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

@@ -29,9 +29,9 @@ int       LvHasSplint(Character* me);
 void      LvSay(Character* me, const char* text);
 int       LvIsPlayerSquad(Character* me);
 int       LvIsSelectedCharacter(Character* me); // squad body the panel is drawing — not isPlayerCharacter()
-int       LvPanelIsLeftMedical(DatapanelGUI* panel); // hook DatapanelGUI* has Blood, or same pointer as gui→mainbar→getMedicalPanel
-int       LvPanelHasBlood(DatapanelGUI* panel);
-void      LvWalkSelPanel(DatapanelGUI* panel); // panel vs medicalPanel, Blood, getNumLines, every key
+int       LvPanelIsLeftMedical(DatapanelGUI* panel); // live "Blood" key on a real line — not lineExists, not skills
+int       LvPanelHasBlood(DatapanelGUI* panel); // same: live Blood row only
+void      LvWalkSelPanel(DatapanelGUI* panel); // once per panel pointer; live keys only
 void      LvClearHud(DatapanelGUI* panel); // resource + Limb Vigor + lowercase limbs + leftover Regrowth/Wait
 void      LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap);
 int       LvReadMsvcString(const void* strObj, char* out, int outsz);

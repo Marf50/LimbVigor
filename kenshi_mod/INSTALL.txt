@@ -34,15 +34,14 @@ C is skills. Door / building: no medical row.
 
 This build does not create widgets. No layout file.
 
-v1.12: selected-body HUD + first-stump bark,
-two-line medicalPanel, no load-time GUI hooks.
-Hired Hive / Shek get the same two lines.
-Door clears. A new stump speaks once. No
-Regrowth / Wait. In-game gate before
-Character / DatapanelGUI. -15 empty socket
-slots LV Stump, or LV Grown if persist
->=99.5. No ctor / font / _NV_update /
-_NV_setObject. If none exists: _NV_say only.
+v1.13: real Blood row only, HUD SEH does
+not kill growth, two-line medicalPanel.
+Paint only if a live Blood key is on the
+vitals list (not C/skills, not empty
+getNumLines). A HUD except retries; growth
+keeps ticking. No walk spam. Hired squad
+still gets the two lines. No ctor / font /
+_NV_update / _NV_setObject.
 
 Overwrite both LimbVigor.dll and LimbVigor.mod. Keep
 LimbVigor.progress.
