@@ -2,13 +2,13 @@
 
 #include "lv_config.h"
 
-// I-key tooltip snapshot only. v1.19 paints Hemolymph on
-// LifeBar1Datapanel via MainBar _getWidget + setLineProgress.
-// No tree walk. No layout load. No createWidget. No MainBar ctor.
+// I-key tooltip snapshot only. v1.20 paints Hemolymph on
+// LifeBar1Datapanel only if lookup is SEH-safe. No _getWidget
+// retry after probe SEH. No tree walk. No createWidget. No ctor.
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: HUD is MainBar _getWidget LifeBar1Datapanel — no tree walk, no load-time GUI hooks");
+    LvLog("LimbVigor: HUD is SEH-safe LifeBar1Datapanel lookup — no tree walk, no load-time GUI hooks");
 }
 
 void LvHudEnsureAfterInGame() {}

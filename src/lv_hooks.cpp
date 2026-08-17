@@ -398,6 +398,56 @@ static void hook_medUpdate(MedicalSystem* self, float frameTime)
     DriveTick(self, frameTime);
 }
 
+static void WalkSeh(DatapanelGUI* panel)
+{
+    LV_TRY { LvWalkSelPanel(panel); }
+    LV_EXCEPT
+    {
+        LvNoteHudProbeSeh();
+        static int once = 0;
+        if (!once) { LvErr("LimbVigor: GUI probe SEH — growth continues"); once = 1; }
+    }
+}
+
+static void WalkSafe(DatapanelGUI* panel)
+{
+    try { WalkSeh(panel); }
+    catch (...)
+    {
+        static int once = 0;
+        LvNoteHudProbeSeh();
+        if (!once) { LvErr("LimbVigor: GUI probe C++ throw — growth continues"); once = 1; }
+    }
+}
+
+static void PaintSeh(MedicalSystem* med, Character* who, CharSnap* live)
+{
+    LV_TRY
+    {
+        if (!who || !LvIsSelectedCharacter(who) || (live && live->race == RACE_ANIMAL))
+            LvClearHud(nullptr);
+        else if (live)
+            LvPaintHud(med, nullptr, live);
+    }
+    LV_EXCEPT
+    {
+        LvNoteHudProbeSeh();
+        static int once = 0;
+        if (!once) { LvErr("LimbVigor: HUD paint SEH — growth continues"); once = 1; }
+    }
+}
+
+static void PaintSafe(MedicalSystem* med, Character* who, CharSnap* live)
+{
+    try { PaintSeh(med, who, live); }
+    catch (...)
+    {
+        LvNoteHudProbeSeh();
+        static int once = 0;
+        if (!once) { LvErr("LimbVigor: HUD paint C++ throw — growth continues"); once = 1; }
+    }
+}
+
 static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* who)
 {
     if (!panel)
@@ -406,13 +456,7 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
     if (!LvWorldInGame())
         return;
 
-    /* _getWidget / key dump. Isolated — must not skip Bind / growth. */
-    LV_TRY { LvWalkSelPanel(panel); }
-    LV_EXCEPT
-    {
-        static int once = 0;
-        if (!once) { LvErr("LimbVigor: GUI probe SEH — growth continues"); once = 1; }
-    }
+    WalkSafe(panel);
 
     CharSnap* live = nullptr;
     if (med)
@@ -424,20 +468,8 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
         LvHudNote(live);
     }
 
-    /* Paint only LifeBar1Datapanel. Never the hook panel (Goal/State)
-     * and never medicalPanel MedicalDatapanel*. Door / animal clears. */
-    LV_TRY
-    {
-        if (!who || !LvIsSelectedCharacter(who) || (live && live->race == RACE_ANIMAL))
-            LvClearHud(nullptr);
-        else if (live)
-            LvPaintHud(med, nullptr, live);
-    }
-    LV_EXCEPT
-    {
-        static int once = 0;
-        if (!once) { LvErr("LimbVigor: HUD paint SEH — growth continues"); once = 1; }
-    }
+    /* Paint only LifeBar1Datapanel. Never Goal/State or medicalPanel. */
+    PaintSafe(med, who, live);
 }
 
 static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
@@ -451,6 +483,7 @@ static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
     LV_TRY { AfterGuiRebuild(self, panel, who); }
     LV_EXCEPT
     {
+        LvNoteHudProbeSeh();
         static int once = 0;
         if (!once) { LvErr("LimbVigor: medical GUI SEH"); once = 1; }
     }
@@ -466,6 +499,7 @@ static void hook_charGui(Character* self, DatapanelGUI* panel, int cat)
     LV_TRY { AfterGuiRebuild(med, panel, self); }
     LV_EXCEPT
     {
+        LvNoteHudProbeSeh();
         static int once = 0;
         if (!once) { LvErr("LimbVigor: _NV_getGUIData SEH"); once = 1; }
     }

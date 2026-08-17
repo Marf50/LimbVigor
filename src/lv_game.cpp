@@ -83,6 +83,16 @@ static FnGetWidget    g_getWidget   = nullptr;
 static FnSay          g_say         = nullptr;
 static int            g_gameReady   = 0;
 static int            g_paintLogged = 0;
+static int            g_paintedOnce = 0;
+static int            g_getWidgetOff = 0; /* v1.19 retry after SEH killed the process */
+static int            g_resolveOnce = 0;
+static int            g_barProven = 0;
+
+void LvNoteHudProbeSeh()
+{
+    g_getWidgetOff = 1;
+    g_resolveOnce = 1;
+}
 
 static void* ExeBase()
 {
@@ -636,6 +646,18 @@ static void* lvMedicalPanel()
     return med;
 }
 
+/* +0x188 is a pointer TO MedicalDatapanel, not MedicalDatapanel itself.
+ * Do not compute MainBar = medicalPanel - 0x188. */
+static int lvMainBarProven(void* bar, void* med)
+{
+    if (!bar || !med)
+        return 0;
+    void* slot = nullptr;
+    LV_TRY { std::memcpy(&slot, (const char*)bar + 0x188, sizeof(slot)); }
+    LV_EXCEPT { slot = nullptr; }
+    return (slot == med) ? 1 : 0;
+}
+
 /* v1.14 probe: dump every DatapanelGUI we can see. Do not guess-paint
  * on Goal/State/Encumbrance. Blood bars may not be DataPanelLines.
  * Paint only if a dump line shows a live key "Blood" on that panel. */
@@ -802,16 +824,19 @@ static void lvDumpExtrasOnce()
 }
 
 #if !defined(LIMBVIGOR_IDE)
-/* v1.19: MainBarGUI::_getWidget (RVA 0x723780) — layout names are
- * BaseLayout-prefixed, so Gui::findWidgetT("LifeBar1") is null.
- * 3-arg findWidgetT(name, prefix, throw=false) is backup only.
+/* v1.20: person-select must not kill the process.
+ * v1.19 _getWidget @ 0x723780 crashed on humanoid select (door did not
+ * hit it). That RVA likely calls findWidgetT with throw=true (C++
+ * exception, not SEH) or uses the wrong this / string ABI.
+ * Primary path: 3-arg findWidgetT(name, prefix, throw=false).
+ * _getWidget is not called unless findWidgetT is unbound; one SEH or
+ * C++ throw disables further _getWidget (not a paint latch).
  * No tree walk. No MainBar ctor 0x72C1E0. No createWidget. */
 
 typedef void*         (*FnGuiInst)();
 typedef void*         (*FnFindW)(void* gui, const GameStr* name, unsigned char throwFlag);
 typedef void*         (*FnFindW3)(void* gui, const GameStr* name, const GameStr* prefix, unsigned char throwFlag);
 typedef const void*   (*FnGetName)(void* self);
-typedef std::size_t   (*FnChildN)(void* self);
 typedef unsigned char (*FnVisible)(void* self);
 typedef const void*   (*FnCaption)(void* self);
 
@@ -822,7 +847,6 @@ static FnGuiInst  g_wmInst   = nullptr;
 static FnFindW    g_wmFind   = nullptr;
 static FnFindW3   g_wmFind3  = nullptr;
 static FnGetName  g_wName    = nullptr;
-static FnChildN   g_wCount   = nullptr;
 static FnVisible  g_wVis     = nullptr;
 static FnCaption  g_wCaption = nullptr;
 static int        g_exportDumped = 0;
@@ -1005,11 +1029,6 @@ static void lvTryBindExport(const char* n, void* addr)
     {
         g_wName = (FnGetName)addr;
         LvLogf("LimbVigor: mygui bind getName '%s'", n);
-    }
-    if (!g_wCount && lvHasI(n, "getChildCount") && lvHasI(n, "Widget"))
-    {
-        g_wCount = (FnChildN)addr;
-        LvLogf("LimbVigor: mygui bind getChildCount '%s'", n);
     }
     if (!g_wVis && lvHasI(n, "getVisible") && lvHasI(n, "Widget")
      && !lvHasI(n, "Inherited") && !lvHasI(n, "setVisible"))
@@ -1208,51 +1227,151 @@ static void lvReadCaption(const void* s, char* out, int n)
     LV_EXCEPT { out[0] = 0; }
 }
 
-static int lvTryReadPrefixAt(void* obj, int off, char* out, int n)
+/* MyGUI prefix is short alnum/underscore. v1.19 treated +0x40 as a
+ * C string and logged GameStr garbage '0,000,000,048,8D2,510_'. */
+static int lvLooksLikePrefix(const char* s)
 {
-    if (!obj || !out || n < 2)
+    if (!s || !s[0])
         return 0;
-    out[0] = 0;
-    LV_TRY { GameStrRead((const char*)obj + off, out, n); }
-    LV_EXCEPT { out[0] = 0; }
-    return lvGameStrLooksName(out) ? 1 : 0;
+    int n = 0;
+    for (; s[n]; ++n)
+    {
+        if (n > 24)
+            return 0;
+        char c = s[n];
+        if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+           || (c >= '0' && c <= '9') || c == '_'))
+            return 0;
+    }
+    return n >= 2 ? 1 : 0;
 }
 
-/* wraps::BaseLayout lives at MainBarGUI+0x30. Prefix is a GameStr there
- * (or one slot later). Disk-only read — do not load a layout. */
 static void lvReadBasePrefix(void* bar)
 {
     if (g_prefixLogged)
         return;
     g_prefixLogged = 1;
     g_prefix[0] = 0;
+    LvLog("LimbVigor: not reading +0x40 as a C string (v1.19 GameStr garbage)");
     if (!bar)
-    {
-        LvLog("LimbVigor: BaseLayout prefix skipped — MainBarGUI* null");
         return;
-    }
-    static const int kOff[] = { 0x30, 0x38, 0x40, 0x48, 0x50, 0x28, 0x20, 0 };
-    for (int i = 0; kOff[i] || i == 0; ++i)
+    /* GameStr only. +0x40 is std::string / GameStr, not a C string.
+     * Try +0x30 (string object) then +0x40 (same, if layout differs). */
+    static const int kOff[] = { 0x30, 0x40 };
+    for (int i = 0; i < 2; ++i)
     {
-        if (i && !kOff[i])
-            break;
-        if (lvTryReadPrefixAt(bar, kOff[i], g_prefix, (int)sizeof(g_prefix)))
+        char buf[96];
+        buf[0] = 0;
+        LV_TRY { GameStrRead((const char*)bar + kOff[i], buf, (int)sizeof(buf)); }
+        LV_EXCEPT { buf[0] = 0; }
+        if (lvLooksLikePrefix(buf))
         {
-            LvLogf("LimbVigor: BaseLayout prefix@+0x%X '%s' MainBar=%p",
-                   kOff[i], g_prefix, bar);
-            return;
-        }
-        void* p = nullptr;
-        LV_TRY { std::memcpy(&p, (const char*)bar + kOff[i], sizeof(p)); }
-        LV_EXCEPT { p = nullptr; }
-        if (p && lvTryReadPrefixAt(p, 0, g_prefix, (int)sizeof(g_prefix)))
-        {
-            LvLogf("LimbVigor: BaseLayout prefix via ptr@+0x%X '%s' MainBar=%p",
-                   kOff[i], g_prefix, bar);
+            std::snprintf(g_prefix, sizeof(g_prefix), "%s", buf);
+            LvLogf("LimbVigor: BaseLayout prefix GameStr@+0x%X '%s'", kOff[i], g_prefix);
             return;
         }
     }
-    LvLogf("LimbVigor: BaseLayout prefix unread MainBar=%p (still using _getWidget)", bar);
+    LvLog("LimbVigor: BaseLayout prefix unused — 3-arg findWidgetT skipped unless proven later");
+}
+
+/* POD-only SEH stubs. MSVC will not mix __try with C++ objects in one fn.
+ * C++ catch lives in the caller — MyGUI throw is not an SEH exception. */
+static void* lvSehGuiInst(FnGuiInst fn)
+{
+    void* p = nullptr;
+    if (!fn) return nullptr;
+    LV_TRY { p = fn(); }
+    LV_EXCEPT { p = nullptr; }
+    return p;
+}
+
+static void* lvSehFind2(FnFindW fn, void* self, const GameStr* name)
+{
+    void* w = nullptr;
+    if (!fn || !self || !name) return nullptr;
+    const unsigned char noThrow = 0;
+    LV_TRY { w = fn(self, name, noThrow); }
+    LV_EXCEPT { w = nullptr; }
+    return w;
+}
+
+static void* lvSehFind3(FnFindW3 fn, void* self, const GameStr* name, const GameStr* prefix)
+{
+    void* w = nullptr;
+    if (!fn || !self || !name || !prefix) return nullptr;
+    const unsigned char noThrow = 0;
+    LV_TRY { w = fn(self, name, prefix, noThrow); }
+    LV_EXCEPT { w = nullptr; }
+    return w;
+}
+
+static void* lvSehGetWidget(void* self, const GameStr* name)
+{
+    void* w = nullptr;
+    if (!g_getWidget || !self || !name) return nullptr;
+    LV_TRY { w = g_getWidget(self, name); }
+    LV_EXCEPT { w = nullptr; g_getWidgetOff = 1; }
+    return w;
+}
+
+static int lvSehVisible(void* w)
+{
+    int vis = -1;
+    if (!g_wVis || !w) return -1;
+    LV_TRY { vis = g_wVis(w) ? 1 : 0; }
+    LV_EXCEPT { vis = -1; }
+    return vis;
+}
+
+static const void* lvSehGetName(void* w)
+{
+    const void* s = nullptr;
+    if (!g_wName || !w) return nullptr;
+    LV_TRY { s = g_wName(w); }
+    LV_EXCEPT { s = nullptr; }
+    return s;
+}
+
+static const void* lvSehCaption(void* w)
+{
+    const void* s = nullptr;
+    if (!g_wCaption || !w) return nullptr;
+    LV_TRY { s = g_wCaption(w); }
+    LV_EXCEPT { s = nullptr; }
+    return s;
+}
+
+static void* lvCppFind2(FnFindW fn, void* self, const GameStr* name)
+{
+    void* w = nullptr;
+    try { w = lvSehFind2(fn, self, name); }
+    catch (...) { w = nullptr; }
+    return w;
+}
+
+static void* lvCppFind3(FnFindW3 fn, void* self, const GameStr* name, const GameStr* prefix)
+{
+    void* w = nullptr;
+    try { w = lvSehFind3(fn, self, name, prefix); }
+    catch (...) { w = nullptr; }
+    return w;
+}
+
+static void* lvCppGetWidget(void* self, const GameStr* name)
+{
+    if (g_getWidgetOff)
+        return nullptr;
+    void* w = nullptr;
+    try { w = lvSehGetWidget(self, name); }
+    catch (...)
+    {
+        g_getWidgetOff = 1;
+        LvErr("LimbVigor: _getWidget C++ throw — skipping 0x723780, growth continues");
+        return nullptr;
+    }
+    if (g_getWidgetOff)
+        LvErr("LimbVigor: _getWidget SEH — skipping 0x723780, growth continues");
+    return w;
 }
 
 static void* lvFindByPrefix(const char* name)
@@ -1262,36 +1381,24 @@ static void* lvFindByPrefix(const char* name)
     GameStr gn, gp;
     GameStrSet(&gn, name);
     GameStrSet(&gp, g_prefix);
-    const unsigned char noThrow = 0;
     if (g_findW3 && g_guiInst)
     {
         void* gui = nullptr;
-        LV_TRY { gui = g_guiInst(); }
-        LV_EXCEPT { gui = nullptr; }
-        if (gui)
-        {
-            void* w = nullptr;
-            LV_TRY { w = g_findW3(gui, &gn, &gp, noThrow); }
-            LV_EXCEPT { w = nullptr; }
-            if (w)
-                return w;
-        }
+        try { gui = lvSehGuiInst(g_guiInst); }
+        catch (...) { gui = nullptr; }
+        void* w = lvCppFind3(g_findW3, gui, &gn, &gp);
+        if (w)
+            return w;
     }
     if (g_wmFind3 && g_wmInst)
     {
         void* wm = nullptr;
-        LV_TRY { wm = g_wmInst(); }
-        LV_EXCEPT { wm = nullptr; }
-        if (wm)
-        {
-            void* w = nullptr;
-            LV_TRY { w = g_wmFind3(wm, &gn, &gp, noThrow); }
-            LV_EXCEPT { w = nullptr; }
-            if (w)
-                return w;
-        }
+        try { wm = lvSehGuiInst(g_wmInst); }
+        catch (...) { wm = nullptr; }
+        void* w = lvCppFind3(g_wmFind3, wm, &gn, &gp);
+        if (w)
+            return w;
     }
-    /* prefixed full name through 2-arg findWidgetT / findById */
     char full[160];
     std::snprintf(full, sizeof(full), "%s%s", g_prefix, name);
     GameStr gf;
@@ -1299,84 +1406,66 @@ static void* lvFindByPrefix(const char* name)
     if (g_findW && g_guiInst)
     {
         void* gui = nullptr;
-        LV_TRY { gui = g_guiInst(); }
-        LV_EXCEPT { gui = nullptr; }
-        if (gui)
-        {
-            void* w = nullptr;
-            LV_TRY { w = g_findW(gui, &gf, noThrow); }
-            LV_EXCEPT { w = nullptr; }
-            if (w)
-                return w;
-        }
+        try { gui = lvSehGuiInst(g_guiInst); }
+        catch (...) { gui = nullptr; }
+        void* w = lvCppFind2(g_findW, gui, &gf);
+        if (w)
+            return w;
     }
     if (g_wmFind && g_wmInst)
     {
         void* wm = nullptr;
-        LV_TRY { wm = g_wmInst(); }
-        LV_EXCEPT { wm = nullptr; }
-        if (wm)
-        {
-            void* w = nullptr;
-            LV_TRY { w = g_wmFind(wm, &gf, noThrow); }
-            LV_EXCEPT { w = nullptr; }
-            return w;
-        }
+        try { wm = lvSehGuiInst(g_wmInst); }
+        catch (...) { wm = nullptr; }
+        return lvCppFind2(g_wmFind, wm, &gf);
     }
     return nullptr;
 }
 
+/* findWidgetT(..., throw=false) first. _getWidget only if proven MainBar,
+ * findWidgetT unbound, and not frozen after SEH. Never retry 0x723780. */
 static void* lvGetWidget(const char* name)
 {
     if (!name || !name[0])
         return nullptr;
+    void* w = lvFindByPrefix(name);
+    if (w)
+        return w;
+    if (g_getWidgetOff || !g_getWidget)
+        return nullptr;
+    if (g_findW3 || g_findW || g_wmFind3 || g_wmFind)
+        return nullptr;
+    if (!g_barProven)
+        return nullptr;
     void* bar = lvMainBar();
-    if (g_getWidget && bar)
-    {
-        GameStr gs;
-        GameStrSet(&gs, name);
-        void* w = nullptr;
-        int seh = 0;
-        LV_TRY { w = g_getWidget(bar, &gs); }
-        LV_EXCEPT { w = nullptr; seh = 1; }
-        if (seh)
-        {
-            static int once = 0;
-            if (!once) { LvErr("LimbVigor: _getWidget SEH — growth continues"); once = 1; }
-        }
-        else if (w)
-            return w;
-    }
-    void* backup = lvFindByPrefix(name);
-    if (backup)
-        return backup;
-    return nullptr;
+    void* med = lvMedicalPanel();
+    if (!bar || !med || bar == med)
+        return nullptr;
+    GameStr gs;
+    GameStrSet(&gs, name);
+    return lvCppGetWidget(bar, &gs);
 }
 
 static void lvLogFound(const char* want, void* w)
 {
     if (!w)
     {
-        LvLogf("LimbVigor: _getWidget '%s' = null", want);
+        LvLogf("LimbVigor: lookup '%s' = null", want);
         return;
     }
     int vis = -1;
-    if (g_wVis)
-    {
-        LV_TRY { vis = g_wVis(w) ? 1 : 0; }
-        LV_EXCEPT { vis = -1; }
-    }
+    try { vis = lvSehVisible(w); }
+    catch (...) { vis = -1; }
     char nm[96];
     nm[0] = 0;
-    if (g_wName)
-    {
-        const void* s = nullptr;
-        LV_TRY { s = g_wName(w); }
-        LV_EXCEPT { s = nullptr; }
-        if (s)
-            GameStrRead(s, nm, (int)sizeof(nm));
-    }
-    LvLogf("LimbVigor: _getWidget '%s' ptr=%p vis=%d name='%s'",
+    const void* s = nullptr;
+    try { s = lvSehGetName(w); }
+    catch (...) { s = nullptr; }
+    if (s)
+        GameStrRead(s, nm, (int)sizeof(nm));
+    try { (void)lvSehCaption(w); }
+    catch (...) {}
+    LvLogf("LimbVigor: lookup '%s' ptr=%p vis=%d name='%s'",
            want, w, vis, nm);
 }
 
@@ -1465,17 +1554,26 @@ static void lvWhyOnce(const char* why)
 
 static void lvResolveLifeBar()
 {
+    /* v1.19: first probe SEH'd, paint retried resolve/_getWidget, process died. */
+    if (g_resolveOnce)
+        return;
+    g_resolveOnce = 1;
+
     lvDumpMyGuiExports();
     void* bar = lvMainBar();
+    void* med = lvMedicalPanel();
+    g_barProven = lvMainBarProven(bar, med);
     lvReadBasePrefix(bar);
     if (!g_foundLogged)
     {
-        LvLogf("LimbVigor: MainBar=%p _getWidget=%p (RVA 0x723780, no ctor)",
-               bar, (void*)g_getWidget);
+        LvLogf("LimbVigor: MainBar=%p medicalPanel=%p proven=%d _getWidgetfn=%p off=%d",
+               bar, med, g_barProven, (void*)g_getWidget, g_getWidgetOff);
+        if (!g_barProven)
+            LvLog("LimbVigor: MainBar not proven (*(bar+0x188)!=medicalPanel) — no _getWidget");
+        if (g_findW3 || g_findW)
+            LvLog("LimbVigor: not calling _getWidget 0x723780 — v1.19 person-select crash; findWidgetT throw=false");
         if (!bar)
-            LvLog("LimbVigor: MainBarGUI* null — _getWidget skipped");
-        if (!g_getWidget)
-            LvLog("LimbVigor: _getWidget fn null — RVA 0x723780 not bound");
+            LvLog("LimbVigor: MainBarGUI* null — lookup skipped");
     }
 
     void* names[6];
@@ -1485,7 +1583,14 @@ static void lvResolveLifeBar()
     };
     for (int i = 0; i < 6; ++i)
     {
-        names[i] = lvGetWidget(kNames[i]);
+        names[i] = nullptr;
+        try { names[i] = lvGetWidget(kNames[i]); }
+        catch (...)
+        {
+            names[i] = nullptr;
+            g_getWidgetOff = 1;
+            LvErr("LimbVigor: lookup C++ throw — skip paint, growth continues");
+        }
         if (!g_foundLogged)
             lvLogFound(kNames[i], names[i]);
     }
@@ -1495,7 +1600,7 @@ static void lvResolveLifeBar()
     void* w = names[2];
     if (!w)
     {
-        lvWhyOnce("LimbVigor: LifeBar1Datapanel _getWidget=null — not painting, not creating a widget");
+        lvWhyOnce("LimbVigor: LifeBar1Datapanel lookup=null — not painting, not creating a widget");
         g_lifeBarPanel = nullptr;
         return;
     }
@@ -1573,11 +1678,43 @@ void LvWalkSelPanel(DatapanelGUI* panel)
 {
     if (!panel || !LvWorldInGame())
         return;
-    lvDumpOnePanel(panel, "hook");
-    if (lvPanelHasGoalKeys(panel) && !g_hookReject)
-        g_hookReject = (void*)panel;
-    lvDumpExtrasOnce();
-    lvDumpMyGuiOnce();
+    try
+    {
+        lvDumpOnePanel(panel, "hook");
+        if (lvPanelHasGoalKeys(panel) && !g_hookReject)
+            g_hookReject = (void*)panel;
+        lvDumpExtrasOnce();
+        lvDumpMyGuiOnce();
+    }
+    catch (...)
+    {
+        LvNoteHudProbeSeh();
+        LvErr("LimbVigor: GUI probe C++ throw — skip paint, growth continues");
+    }
+}
+
+static int lvSehSetLine(DatapanelGUI* p, const GameStr* k, int cat, float f, const GameStr* t)
+{
+    if (!g_setLineProg || !p || !k || !t)
+        return 1;
+    int seh = 0;
+    LV_TRY { g_setLineProg(p, k, cat, f, t, true); }
+    LV_EXCEPT { seh = 1; }
+    return seh;
+}
+
+static int lvSafeSetLine(DatapanelGUI* p, const GameStr* k, int cat, float f, const GameStr* t)
+{
+    try { return lvSehSetLine(p, k, cat, f, t); }
+    catch (...) { return 1; }
+}
+
+static void lvSehRemoveKey(DatapanelGUI* panel, const GameStr* key, int cat)
+{
+    if (!panel || !g_removeLine || !key)
+        return;
+    LV_TRY { g_removeLine(panel, key, cat); }
+    LV_EXCEPT {}
 }
 
 static void lvRemoveKey(DatapanelGUI* panel, const char* key, int cat)
@@ -1586,13 +1723,18 @@ static void lvRemoveKey(DatapanelGUI* panel, const char* key, int cat)
         return;
     GameStr gs;
     GameStrSet(&gs, key);
-    LV_TRY { g_removeLine(panel, &gs, cat); }
-    LV_EXCEPT {}
+    try { lvSehRemoveKey(panel, &gs, cat); }
+    catch (...) {}
 }
 
 static DatapanelGUI* lvPaintDest()
 {
-    lvResolveLifeBar();
+    /* Do not re-enter resolve after probe SEH (v1.19 retry killed the process).
+     * Skip paint on fail — LifeBar1Datapanel is the win, not required to pass. */
+    if (g_getWidgetOff)
+        return nullptr;
+    if (!g_resolveOnce)
+        lvResolveLifeBar();
     DatapanelGUI* dest = g_lifeBarPanel;
     if (!dest)
         return nullptr;
@@ -1648,7 +1790,14 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
 
     DatapanelGUI* dest = lvPaintDest();
     if (!dest)
+    {
+        if (!g_paintedOnce)
+        {
+            g_paintedOnce = 1;
+            LvLog("LimbVigor: painted=0 (no LifeBar1Datapanel dest)");
+        }
         return;
+    }
     if (!g_setLineProg)
     {
         lvWhyOnce("LimbVigor: setLineProgress missing — LifeBar1Datapanel not painted");
@@ -1673,16 +1822,18 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     GameStr gkey, gtext;
     GameStrSet(&gkey, key1);
     GameStrSet(&gtext, bar1);
-    int excepted = 0;
-    LV_TRY { g_setLineProg(dest, &gkey, cat, fill1, &gtext, true); }
-    LV_EXCEPT { excepted = 1; }
-    if (excepted)
+    if (lvSafeSetLine(dest, &gkey, cat, fill1, &gtext))
     {
         static int once = 0;
         if (!once)
         {
             once = 1;
             LvErr("LimbVigor: setLineProgress SEH on LifeBar1Datapanel — will retry, growth continues");
+        }
+        if (!g_paintedOnce)
+        {
+            g_paintedOnce = 1;
+            LvLog("LimbVigor: painted=0 (setLineProgress failed)");
         }
         return;
     }
@@ -1702,9 +1853,7 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
         GameStr lkey, ltext;
         GameStrSet(&lkey, limbKey);
         GameStrSet(&ltext, bar2);
-        LV_TRY { g_setLineProg(dest, &lkey, cat, fill2, &ltext, true); }
-        LV_EXCEPT { excepted = 1; }
-        if (excepted)
+        if (lvSafeSetLine(dest, &lkey, cat, fill2, &ltext))
         {
             static int once = 0;
             if (!once)
@@ -1743,7 +1892,8 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     if (!g_paintLogged)
     {
         g_paintLogged = 1;
-        LvLogf("LimbVigor: setLineProgress %s cat=%d %s on LifeBar1Datapanel %p",
+        g_paintedOnce = 1;
+        LvLogf("LimbVigor: painted=1 setLineProgress %s cat=%d %s on LifeBar1Datapanel %p",
                key1, cat, bar1, (void*)dest);
         if (bar2[0] && limbKey[0])
             LvLogf("LimbVigor: setLineProgress %s cat=%d %s", limbKey, cat, bar2);

@@ -23,14 +23,12 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-v1.19 MainBar _getWidget
-LifeBar1Datapanel and setLineProgress
-there only (Hemolymph / Vigor /
-Battle-heat + stump line). Layout
-names are BaseLayout-prefixed.
-It does not walk the Gui tree. It
-does not paint Goal/State or treat
-medicalPanel as DatapanelGUI.
+v1.20 person-select is SEH-safe.
+It looks up LifeBar1Datapanel and
+paints there only if safe. On GUI
+SEH it skips paint and does not
+retry _getWidget. It does not walk
+the Gui tree or paint Goal/State.
 
 Spoken lines appear over the character.
 I-key on a stump/bud/knit/grown item is
@@ -38,9 +36,9 @@ the backup.
 
 This build does not create widgets. No layout file.
 
-v1.19: MainBar _getWidget
-LifeBar1Datapanel, setLineProgress
-there only, no tree walk.
+v1.20: person-select SEH-safe
+_getWidget, skip paint on fail,
+no tree walk.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 
