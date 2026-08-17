@@ -2,8 +2,9 @@
 
 #include "lv_config.h"
 
-// I-key tooltip snapshot only. v1.16 dumps Datapanel keys, MyGUI
-// exports, and Goal/State neighbors. No paint. No layout load.
+// I-key tooltip snapshot only. v1.17 dumps Datapanel keys, Gui's
+// Singleton widget tree, and Kenshi_MainPanel.layout names from disk.
+// No paint. No layout load.
 
 void LvHudInstall()
 {

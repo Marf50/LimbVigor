@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.16 — MyGUI export list + parent/sibling walk from Goal/State widget, no paint");
+        LvLog("LimbVigor: ready v1.17 — Gui getInstancePtr + full widget tree, no paint");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

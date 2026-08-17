@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-v1.16 does **not** paint Hemolymph. After In-game it dumps DatapanelGUI keys, every matching MyGUIEngine export, a parent/sibling walk from the Goal/State widget, and medical names from `Kenshi_MainPanel.layout` on disk (not loaded). No `setLineProgress`. No widget create.
+v1.17 does **not** paint Hemolymph. After In-game it dumps DatapanelGUI keys, binds Gui's Singleton `getInstancePtr` (not ClipboardManager), walks that Gui's widget tree, and reads medical names from `Kenshi_MainPanel.layout` on disk (game root / mods / workshop — not loaded). No `setLineProgress`. No widget create.
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.16: MyGUI export list + parent/sibling walk from the Goal/State widget. v1.15 required a guessed mangled set and logged `exports missing` without walking. This build dumps the real exports, binds whatever exists, and still walks neighbors if `getInstancePtr` is missing. No paint. No load-time GUI hooks.
+v1.17: bind the exact Gui Singleton `getInstancePtr` and walk that tree. v1.16 bound ClipboardManager because `lvHasI(..., "Gui")` matches every `MyGUI` export, capped the export log at 250 before Gui's symbol, treated DatapanelGUI* as a Widget*, and looked for the layout under RE_Kenshi. This build logs the symbol it bound, scans every export, and finds the layout from MyGUIEngine / game root / workshop. No paint. No load-time GUI hooks.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 

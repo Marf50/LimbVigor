@@ -678,7 +678,6 @@ int LvPanelHasBlood(DatapanelGUI* panel)
 static int g_dumpBlood = 0;
 static int g_dumpSummary = 0;
 static int g_extraDump = 0;
-static void* g_goalPanel = nullptr;
 static void* g_dumpSeen[24] = {};
 static int g_dumpSeenN = 0;
 
@@ -756,11 +755,6 @@ static void lvDumpOnePanel(DatapanelGUI* panel, const char* src)
                 liveBlood = 1;
                 g_dumpBlood = 1;
             }
-            if (!g_goalPanel
-             && (std::strncmp(buf, "Goal", 4) == 0
-              || std::strncmp(buf, "State", 5) == 0
-              || std::strncmp(buf, "Encumbrance", 11) == 0))
-                g_goalPanel = (void*)panel;
         }
     }
     if (liveBlood)
@@ -785,10 +779,11 @@ static void lvDumpExtrasOnce()
 }
 
 #if !defined(LIMBVIGOR_IDE)
-/* v1.16: dump real MyGUIEngine exports, bind whatever exists, walk
- * from the Goal/State DatapanelGUI even if Gui::getInstancePtr is
- * missing. No createWidget. Names via GameStr. No GetRealAddress
- * on virtuals. */
+/* v1.17: bind Gui's Singleton getInstancePtr (exact x64 symbol, not
+ * the first getInstancePtr — ClipboardManager stole that in v1.16),
+ * walk that Gui's widget tree, read Kenshi_MainPanel.layout from the
+ * game/workshop disk. Do not treat DatapanelGUI* as Widget*.
+ * No createWidget. Names via GameStr. No GetRealAddress on virtuals. */
 
 typedef void*         (*FnGuiInst)();
 typedef const void*   (*FnGetName)(void* self);
@@ -805,8 +800,12 @@ static FnParent   g_wParent  = nullptr;
 static FnVisible  g_wVis     = nullptr;
 static int        g_exportDumped = 0;
 static int        g_layoutDumped = 0;
-static int        g_nbDumped = 0;
 static int        g_treeDumped = 0;
+
+/* MSVC x64 MyGUI: Gui's Singleton, not ClipboardManager / InputManager.
+   v1.16 used lvHasI(..., "Gui") which matches the "Gui" inside "MyGUI". */
+static const char kGuiGetInstanceExact[] =
+    "?getInstancePtr@?$Singleton@VGui@MyGUI@@@MyGUI@@SAPEAVGui@2@XZ";
 
 static int lvHasI(const char* hay, const char* needle)
 {
@@ -830,21 +829,50 @@ static int lvHasI(const char* hay, const char* needle)
     return 0;
 }
 
+static int lvIsOtherMyGuiSingleton(const char* n)
+{
+    return (lvHasI(n, "Clipboard") || lvHasI(n, "InputManager")
+         || lvHasI(n, "PointerManager") || lvHasI(n, "FontManager")
+         || lvHasI(n, "SkinManager") || lvHasI(n, "LanguageManager")
+         || lvHasI(n, "ResourceManager") || lvHasI(n, "FactoryManager")
+         || lvHasI(n, "PluginManager") || lvHasI(n, "DynLibManager")
+         || lvHasI(n, "ControllerManager") || lvHasI(n, "LayoutManager")
+         || lvHasI(n, "RenderManager") || lvHasI(n, "ToolTipManager")
+         || lvHasI(n, "SubWidgetManager") || lvHasI(n, "LayerManager")
+         || lvHasI(n, "WidgetManager") || lvHasI(n, "DataManager")
+         || lvHasI(n, "LogManager")) ? 1 : 0;
+}
+
+/* Gui's Singleton getInstancePtr only. Do not take the first
+ * getInstancePtr — "Gui" is a substring of every "MyGUI" symbol. */
+static int lvIsGuiSingletonGetInstance(const char* n)
+{
+    if (!n || !lvHasI(n, "getInstancePtr"))
+        return 0;
+    if (lvIsOtherMyGuiSingleton(n))
+        return 0;
+    if (lvHasI(n, "Singleton@VGui@MyGUI") || lvHasI(n, "$Singleton@VGui@"))
+        return 1;
+    if (std::strstr(n, "VGui@MyGUI") || std::strstr(n, "@VGui@"))
+        return 1;
+    return 0;
+}
+
 static int lvExportWanted(const char* n)
 {
-    return (lvHasI(n, "Gui")
-         || lvHasI(n, "Widget")
+    return (lvHasI(n, "Widget")
          || lvHasI(n, "getName")
          || lvHasI(n, "getChild")
          || lvHasI(n, "getParent")
-         || lvHasI(n, "getByName")) ? 1 : 0;
+         || lvHasI(n, "getByName")
+         || lvHasI(n, "getInstancePtr")) ? 1 : 0;
 }
 
 static void lvTryBindExport(const char* n, void* addr)
 {
     if (!n || !addr)
         return;
-    if (!g_guiInst && lvHasI(n, "getInstancePtr") && lvHasI(n, "Gui"))
+    if (!g_guiInst && lvIsGuiSingletonGetInstance(n))
     {
         g_guiInst = (FnGuiInst)addr;
         LvLogf("LimbVigor: mygui bind getInstancePtr '%s'", n);
@@ -930,11 +958,21 @@ static void lvDumpMyGuiExports()
         return;
     }
 
+    FARPROC exact = GetProcAddress(mod, kGuiGetInstanceExact);
+    if (exact)
+    {
+        g_guiInst = (FnGuiInst)exact;
+        LvLogf("LimbVigor: mygui bind getInstancePtr EXACT '%s'", kGuiGetInstanceExact);
+    }
+    else
+        LvLog("LimbVigor: mygui exact Gui getInstancePtr missing — scanning exports");
+
     const DWORD* names = (const DWORD*)(base + exp.AddressOfNames);
     const WORD* ords = (const WORD*)(base + exp.AddressOfNameOrdinals);
     const DWORD* funcs = (const DWORD*)(base + exp.AddressOfFunctions);
-    int logged = 0;
-    const int cap = 250;
+    int loggedWidget = 0;
+    int loggedGetInst = 0;
+    const int widgetCap = 80;
     for (DWORD i = 0; i < exp.NumberOfNames; ++i)
     {
         DWORD nrva = 0;
@@ -959,24 +997,33 @@ static void lvDumpMyGuiExports()
             en[k] = 0;
         }
         LV_EXCEPT { en[0] = 0; }
-        if (!en[0] || !lvExportWanted(en))
+        if (!en[0])
             continue;
         void* addr = (void*)(base + frva);
-        if (logged < cap)
+        /* Scan every export so Gui's getInstancePtr cannot hide behind a cap. */
+        lvTryBindExport(en, addr);
+        if (lvHasI(en, "getInstancePtr"))
+        {
+            LvLogf("LimbVigor: mygui export getInstancePtr '%s' %p%s",
+                   en, addr,
+                   lvIsGuiSingletonGetInstance(en) ? " [Gui Singleton]" : "");
+            loggedGetInst++;
+        }
+        else if (lvExportWanted(en) && loggedWidget < widgetCap)
         {
             LvLogf("LimbVigor: mygui export '%s' %p", en, addr);
-            logged++;
+            loggedWidget++;
         }
-        lvTryBindExport(en, addr);
     }
-    if (logged >= cap)
-        LvLogf("LimbVigor: mygui export list capped at %d", cap);
-    LvLogf("LimbVigor: mygui export match count=%d bind name=%d childN=%d childAt=%d parent=%d vis=%d gui=%d",
-           logged,
+    if (loggedWidget >= widgetCap)
+        LvLogf("LimbVigor: mygui Widget export log capped at %d (scan uncapped names=%u)",
+               widgetCap, (unsigned)exp.NumberOfNames);
+    LvLogf("LimbVigor: mygui export names=%u getInstancePtr listed=%d Widget listed=%d bind name=%d childN=%d childAt=%d parent=%d vis=%d gui=%d",
+           (unsigned)exp.NumberOfNames, loggedGetInst, loggedWidget,
            g_wName ? 1 : 0, g_wCount ? 1 : 0, g_wAt ? 1 : 0,
            g_wParent ? 1 : 0, g_wVis ? 1 : 0, g_guiInst ? 1 : 0);
-    if (!g_wName) LvLog("LimbVigor: mygui bind getName missing — neighbor walk still runs");
-    if (!g_guiInst) LvLog("LimbVigor: mygui bind getInstancePtr missing — neighbor walk still runs");
+    if (!g_wName) LvLog("LimbVigor: mygui bind getName missing");
+    if (!g_guiInst) LvLog("LimbVigor: mygui bind Gui getInstancePtr missing after full export scan");
 }
 
 static int lvGameStrLooksName(const char* s)
@@ -1184,146 +1231,24 @@ static void lvLogWidget(const char* tag, void* w)
         LV_TRY { vis = g_wVis(w) ? 1 : 0; }
         LV_EXCEPT { vis = -1; }
     }
-    LvLogf("LimbVigor: %s %p name='%s' type='%s' visible=%d",
-           tag, w, name, type[0] ? type : "?", vis);
-}
-
-static void lvCollectKids(void* w, void** out, int* n, int max)
-{
-    *n = 0;
-    if (!w)
-        return;
-    if (g_wCount && g_wAt)
-    {
-        std::size_t c = 0;
-        int seh = 0;
-        LV_TRY { c = g_wCount(w); }
-        LV_EXCEPT { c = 0; seh = 1; }
-        if (!seh && c > 0 && c <= 256)
-        {
-            for (std::size_t i = 0; i < c && *n < max; ++i)
-            {
-                void* k = nullptr;
-                LV_TRY { k = g_wAt(w, i); }
-                LV_EXCEPT { k = nullptr; }
-                if (k && !lvSeenHas(out, *n, k))
-                    out[(*n)++] = k;
-            }
-        }
-    }
-    for (int off = 0; off <= 0x1C0; off += (int)sizeof(void*))
-    {
-        void** start = nullptr;
-        int c = 0;
-        if (!lvVecAt(w, off, &start, &c))
-            continue;
-        int good = 0;
-        for (int i = 0; i < c && i < 8; ++i)
-            if (start[i] && lvIsWidget(start[i]))
-                good++;
-        if (good < 1)
-            continue;
-        for (int i = 0; i < c && *n < max; ++i)
-        {
-            void* k = start[i];
-            if (k && !lvSeenHas(out, *n, k))
-                out[(*n)++] = k;
-        }
-    }
-}
-
-static void* lvFindParent(void* w)
-{
-    if (!w)
-        return nullptr;
+    void* parent = nullptr;
     if (g_wParent)
     {
-        void* p = nullptr;
-        LV_TRY { p = g_wParent(w); }
-        LV_EXCEPT { p = nullptr; }
-        if (p)
-            return p;
+        LV_TRY { parent = g_wParent(w); }
+        LV_EXCEPT { parent = nullptr; }
     }
-    for (int off = 0; off <= 0x180; off += (int)sizeof(void*))
+    int kids = -1;
+    if (g_wCount)
     {
-        void* cand = nullptr;
-        LV_TRY { std::memcpy(&cand, (const char*)w + off, sizeof(cand)); }
-        LV_EXCEPT { cand = nullptr; }
-        if (!cand || cand == w)
-            continue;
-        void* kids[64];
-        int kn = 0;
-        lvCollectKids(cand, kids, &kn, 64);
-        if (lvSeenHas(kids, kn, w))
-            return cand;
+        std::size_t n = 0;
+        int seh = 0;
+        LV_TRY { n = g_wCount(w); }
+        LV_EXCEPT { n = 0; seh = 1; }
+        if (!seh && n <= 256)
+            kids = (int)n;
     }
-    return nullptr;
-}
-
-static void* lvWidgetFromPanel(void* panel)
-{
-    if (!panel)
-        return nullptr;
-    if (lvIsWidget(panel))
-        return panel;
-    for (int off = 0; off <= 0xC0; off += (int)sizeof(void*))
-    {
-        void* p = nullptr;
-        LV_TRY { std::memcpy(&p, (const char*)panel + off, sizeof(p)); }
-        LV_EXCEPT { p = nullptr; }
-        if (p && p != panel && lvIsWidget(p))
-            return p;
-    }
-    return panel;
-}
-
-static void lvDumpNeighborWalk(void* panel)
-{
-    if (g_nbDumped)
-        return;
-    if (!panel)
-    {
-        LvLog("LimbVigor: neighbor walk waiting for Goal/State panel");
-        return;
-    }
-    g_nbDumped = 1;
-
-    void* self = lvWidgetFromPanel(panel);
-    LvLogf("LimbVigor: neighbor walk from panel=%p widget=%p", panel, self);
-    lvLogWidget("neighbor self", self);
-
-    void* parent = lvFindParent(self);
-    if (parent)
-        lvLogWidget("neighbor parent", parent);
-    else
-        LvLog("LimbVigor: neighbor parent=null");
-
-    void* sibs[128];
-    int sn = 0;
-    if (parent)
-        lvCollectKids(parent, sibs, &sn, 128);
-    int logged = 0;
-    const int cap = 200;
-    for (int i = 0; i < sn && logged < cap; ++i)
-    {
-        if (sibs[i] == self)
-            continue;
-        lvLogWidget("neighbor sibling", sibs[i]);
-        logged++;
-    }
-
-    void* kids[128];
-    int kn = 0;
-    lvCollectKids(self, kids, &kn, 128);
-    for (int i = 0; i < kn && logged < cap; ++i)
-    {
-        lvLogWidget("neighbor child", kids[i]);
-        logged++;
-    }
-    if (logged >= cap)
-        LvLogf("LimbVigor: neighbor walk capped at %d", cap);
-    LvLogf("LimbVigor: neighbor walk end siblings=%d children=%d logged=%d",
-           sn, kn, logged);
+    LvLogf("LimbVigor: %s %p name='%s' type='%s' parent=%p visible=%d children=%d",
+           tag, w, name, type[0] ? type : "?", parent, vis, kids);
 }
 
 static void lvDumpTreeIfPossible()
@@ -1333,7 +1258,7 @@ static void lvDumpTreeIfPossible()
     g_treeDumped = 1;
     if (!g_guiInst)
     {
-        LvLog("LimbVigor: mygui full tree skipped — no getInstancePtr (neighbor walk still ran or will)");
+        LvLog("LimbVigor: mygui full tree skipped — Gui getInstancePtr not bound");
         return;
     }
     void* gui = nullptr;
@@ -1405,7 +1330,8 @@ static int lvLayoutMedical(const char* name)
          || lvHasI(name, "Head")
          || lvHasI(name, "Hunger")
          || lvHasI(name, "LifeBar")
-         || lvHasI(name, "Progress")) ? 1 : 0;
+         || lvHasI(name, "Progress")
+         || lvHasI(name, "medical")) ? 1 : 0;
 }
 
 static void lvParseLayoutFile(const char* path)
@@ -1505,74 +1431,195 @@ static void lvParseLayoutFile(const char* path)
     std::free(buf);
 }
 
-static void lvJoin(char* out, int n, const char* a, const char* b)
+static void lvDirOf(char* path)
 {
-    if (!out || n < 8)
+    if (!path)
         return;
-    out[0] = 0;
-    if (!a) a = "";
-    if (!b) b = "";
-    std::snprintf(out, (size_t)n, "%s%s", a, b);
+    char* slash = nullptr;
+    for (char* p = path; *p; ++p)
+        if (*p == '\\' || *p == '/') slash = p;
+    if (slash) *slash = 0;
 }
 
+static int lvFileExistsA(const char* path)
+{
+    if (!path || !path[0])
+        return 0;
+    const DWORD a = GetFileAttributesA(path);
+    return (a != INVALID_FILE_ATTRIBUTES && !(a & FILE_ATTRIBUTE_DIRECTORY)) ? 1 : 0;
+}
+
+static int lvPathEqI(const char* a, const char* b)
+{
+    if (!a || !b)
+        return 0;
+    while (*a && *b)
+    {
+        char ca = *a, cb = *b;
+        if (ca >= 'A' && ca <= 'Z') ca = (char)(ca + 32);
+        if (cb >= 'A' && cb <= 'Z') cb = (char)(cb + 32);
+        if (ca == '/') ca = '\\';
+        if (cb == '/') cb = '\\';
+        if (ca != cb) return 0;
+        ++a;
+        ++b;
+    }
+    return (!*a && !*b) ? 1 : 0;
+}
+
+static void lvAddRoot(char roots[][MAX_PATH], int* n, int maxn, const char* dir)
+{
+    if (!dir || !dir[0] || !n || *n >= maxn)
+        return;
+    for (int i = 0; i < *n; ++i)
+        if (lvPathEqI(roots[i], dir))
+            return;
+    std::snprintf(roots[*n], MAX_PATH, "%s", dir);
+    (*n)++;
+}
+
+static void lvWalkUpGameRoots(const char* start, char roots[][MAX_PATH], int* n, int maxn)
+{
+    if (!start || !start[0])
+        return;
+    char cur[MAX_PATH];
+    std::snprintf(cur, MAX_PATH, "%s", start);
+    for (int up = 0; up < 8 && *n < maxn; ++up)
+    {
+        char exe[MAX_PATH];
+        char lay[MAX_PATH];
+        std::snprintf(exe, MAX_PATH, "%s\\kenshi_x64.exe", cur);
+        std::snprintf(lay, MAX_PATH, "%s\\data\\gui\\layout\\Kenshi_MainPanel.layout", cur);
+        if (lvFileExistsA(exe) || lvFileExistsA(lay))
+            lvAddRoot(roots, n, maxn, cur);
+        char parent[MAX_PATH];
+        std::snprintf(parent, MAX_PATH, "%s", cur);
+        lvDirOf(parent);
+        if (!parent[0] || lvPathEqI(parent, cur))
+            break;
+        std::snprintf(cur, MAX_PATH, "%s", parent);
+    }
+}
+
+static void lvScanKidsForLayout(const char* parent, int* nfound)
+{
+    if (!parent || !parent[0])
+        return;
+    char pat[MAX_PATH];
+    std::snprintf(pat, MAX_PATH, "%s\\*", parent);
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA(pat, &fd);
+    if (h == INVALID_HANDLE_VALUE)
+        return;
+    int tried = 0;
+    do
+    {
+        if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+            continue;
+        if (fd.cFileName[0] == '.')
+            continue;
+        char lay[MAX_PATH];
+        std::snprintf(lay, MAX_PATH, "%s\\%s\\gui\\layout\\Kenshi_MainPanel.layout",
+                      parent, fd.cFileName);
+        if (lvFileExistsA(lay))
+        {
+            lvParseLayoutFile(lay);
+            if (nfound) (*nfound)++;
+        }
+        tried++;
+        if (tried >= 64)
+            break;
+    } while (FindNextFileA(h, &fd));
+    FindClose(h);
+}
+
+/* v1.16 used kenshi_x64 / GetModuleHandle(nullptr) and landed in
+   ...\Kenshi\RE_Kenshi\ — layout is under the game root, mods, or
+   steamapps\workshop\content\233860. Disk read only; do not load. */
 static void lvDumpLayoutOnce()
 {
     if (g_layoutDumped)
         return;
     g_layoutDumped = 1;
 
-    char exe[MAX_PATH];
-    exe[0] = 0;
+    char roots[12][MAX_PATH];
+    int nroots = 0;
+
+    HMODULE mygui = lvMyGuiMod();
+    if (mygui)
+    {
+        char p[MAX_PATH];
+        p[0] = 0;
+        GetModuleFileNameA(mygui, p, MAX_PATH);
+        LvLogf("LimbVigor: layout anchor MyGUIEngine '%s'", p);
+        lvDirOf(p);
+        lvAddRoot(roots, &nroots, 12, p);
+        lvWalkUpGameRoots(p, roots, &nroots, 12);
+    }
+
     HMODULE k = GetModuleHandleA("kenshi_x64.exe");
     if (!k) k = GetModuleHandleA("kenshi_GOG_x64.exe");
-    if (!k) k = GetModuleHandleA(nullptr);
-    GetModuleFileNameA(k, exe, MAX_PATH);
-    char* slash = nullptr;
-    for (char* p = exe; *p; ++p)
-        if (*p == '\\' || *p == '/') slash = p;
-    if (slash) *slash = 0;
-
-    char path[MAX_PATH];
-    lvJoin(path, MAX_PATH, exe, "\\data\\gui\\layout\\Kenshi_MainPanel.layout");
-    lvParseLayoutFile(path);
-
-    char mods[MAX_PATH];
-    lvJoin(mods, MAX_PATH, exe, "\\mods\\*");
-    WIN32_FIND_DATAA fd;
-    HANDLE h = FindFirstFileA(mods, &fd);
-    int tried = 0;
-    if (h != INVALID_HANDLE_VALUE)
+    if (k)
     {
-        do
-        {
-            if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
-                continue;
-            if (fd.cFileName[0] == '.')
-                continue;
-            if (!lvHasI(fd.cFileName, "UI") && !lvHasI(fd.cFileName, "Dark")
-             && !lvHasI(fd.cFileName, "gui"))
-                continue;
-            std::snprintf(path, sizeof(path),
-                "%s\\mods\\%s\\gui\\layout\\Kenshi_MainPanel.layout",
-                exe, fd.cFileName);
-            lvParseLayoutFile(path);
-            tried++;
-            if (tried >= 24)
-                break;
-        } while (FindNextFileA(h, &fd));
-        FindClose(h);
+        char p[MAX_PATH];
+        p[0] = 0;
+        GetModuleFileNameA(k, p, MAX_PATH);
+        LvLogf("LimbVigor: layout anchor kenshi exe '%s'", p);
+        lvDirOf(p);
+        lvAddRoot(roots, &nroots, 12, p);
     }
 
     const char* plug = LvPluginDir();
     if (plug && plug[0])
     {
-        std::snprintf(path, sizeof(path),
-            "%s\\..\\Dark UI\\gui\\layout\\Kenshi_MainPanel.layout", plug);
-        lvParseLayoutFile(path);
-        std::snprintf(path, sizeof(path),
-            "%s\\..\\..\\data\\gui\\layout\\Kenshi_MainPanel.layout", plug);
-        lvParseLayoutFile(path);
+        LvLogf("LimbVigor: layout anchor plugin '%s'", plug);
+        lvWalkUpGameRoots(plug, roots, &nroots, 12);
     }
+
+    char self[MAX_PATH];
+    self[0] = 0;
+    GetModuleFileNameA(nullptr, self, MAX_PATH);
+    if (self[0])
+    {
+        lvDirOf(self);
+        lvWalkUpGameRoots(self, roots, &nroots, 12);
+    }
+
+    int nfound = 0;
+    for (int i = 0; i < nroots; ++i)
+    {
+        LvLogf("LimbVigor: layout root '%s'", roots[i]);
+        char lay[MAX_PATH];
+        std::snprintf(lay, MAX_PATH, "%s\\data\\gui\\layout\\Kenshi_MainPanel.layout",
+                      roots[i]);
+        if (lvFileExistsA(lay))
+        {
+            lvParseLayoutFile(lay);
+            nfound++;
+        }
+        else
+            LvLogf("LimbVigor: layout miss '%s'", lay);
+
+        char mods[MAX_PATH];
+        std::snprintf(mods, MAX_PATH, "%s\\mods", roots[i]);
+        lvScanKidsForLayout(mods, &nfound);
+
+        char cur[MAX_PATH];
+        std::snprintf(cur, MAX_PATH, "%s", roots[i]);
+        for (int up = 0; up < 5; ++up)
+        {
+            char ws[MAX_PATH];
+            std::snprintf(ws, MAX_PATH, "%s\\workshop\\content\\233860", cur);
+            lvScanKidsForLayout(ws, &nfound);
+            char parent[MAX_PATH];
+            std::snprintf(parent, MAX_PATH, "%s", cur);
+            lvDirOf(parent);
+            if (!parent[0] || lvPathEqI(parent, cur))
+                break;
+            std::snprintf(cur, MAX_PATH, "%s", parent);
+        }
+    }
+    LvLogf("LimbVigor: layout files found=%d roots=%d", nfound, nroots);
 }
 
 static void lvDumpMyGuiOnce()
@@ -1582,17 +1629,6 @@ static void lvDumpMyGuiOnce()
     lvDumpMyGuiExports();
     lvDumpLayoutOnce();
     lvDumpTreeIfPossible();
-    if (g_goalPanel)
-        lvDumpNeighborWalk(g_goalPanel);
-    else
-    {
-        static int waitOnce = 0;
-        if (!waitOnce)
-        {
-            waitOnce = 1;
-            LvLog("LimbVigor: neighbor walk waiting for Goal/State panel");
-        }
-    }
 }
 #else
 static void lvDumpMyGuiOnce() {}
