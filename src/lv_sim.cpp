@@ -77,12 +77,69 @@ int LvNextStump(const CharSnap* c, int after)
     return -1;
 }
 
+static int SocketIsStump(const CharSnap* c, int i)
+{
+    if (!c || i < 0 || i >= LIMB_COUNT) return 0;
+    return (c->limbs[i] == LIMB_KIND_STUMP || c->limbs[i] == LIMB_KIND_CRUSHED) ? 1 : 0;
+}
+
 static int SlotOpenForHud(const CharSnap* c, int i)
 {
     if (!c || i < 0 || i >= LIMB_COUNT) return 0;
+    /* Grown drops Line 2 only when the socket is no longer a stump.
+     * Persist 100% while the game still shows -33 must keep Line 2. */
+    if (SocketIsStump(c, i))
+        return 1;
     if (c->progress[i] >= 100.f) return 0;
-    if (c->lastStage[i] == 4) return 0; // LV_PART_GROWN — Line 2 drops
+    if (c->lastStage[i] == 4) return 0; // LV_PART_GROWN
     return 1;
+}
+
+void LvHeartbeatLine(const CharSnap* c, char* out, int n)
+{
+    if (!out || n < 8) return;
+    out[0] = 0;
+    if (!c) return;
+
+    const float maxv = LvCfg().maxVigor > 0.f ? LvCfg().maxVigor : 100.f;
+    const char* res = LvResourceName(c->race);
+    if (c->race == RACE_SKELETON)
+        res = "Limb Vigor";
+    if (!res || !res[0])
+        res = "Vigor";
+
+    const int stump = LvFirstStump(c);
+    char why[96];
+    const int ok = LvEligible(c, why, (int)sizeof(why));
+    if (stump < 0)
+    {
+        std::snprintf(out, (size_t)n, "%s  %s %.0f/%.0f  no stump",
+            c->name, res, c->vigor, maxv);
+        return;
+    }
+
+    const int persistGrown = (c->progress[stump] >= 99.5f || c->lastStage[stump] == 4) ? 1 : 0;
+    if (persistGrown)
+    {
+        /* Socket is still a stump. Do not claim 100% grown / BLOCKED. */
+        if (!ok && why[0])
+        {
+            std::snprintf(out, (size_t)n, "%s  %s %.0f/%.0f  %s",
+                c->name, res, c->vigor, maxv, why);
+            return;
+        }
+        std::snprintf(out, (size_t)n,
+            "%s  %s %.0f/%.0f  %s still a stump (persist 100%%, retrying LV Grown)",
+            c->name, res, c->vigor, maxv, LvLimbLabel((LimbId)stump));
+        return;
+    }
+
+    std::snprintf(out, (size_t)n, "%s  %s %.0f/%.0f  %s %.0f%% %s%s",
+        c->name, res, c->vigor, maxv,
+        LvLimbLabel((LimbId)stump),
+        c->progress[stump],
+        LvStageName(c->progress[stump]),
+        ok ? "" : "  BLOCKED");
 }
 
 int LvHudLimbSlot(const CharSnap* c)
@@ -329,8 +386,13 @@ void LvHudLines(const CharSnap* c,
         return;
     }
 
-    if (fill2) *fill2 = c->progress[slot] / 100.f;
-    int pct = (int)c->progress[slot];
+    /* Persist 100% on a live stump is not Grown. Do not paint grown 100%. */
+    float showP = c->progress[slot];
+    if (showP >= 100.f && SocketIsStump(c, slot))
+        showP = 99.f;
+
+    if (fill2) *fill2 = showP / 100.f;
+    int pct = (int)showP;
     if (pct < 0) pct = 0;
     if (pct > 99) pct = 99;
 
@@ -355,7 +417,7 @@ void LvHudLines(const CharSnap* c,
 
     if (bar2 && n2 > 0)
         std::snprintf(bar2, (size_t)n2, "%s %d%%  %s%s",
-            LvStageName(c->progress[slot]), pct, tag, extra);
+            LvStageName(showP), pct, tag, extra);
 }
 
 void LvItemTooltipText(const CharSnap* c, char* out, int outsz)

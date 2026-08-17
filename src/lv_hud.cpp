@@ -2,13 +2,12 @@
 
 #include "lv_config.h"
 
-// I-key tooltip snapshot only. Visible HUD is setLineProgress on the
-// selection DatapanelGUI (lv_game). No MyGUI walk. No layout file.
-// No createWidget.
+// I-key tooltip snapshot only. v1.14 dumps DatapanelGUI keys; it does
+// not guess-paint. No MyGUI create. No layout file.
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: HUD is after-orig setLineProgress — no load-time GUI hooks");
+    LvLog("LimbVigor: HUD is after-orig dump — no guess-paint, no load-time GUI hooks");
 }
 
 void LvHudEnsureAfterInGame() {}

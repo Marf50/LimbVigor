@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.13 — real Blood row only, HUD SEH does not kill growth, two-line medicalPanel");
+        LvLog("LimbVigor: ready v1.14 — dump every panel key after In-game, no guess-paint, no load-time GUI hooks");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

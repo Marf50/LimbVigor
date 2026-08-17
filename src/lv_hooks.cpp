@@ -76,24 +76,20 @@ static void Heartbeat(CharSnap* live)
     if (live->lastLogMs && now && (now - live->lastLogMs) < 15000u) return;
     live->lastLogMs = now ? now : 1;
 
+    char line[192];
+    LvHeartbeatLine(live, line, (int)sizeof(line));
+    if (line[0])
+        LvLogf("LimbVigor: %s", line);
+
     const int stump = LvFirstStump(live);
-    char why[96];
-    const int ok = LvEligible(live, why, (int)sizeof(why));
     if (stump < 0)
-    {
-        LvLogf("LimbVigor: %s  %s %.0f/%.0f  no stump",
-            live->name, LvResourceName(live->race), live->vigor, LvCfg().maxVigor);
         return;
-    }
-    LvLogf("LimbVigor: %s  %s %.0f/%.0f  %s %.0f%% %s%s",
-        live->name,
-        LvResourceName(live->race),
-        live->vigor, LvCfg().maxVigor,
-        LvLimbLabel((LimbId)stump),
-        live->progress[stump],
-        LvStageName(live->progress[stump]),
-        ok ? "" : "  BLOCKED");
-    if (!ok && why[0]) LvLog(why);
+    /* Persist 100% on a live stump already put the block/retry copy on line 1. */
+    if (live->progress[stump] >= 99.5f || live->lastStage[stump] == LV_PART_GROWN)
+        return;
+    char why[96];
+    if (!LvEligible(live, why, (int)sizeof(why)) && why[0])
+        LvLog(why);
 }
 
 static CharSnap* Bind(MedicalSystem* med)
@@ -350,6 +346,40 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                 if (!once) { LvErr("LimbVigor: parts SEH — growth numbers kept"); once = 1; }
             }
 
+            /* Persist 100% / Grown but the socket is still a stump: retry LV Grown.
+             * Re-read the socket the player sees. Do not call setLimb(ORIGINAL). */
+            LV_TRY
+            {
+                CharSnap now;
+                std::memset(&now, 0, sizeof(now));
+                LvReadSnap(med, &now);
+                for (int i = 0; i < LIMB_COUNT; ++i)
+                {
+                    if (live->progress[i] < 99.5f && live->lastStage[i] != LV_PART_GROWN)
+                        continue;
+                    if (now.limbs[i] != LIMB_KIND_STUMP && now.limbs[i] != LIMB_KIND_CRUSHED)
+                        continue;
+                    const int slotted = LvEquipGrowthPart(med, i, LV_PART_GROWN);
+                    CharSnap again;
+                    std::memset(&again, 0, sizeof(again));
+                    LvReadSnap(med, &again);
+                    if (again.limbs[i] != LIMB_KIND_STUMP && again.limbs[i] != LIMB_KIND_CRUSHED)
+                        continue;
+                    static unsigned lastWhyMs[LIMB_COUNT] = {};
+                    const unsigned t = NowMs();
+                    if (lastWhyMs[i] && t && (t - lastWhyMs[i]) < 15000u)
+                        continue;
+                    lastWhyMs[i] = t ? t : 1;
+                    if (slotted)
+                        LvLogf("LimbVigor: %s %s persist 100%% still a stump — LV Grown on, game still reads stump",
+                            live->name, LvLimbLabel((LimbId)i));
+                    else
+                        LvLogf("LimbVigor: %s %s persist 100%% still a stump — LV Grown retry failed",
+                            live->name, LvLimbLabel((LimbId)i));
+                }
+            }
+            LV_EXCEPT {}
+
             LV_TRY { Heartbeat(live); }
             LV_EXCEPT {}
         }
@@ -376,6 +406,7 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
     if (!LvWorldInGame())
         return;
 
+    /* Probe only: dump keys. No setLineProgress. No Goal/State fallback. */
     LvWalkSelPanel(panel);
 
     CharSnap* live = nullptr;
@@ -387,27 +418,6 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
         g_hudHave = 1;
         LvHudNote(live);
     }
-
-    /* Door / building / non-person: clear. The hook's Character* is
-     * the selected body — hired squad counts. Not isPlayerCharacter(). */
-    if (!who || !LvIsPlayerSquad(who))
-    {
-        LvClearHud(panel);
-        return;
-    }
-    if (!LvPanelHasBlood(panel))
-    {
-        LvClearHud(panel);
-        static int noneOnce = 0;
-        if (!noneOnce)
-        {
-            noneOnce = 1;
-            LvLog("LimbVigor: none exists");
-        }
-        return;
-    }
-    if (live)
-        LvPaintHud(med, panel, live);
 }
 
 static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)

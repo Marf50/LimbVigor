@@ -78,8 +78,6 @@ static FnGetMedPanel  g_getMedPanel = nullptr;
 static FnSay          g_say         = nullptr;
 static int            g_gameReady   = 0;
 static int            g_paintLogged = 0;
-static int            g_paintSehOnce = 0;
-static int            g_noneLogged  = 0;
 
 static void* ExeBase()
 {
@@ -624,22 +622,9 @@ static void* lvMedicalPanel()
     return med;
 }
 
-static int lvLineExists(DatapanelGUI* panel, const char* key, int cat)
-{
-    if (!g_lineExists || !panel || !key)
-        return 0;
-    GameStr gs;
-    GameStrSet(&gs, key);
-    int yes = 0;
-    LV_TRY { yes = g_lineExists(panel, &gs, cat) ? 1 : 0; }
-    LV_EXCEPT { yes = 0; }
-    return yes;
-}
-
-/* v1.12: lineExists("Blood") was true on the skills panel (Current Skill /
- * Encumbrance / Goal / State) and on empty getNumLines==0 panels. Do not
- * trust it. A real vitals row is a live DataPanelLine whose key string
- * is "Blood". getNumLines==0 means there is no Blood row. */
+/* v1.14 probe: dump every DatapanelGUI we can see. Do not guess-paint
+ * on Goal/State/Encumbrance. Blood bars may not be DataPanelLines.
+ * Paint only if a dump line shows a live key "Blood" on that panel. */
 static int lvReadLineKey(void* line, char* out, int outsz)
 {
     if (!line || !out || outsz < 2)
@@ -678,129 +663,159 @@ static int lvLiveKeyCat(DatapanelGUI* panel, const char* key)
     return -1;
 }
 
-static int lvLooksLikeSkills(DatapanelGUI* panel)
-{
-    return (lvLiveKeyCat(panel, "Current Skill") >= 0
-         || lvLiveKeyCat(panel, "Encumbrance") >= 0
-         || lvLiveKeyCat(panel, "Goal") >= 0
-         || lvLiveKeyCat(panel, "State") >= 0) ? 1 : 0;
-}
-
-static int lvBloodCat(DatapanelGUI* panel)
-{
-    if (!panel)
-        return -1;
-    if (lvLooksLikeSkills(panel))
-        return -1;
-    return lvLiveKeyCat(panel, "Blood");
-}
-
-static int KeyEqI(const char* a, const char* b)
-{
-    if (!a || !b) return 0;
-    while (*a && *b)
-    {
-        char ca = *a, cb = *b;
-        if (ca >= 'A' && ca <= 'Z') ca = (char)(ca + 32);
-        if (cb >= 'A' && cb <= 'Z') cb = (char)(cb + 32);
-        if (ca != cb) return 0;
-        ++a;
-        ++b;
-    }
-    return *a == 0 && *b == 0 ? 1 : 0;
-}
-
-/* Title-Case Kenshi rows only. "left leg" is ours and must not match "Left Leg". */
-static int IsReservedKey(const char* key)
-{
-    static const char* kRes[] = {
-        "Blood", "Head", "Hunger",
-        "Left Arm", "Right Arm", "Left Leg", "Right Leg",
-        nullptr
-    };
-    if (!key || !key[0]) return 1;
-    for (int i = 0; kRes[i]; ++i)
-    {
-        if (std::strcmp(key, kRes[i]) == 0)
-            return 1;
-    }
-    return 0;
-}
-
-static int IsBannedHudKey(const char* key)
-{
-    static const char* kBan[] = {
-        "Time", "Look", "How", "Need", "Regrowth", "Wait", nullptr
-    };
-    if (!key || !key[0]) return 1;
-    for (int i = 0; kBan[i]; ++i)
-    {
-        if (KeyEqI(key, kBan[i]))
-            return 1;
-    }
-    return 0;
-}
-
-static void lvNoneExists()
-{
-    if (g_noneLogged)
-        return;
-    g_noneLogged = 1;
-    LvLog("LimbVigor: none exists");
-}
-
 int LvPanelIsLeftMedical(DatapanelGUI* panel)
 {
-    if (!panel)
-        return 0;
-    /* Pointer match is not enough — v1.12 match=1 with getNumLines=0
-     * still had no Blood row. Skills panel is not vitals. */
-    if (lvLooksLikeSkills(panel))
-        return 0;
-    return lvBloodCat(panel) >= 0 ? 1 : 0;
+    return lvLiveKeyCat(panel, "Blood") >= 0 ? 1 : 0;
 }
 
 int LvPanelHasBlood(DatapanelGUI* panel)
 {
-    return lvBloodCat(panel) >= 0 ? 1 : 0;
+    return lvLiveKeyCat(panel, "Blood") >= 0 ? 1 : 0;
 }
 
-void LvWalkSelPanel(DatapanelGUI* panel)
-{
-    if (!panel)
-        return;
+static int g_dumpBlood = 0;
+static int g_dumpSummary = 0;
+static int g_extraDump = 0;
+static int g_nameHits = 0;
+static void* g_dumpSeen[24] = {};
+static int g_dumpSeenN = 0;
 
-    /* Once per distinct pointer. A 6-slot (ptr, blood) cache overflowed
-     * in v1.12 and logged 500+ empty walks. */
-    static void* seenPtr[16] = {};
-    static int seenN = 0;
-    for (int i = 0; i < seenN; ++i)
+static int lvDumpSeen(void* p)
+{
+    if (!p)
+        return 1;
+    for (int i = 0; i < g_dumpSeenN; ++i)
     {
-        if (seenPtr[i] == (void*)panel)
-            return;
+        if (g_dumpSeen[i] == p)
+            return 1;
     }
-    if (seenN >= 16)
+    if (g_dumpSeenN >= 24)
+        return 1;
+    g_dumpSeen[g_dumpSeenN++] = p;
+    return 0;
+}
+
+static int lvNameLooksMedical(const char* s)
+{
+    if (!s || !s[0])
+        return 0;
+    char low[96];
+    int n = 0;
+    for (; s[n] && n < 95; ++n)
+    {
+        char c = s[n];
+        if (c >= 'A' && c <= 'Z')
+            c = (char)(c + 32);
+        if (c < 32 || c > 126)
+            return 0;
+        low[n] = c;
+    }
+    low[n] = 0;
+    if (n < 3 || n > 48)
+        return 0;
+    return (std::strstr(low, "blood")
+         || std::strstr(low, "head")
+         || std::strstr(low, "hunger")
+         || std::strstr(low, "lifebar")
+         || std::strstr(low, "medical")
+         || std::strstr(low, "left leg")
+         || std::strstr(low, "right leg")
+         || std::strstr(low, "left arm")
+         || std::strstr(low, "right arm")) ? 1 : 0;
+}
+
+static void lvDumpNameHit(const char* where, const char* name)
+{
+    if (!lvNameLooksMedical(name) || g_nameHits >= 32)
         return;
-    seenPtr[seenN++] = (void*)panel;
+    g_nameHits++;
+    LvLogf("LimbVigor: dump widget-like %s name='%s'", where, name);
+}
+
+/* Read-only: GameStr at the object and a few nearby offsets. No virtuals. */
+static void lvDumpWidgetHints(void* obj, const char* tag)
+{
+    if (!obj)
+        return;
+    static const int kOff[] = { 0, 8, 16, 24, 32, 40, 48, 0x28, 0x58, -1 };
+    char where[80];
+    for (int i = 0; kOff[i] >= 0; ++i)
+    {
+        char buf[96];
+        buf[0] = 0;
+        LV_TRY { GameStrRead((const char*)obj + kOff[i], buf, (int)sizeof(buf)); }
+        LV_EXCEPT { buf[0] = 0; }
+        if (buf[0])
+        {
+            std::snprintf(where, sizeof(where), "%s+0x%X", tag, kOff[i]);
+            lvDumpNameHit(where, buf);
+        }
+        void* child = nullptr;
+        LV_TRY { std::memcpy(&child, (const char*)obj + kOff[i], sizeof(child)); }
+        LV_EXCEPT { child = nullptr; }
+        if (!child || child == obj)
+            continue;
+        buf[0] = 0;
+        LV_TRY { GameStrRead(child, buf, (int)sizeof(buf)); }
+        LV_EXCEPT { buf[0] = 0; }
+        if (buf[0])
+        {
+            std::snprintf(where, sizeof(where), "%s+0x%X->", tag, kOff[i]);
+            lvDumpNameHit(where, buf);
+        }
+        buf[0] = 0;
+        LV_TRY { GameStrRead((const char*)child + 0x28, buf, (int)sizeof(buf)); }
+        LV_EXCEPT { buf[0] = 0; }
+        if (buf[0])
+        {
+            std::snprintf(where, sizeof(where), "%s+0x%X->+0x28", tag, kOff[i]);
+            lvDumpNameHit(where, buf);
+        }
+    }
+}
+
+static void lvDumpSummary()
+{
+    if (g_dumpSummary)
+        return;
+    if (!g_extraDump || g_dumpSeenN < 1)
+        return;
+    g_dumpSummary = 1;
+    if (g_dumpBlood)
+        LvLog("LimbVigor: dump saw live key Blood — not painting this build");
+    else
+        LvLog("LimbVigor: dump: no DatapanelGUI has live key Blood — not painting");
+}
+
+static void lvDumpOnePanel(DatapanelGUI* panel, const char* src)
+{
+    if (!panel || lvDumpSeen((void*)panel))
+        return;
 
     void* med = lvMedicalPanel();
     const int match = (med && (void*)panel == med) ? 1 : 0;
-    const int liveBlood = lvBloodCat(panel);
-    const int lie = lvLineExists(panel, "Blood", liveBlood >= 0 ? liveBlood : 0);
-    LvLogf("LimbVigor: panel=%p medicalPanel=%p match=%d liveBlood=%d lineExists(Blood)=%d",
-           (void*)panel, med, match, liveBlood, lie);
+    LvLogf("LimbVigor: dump panel=%p medicalPanel=%p match=%d src=%s",
+           (void*)panel, med, match, src ? src : "?");
 
+    int liveBlood = 0;
     if (!g_numLines)
+    {
+        LvLog("LimbVigor: dump getNumLines missing");
         return;
+    }
     for (int cat = 0; cat < 4; ++cat)
     {
         int n = 0;
+        int seh = 0;
         LV_TRY { n = g_numLines(panel, cat); }
-        LV_EXCEPT { n = 0; }
-        if (n <= 0)
+        LV_EXCEPT { n = 0; seh = 1; }
+        if (seh)
+        {
+            LvLogf("LimbVigor: dump getNumLines(%d)=SEH", cat);
             continue;
-        LvLogf("LimbVigor: getNumLines(%d)=%d", cat, n);
-        if (!g_lineByNum)
+        }
+        LvLogf("LimbVigor: dump getNumLines(%d)=%d", cat, n);
+        if (n <= 0 || !g_lineByNum)
             continue;
         for (int i = 0; i < n && i < 24; ++i)
         {
@@ -812,9 +827,56 @@ void LvWalkSelPanel(DatapanelGUI* panel)
             char buf[96];
             if (!lvReadLineKey(line, buf, (int)sizeof(buf)))
                 continue;
-            LvLogf("LimbVigor: line[%d][%d] key='%s'", cat, i, buf);
+            LvLogf("LimbVigor: dump line[%d][%d] key='%s'", cat, i, buf);
+            if (std::strcmp(buf, "Blood") == 0)
+            {
+                liveBlood = 1;
+                g_dumpBlood = 1;
+            }
         }
     }
+    if (liveBlood)
+        LvLogf("LimbVigor: dump panel=%p has live key Blood", (void*)panel);
+    else
+        LvLogf("LimbVigor: dump panel=%p has no live key Blood", (void*)panel);
+
+    lvDumpWidgetHints((void*)panel, "panel");
+}
+
+static void lvDumpExtrasOnce()
+{
+    if (g_extraDump)
+        return;
+    g_extraDump = 1;
+
+    void* med = lvMedicalPanel();
+    if (med)
+        lvDumpOnePanel((DatapanelGUI*)med, "medicalPanel");
+    else
+        LvLog("LimbVigor: dump medicalPanel=null");
+
+    void* bar = lvMainBar();
+    if (bar)
+        lvDumpWidgetHints(bar, "mainbar");
+    else
+        LvLog("LimbVigor: dump mainbar=null");
+
+    lvDumpSummary();
+}
+
+void LvWalkSelPanel(DatapanelGUI* panel)
+{
+    if (!panel || !LvWorldInGame())
+        return;
+    lvDumpOnePanel(panel, "hook");
+    lvDumpExtrasOnce();
+    if (g_dumpBlood && !g_dumpSummary)
+    {
+        g_dumpSummary = 1;
+        LvLog("LimbVigor: dump saw live key Blood — not painting this build");
+    }
+    else
+        lvDumpSummary();
 }
 
 static void lvRemoveKey(DatapanelGUI* panel, const char* key, int cat)
@@ -848,144 +910,17 @@ void LvClearHud(DatapanelGUI* panel)
 
 void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
 {
-    if (!panel || !snap || !LvCfg().enableHud)
+    (void)med;
+    (void)snap;
+    /* v1.14 is a probe. Do not guess-paint Goal/State. Do not write
+     * Hemolymph until a dump line shows live key Blood on this panel. */
+    if (!panel || !LvWorldInGame())
         return;
-    if (!LvWorldInGame())
+    if (lvLiveKeyCat(panel, "Blood") < 0)
         return;
-    /* Selection info panel + the body this panel is drawing. Never C / skills. */
-    if (!LvPanelIsLeftMedical(panel))
-        return;
-    if (!LvIsPlayerSquad(LvCharFromMed(med)))
-        return;
-    if (snap->race == RACE_ANIMAL)
-    {
-        LvClearHud(panel);
-        return;
-    }
-
-    int cat = lvBloodCat(panel);
-    if (cat < 0)
-    {
-        lvNoneExists();
-        return;
-    }
-    if (!g_setLineProg)
-    {
-        lvNoneExists();
-        return;
-    }
-
-    const char* key1 = LvHudResourceKey(snap);
-    if (!key1 || !key1[0] || IsReservedKey(key1) || IsBannedHudKey(key1))
-    {
-        lvNoneExists();
-        return;
-    }
-
-    static const char* kKeep[] = {
-        "Blood", "Head", "Hunger",
-        "Left Arm", "Right Arm", "Left Leg", "Right Leg",
-        nullptr
-    };
-    int had[8] = {};
-    for (int i = 0; kKeep[i] && i < 8; ++i)
-        had[i] = (lvLiveKeyCat(panel, kKeep[i]) == cat) ? 1 : 0;
-
-    char bar1[96], bar2[96], limbKey[32];
-    float fill1 = 0.f, fill2 = 0.f;
-    LvHudLines(snap, bar1, (int)sizeof(bar1), &fill1, bar2, (int)sizeof(bar2), &fill2, limbKey, (int)sizeof(limbKey));
-    if (!bar1[0])
-    {
-        lvNoneExists();
-        return;
-    }
-    if (fill1 < 0.f) fill1 = 0.f;
-    if (fill1 > 1.f) fill1 = 1.f;
-
-    GameStr gkey, gtext;
-    GameStrSet(&gkey, key1);
-    GameStrSet(&gtext, bar1);
-
-    int excepted = 0;
-    LV_TRY { g_setLineProg(panel, &gkey, cat, fill1, &gtext, true); }
-    LV_EXCEPT { excepted = 1; }
-    if (excepted)
-    {
-        if (!g_paintSehOnce)
-        {
-            g_paintSehOnce = 1;
-            LvErr("LimbVigor: setLineProgress SEH — will retry when Blood is a live row");
-        }
-        return;
-    }
-
-    static const char* kLimbKeys[] = {
-        "left leg", "right leg", "left arm", "right arm", nullptr
-    };
-    if (bar2[0] && limbKey[0] && !IsReservedKey(limbKey) && !IsBannedHudKey(limbKey))
-    {
-        if (fill2 < 0.f) fill2 = 0.f;
-        if (fill2 > 1.f) fill2 = 1.f;
-        GameStr lkey, ltext;
-        GameStrSet(&lkey, limbKey);
-        GameStrSet(&ltext, bar2);
-        LV_TRY { g_setLineProg(panel, &lkey, cat, fill2, &ltext, true); }
-        LV_EXCEPT { excepted = 1; }
-        if (excepted)
-        {
-            if (!g_paintSehOnce)
-            {
-                g_paintSehOnce = 1;
-                LvErr("LimbVigor: setLineProgress SEH — stump row, will retry");
-            }
-            return;
-        }
-        for (int i = 0; kLimbKeys[i]; ++i)
-        {
-            if (!KeyEqI(kLimbKeys[i], limbKey))
-            {
-                int oc = lvLiveKeyCat(panel, kLimbKeys[i]);
-                if (oc >= 0)
-                    lvRemoveKey(panel, kLimbKeys[i], oc);
-            }
-        }
-    }
-    else
-    {
-        for (int i = 0; kLimbKeys[i]; ++i)
-        {
-            int oc = lvLiveKeyCat(panel, kLimbKeys[i]);
-            if (oc >= 0)
-                lvRemoveKey(panel, kLimbKeys[i], oc);
-        }
-    }
-    {
-        int oc = lvLiveKeyCat(panel, "Regrowth");
-        if (oc >= 0) lvRemoveKey(panel, "Regrowth", oc);
-        oc = lvLiveKeyCat(panel, "Wait");
-        if (oc >= 0) lvRemoveKey(panel, "Wait", oc);
-    }
-
-    int ate = 0;
-    if (lvLiveKeyCat(panel, "Blood") != cat)
-        ate = 1;
-    for (int i = 0; kKeep[i] && i < 8; ++i)
-    {
-        if (had[i] && lvLiveKeyCat(panel, kKeep[i]) != cat)
-            ate = 1;
-    }
-    if (ate)
-    {
-        LvClearHud(panel);
-        lvNoneExists();
-        return;
-    }
-
     if (!g_paintLogged)
     {
         g_paintLogged = 1;
-        LvLogf("LimbVigor: setLineProgress %s cat=%d %s", key1, cat, bar1);
-        if (bar2[0] && limbKey[0])
-            LvLogf("LimbVigor: setLineProgress %s cat=%d %s", limbKey, cat, bar2);
+        LvLog("LimbVigor: dump saw live key Blood — not painting this build");
     }
 }

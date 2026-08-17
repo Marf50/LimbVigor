@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-Live numbers are written onto the **selection info panel** — two `setLineProgress` rows on Blood’s category: Hemolymph / Vigor / Battle-heat (`72 / 100`), then the active stump (`budding 30%  ~2h bed`). Spoken lines use `_NV_say`. I-key on the LV part is the backup. C is skills — not the HUD. Door, animal, or anything non-character: those lines are hidden. If a line cannot be added without overwriting Blood / Head / limbs / Hunger, log `LimbVigor: none exists` and ship `_NV_say` only. No layout file. No widget create.
+v1.14 does **not** guess-paint Hemolymph. After In-game it dumps every DatapanelGUI it can see (pointer, medicalPanel match, getNumLines, live keys). It will not `setLineProgress` on Goal/State, and it will not write Hemolymph until a dump line shows a live key `Blood` on that same panel. Spoken lines use `_NV_say`. I-key on the LV part is the backup. No layout file. No widget create.
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.13: paint only when a **live** `Blood` key is on the panel (`getNumLines` / `getLineByNum`). `lineExists("Blood")` lies on C/skills and empty panels. A HUD `setLineProgress` SEH is logged once and retried — it does not latch paint-dead or kill `LvTick`. Panel walks are once per pointer. Two-line lock and selected-body HUD stay. No load-time GUI hooks.
+v1.14: dump every panel key after In-game. No guess-paint on Goal/State. No `setLineProgress` unless a dump shows live `Blood` (this build still does not paint). Panel dumps are once per pointer. HUD SEH does not kill `LvTick`. No load-time GUI hooks.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 
@@ -40,7 +40,7 @@ Documented KenshiLib methods. No TitleScreen hook. No widget create.
 | Hook | Why |
 | --- | --- |
 | `MedicalSystem::medicalUpdate` | Tick vigor and growth; slot LV parts after in-game (snapshot only, no MyGUI) |
-| `MedicalSystem::getMedicalGUIData` | After orig: In-game gate first (no Character). Then two `setLineProgress` rows (resource + stump/ETA) if selected + Blood |
+| `MedicalSystem::getMedicalGUIData` | After orig: In-game gate first (no Character). Dump panel keys once. No guess-paint |
 | `Character::_NV_getGUIData` | Same after orig. In-game gate before `getMedical()`. `GetRealAddress` on `_NV_` only |
 | `MedicalSystem::applyDoctoring` | Splint Kit / stimulant starts the catalyst |
 | `InventoryItemBase::getTooltipData1` | I-key tooltip RVA `0x7A8E30` (never `GetRealAddress` on the virtual) |

@@ -13,6 +13,7 @@ int  LvAnyStump(const CharSnap* c);
 int  LvFirstStump(const CharSnap* c); // LimbId or -1, legs first
 int  LvNextStump(const CharSnap* c, int after); // next waiting stump, or -1
 int  LvHudLimbSlot(const CharSnap* c); // Line 2 socket, or -1
+void LvHeartbeatLine(const CharSnap* c, char* out, int n); // no "100% grown BLOCKED" on a live stump
 int  LvEligible(const CharSnap* c, char* why, int whySize);
 const char* LvHudResourceKey(const CharSnap* c); // Hemolymph/Vigor/Battle-heat/Limb Vigor
 

@@ -23,25 +23,22 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-Select a character. The left medical list (Blood)
-gets two rows: Hemolymph / Vigor / Battle-heat
-(72 / 100) and the active stump
-(budding 30%  ~2h bed, or the block reason).
-Spoken lines appear over the character.
+v1.14 dumps every selection DatapanelGUI
+after In-game (keys, getNumLines, match).
+It does not paint Hemolymph on Goal/State.
+It does not write a row until a dump shows
+a live key Blood on that same panel.
 
-I-key on a stump/bud/knit/grown item is the backup.
-C is skills. Door / building: no medical row.
+Spoken lines appear over the character.
+I-key on a stump/bud/knit/grown item is
+the backup.
 
 This build does not create widgets. No layout file.
 
-v1.13: real Blood row only, HUD SEH does
-not kill growth, two-line medicalPanel.
-Paint only if a live Blood key is on the
-vitals list (not C/skills, not empty
-getNumLines). A HUD except retries; growth
-keeps ticking. No walk spam. Hired squad
-still gets the two lines. No ctor / font /
-_NV_update / _NV_setObject.
+v1.14: dump every panel key after In-game,
+no guess-paint, no load-time GUI hooks.
+HUD SEH does not kill growth. No walk spam.
+No ctor / font / _NV_update / _NV_setObject.
 
 Overwrite both LimbVigor.dll and LimbVigor.mod. Keep
 LimbVigor.progress.

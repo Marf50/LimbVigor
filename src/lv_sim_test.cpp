@@ -255,6 +255,40 @@ int main()
     }
 
     {
+        /* Persist 100% while the socket is still a stump: not Grown. */
+        CharSnap c = Hive();
+        std::snprintf(c.name, sizeof(c.name), "%s", "Boop");
+        c.limbs[LIMB_RIGHT_LEG] = LIMB_KIND_WHOLE;
+        c.limbs[LIMB_LEFT_LEG] = LIMB_KIND_STUMP;
+        c.progress[LIMB_LEFT_LEG] = 100.f;
+        c.lastStage[LIMB_LEFT_LEG] = 4;
+        c.vigor = 100.f;
+        c.starving = 1;
+        char bar1[96], bar2[96], tip[64], beat[192];
+        float f1 = 0.f, f2 = 0.f;
+        LvHudLines(&c, bar1, 96, &f1, bar2, 96, &f2, tip, 64);
+        Expect(std::strcmp(tip, "left leg") == 0, "persist 100% stump keeps Line 2");
+        Expect(std::strcmp(bar2, "Starving. Nothing left to grow with.") == 0,
+            "starving copy is the block line, not grown BLOCKED");
+        Expect(std::strstr(bar2, "grown") == nullptr, "do not paint grown on a live stump");
+        Expect(std::strstr(bar2, "100%") == nullptr, "do not paint 100% on a live stump");
+        Expect(f2 == 0.f, "blocked persist-100% stump fill is empty");
+        LvHeartbeatLine(&c, beat, 192);
+        Expect(std::strstr(beat, "Starving. Nothing left to grow with.") != nullptr,
+            "heartbeat starving is the block line");
+        Expect(std::strstr(beat, "grown") == nullptr, "heartbeat does not say grown on a stump");
+        Expect(std::strstr(beat, "BLOCKED") == nullptr, "heartbeat does not say BLOCKED when persist 100%");
+        c.starving = 0;
+        c.fed = 1;
+        LvHeartbeatLine(&c, beat, 192);
+        Expect(std::strstr(beat, "still a stump") != nullptr, "heartbeat retries LV Grown on a persist-100% stump");
+        Expect(std::strstr(beat, "grown  BLOCKED") == nullptr, "heartbeat does not say 100% grown BLOCKED");
+        LvHudLines(&c, bar1, 96, &f1, bar2, 96, &f2, tip, 64);
+        Expect(std::strstr(bar2, "grown") == nullptr, "eligible persist-100% stump is not grown 100%");
+        Expect(std::strstr(bar2, "knitting") == bar2, "eligible persist-100% stump shows knitting");
+    }
+
+    {
         CharSnap c = Hive();
         c.limbs[LIMB_RIGHT_LEG] = LIMB_KIND_WHOLE;
         c.limbs[LIMB_LEFT_LEG] = LIMB_KIND_STUMP;
