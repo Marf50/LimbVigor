@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.14 — dump every panel key after In-game, no guess-paint, no load-time GUI hooks");
+        LvLog("LimbVigor: ready v1.15 — full MyGUI tree dump after In-game, no paint, no load-time GUI hooks");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

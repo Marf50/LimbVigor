@@ -406,8 +406,13 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
     if (!LvWorldInGame())
         return;
 
-    /* Probe only: dump keys. No setLineProgress. No Goal/State fallback. */
-    LvWalkSelPanel(panel);
+    /* Probe only. Walk SEH is isolated — must not skip Bind / growth. */
+    LV_TRY { LvWalkSelPanel(panel); }
+    LV_EXCEPT
+    {
+        static int once = 0;
+        if (!once) { LvErr("LimbVigor: GUI walk SEH — growth continues"); once = 1; }
+    }
 
     CharSnap* live = nullptr;
     if (med)

@@ -34,6 +34,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <cstddef>
 
 #if defined(_MSC_VER)
 #define LV_TRY    __try
@@ -676,7 +677,6 @@ int LvPanelHasBlood(DatapanelGUI* panel)
 static int g_dumpBlood = 0;
 static int g_dumpSummary = 0;
 static int g_extraDump = 0;
-static int g_nameHits = 0;
 static void* g_dumpSeen[24] = {};
 static int g_dumpSeenN = 0;
 
@@ -693,85 +693,6 @@ static int lvDumpSeen(void* p)
         return 1;
     g_dumpSeen[g_dumpSeenN++] = p;
     return 0;
-}
-
-static int lvNameLooksMedical(const char* s)
-{
-    if (!s || !s[0])
-        return 0;
-    char low[96];
-    int n = 0;
-    for (; s[n] && n < 95; ++n)
-    {
-        char c = s[n];
-        if (c >= 'A' && c <= 'Z')
-            c = (char)(c + 32);
-        if (c < 32 || c > 126)
-            return 0;
-        low[n] = c;
-    }
-    low[n] = 0;
-    if (n < 3 || n > 48)
-        return 0;
-    return (std::strstr(low, "blood")
-         || std::strstr(low, "head")
-         || std::strstr(low, "hunger")
-         || std::strstr(low, "lifebar")
-         || std::strstr(low, "medical")
-         || std::strstr(low, "left leg")
-         || std::strstr(low, "right leg")
-         || std::strstr(low, "left arm")
-         || std::strstr(low, "right arm")) ? 1 : 0;
-}
-
-static void lvDumpNameHit(const char* where, const char* name)
-{
-    if (!lvNameLooksMedical(name) || g_nameHits >= 32)
-        return;
-    g_nameHits++;
-    LvLogf("LimbVigor: dump widget-like %s name='%s'", where, name);
-}
-
-/* Read-only: GameStr at the object and a few nearby offsets. No virtuals. */
-static void lvDumpWidgetHints(void* obj, const char* tag)
-{
-    if (!obj)
-        return;
-    static const int kOff[] = { 0, 8, 16, 24, 32, 40, 48, 0x28, 0x58, -1 };
-    char where[80];
-    for (int i = 0; kOff[i] >= 0; ++i)
-    {
-        char buf[96];
-        buf[0] = 0;
-        LV_TRY { GameStrRead((const char*)obj + kOff[i], buf, (int)sizeof(buf)); }
-        LV_EXCEPT { buf[0] = 0; }
-        if (buf[0])
-        {
-            std::snprintf(where, sizeof(where), "%s+0x%X", tag, kOff[i]);
-            lvDumpNameHit(where, buf);
-        }
-        void* child = nullptr;
-        LV_TRY { std::memcpy(&child, (const char*)obj + kOff[i], sizeof(child)); }
-        LV_EXCEPT { child = nullptr; }
-        if (!child || child == obj)
-            continue;
-        buf[0] = 0;
-        LV_TRY { GameStrRead(child, buf, (int)sizeof(buf)); }
-        LV_EXCEPT { buf[0] = 0; }
-        if (buf[0])
-        {
-            std::snprintf(where, sizeof(where), "%s+0x%X->", tag, kOff[i]);
-            lvDumpNameHit(where, buf);
-        }
-        buf[0] = 0;
-        LV_TRY { GameStrRead((const char*)child + 0x28, buf, (int)sizeof(buf)); }
-        LV_EXCEPT { buf[0] = 0; }
-        if (buf[0])
-        {
-            std::snprintf(where, sizeof(where), "%s+0x%X->+0x28", tag, kOff[i]);
-            lvDumpNameHit(where, buf);
-        }
-    }
 }
 
 static void lvDumpSummary()
@@ -839,8 +760,6 @@ static void lvDumpOnePanel(DatapanelGUI* panel, const char* src)
         LvLogf("LimbVigor: dump panel=%p has live key Blood", (void*)panel);
     else
         LvLogf("LimbVigor: dump panel=%p has no live key Blood", (void*)panel);
-
-    lvDumpWidgetHints((void*)panel, "panel");
 }
 
 static void lvDumpExtrasOnce()
@@ -855,14 +774,328 @@ static void lvDumpExtrasOnce()
     else
         LvLog("LimbVigor: dump medicalPanel=null");
 
-    void* bar = lvMainBar();
-    if (bar)
-        lvDumpWidgetHints(bar, "mainbar");
-    else
-        LvLog("LimbVigor: dump mainbar=null");
-
     lvDumpSummary();
 }
+
+#if !defined(LIMBVIGOR_IDE)
+/* Read-only MyGUI walk via MyGUIEngine exports. No createWidget.
+ * getName/getChildCount/getChildAt/getParent/getVisible live in the DLL
+ * (not inline). Names are GameStr-read — we never touch std::string.
+ * No GetRealAddress on virtuals. */
+
+typedef void*         (*FnGuiInst)();
+typedef const void*   (*FnGetName)(void* self);
+typedef std::size_t   (*FnChildN)(void* self);
+typedef void*         (*FnChildAt)(void* self, std::size_t i);
+typedef void*         (*FnParent)(void* self);
+typedef unsigned char (*FnVisible)(void* self);
+
+static FnGuiInst  g_guiInst  = nullptr;
+static FnGetName  g_wName    = nullptr;
+static FnChildN   g_wCount   = nullptr;
+static FnChildAt  g_wAt      = nullptr;
+static FnParent   g_wParent  = nullptr;
+static FnVisible  g_wVis     = nullptr;
+static int        g_myguiOk  = 0;
+static int        g_myguiDump = 0;
+
+static void* lvProc(HMODULE mod, const char* a, const char* b)
+{
+    void* p = (void*)GetProcAddress(mod, a);
+    if (!p && b)
+        p = (void*)GetProcAddress(mod, b);
+    return p;
+}
+
+static int lvResolveMyGui()
+{
+    if (g_myguiOk)
+        return 1;
+    HMODULE mod = GetModuleHandleA("MyGUIEngine_x64.dll");
+    if (!mod)
+        mod = GetModuleHandleA("MyGUIEngine.dll");
+    if (!mod)
+    {
+        LvLog("LimbVigor: mygui dump skipped — MyGUIEngine not loaded");
+        return 0;
+    }
+    g_guiInst = (FnGuiInst)lvProc(mod,
+        "?getInstancePtr@Gui@MyGUI@@SAPEAV12@XZ",
+        "?getInstancePtr@Gui@MyGUI@@SAPAV12@XZ");
+    g_wName = (FnGetName)lvProc(mod,
+        "?getName@Widget@MyGUI@@QEBAAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@XZ",
+        "?getName@Widget@MyGUI@@QBEABV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@XZ");
+    g_wCount = (FnChildN)lvProc(mod,
+        "?getChildCount@Widget@MyGUI@@QEAA_KXZ",
+        "?getChildCount@Widget@MyGUI@@QAEIXZ");
+    g_wAt = (FnChildAt)lvProc(mod,
+        "?getChildAt@Widget@MyGUI@@QEAAPEAV12@_K@Z",
+        "?getChildAt@Widget@MyGUI@@QAEPAV12@I@Z");
+    g_wParent = (FnParent)lvProc(mod,
+        "?getParent@Widget@MyGUI@@QEBAPEAV12@XZ",
+        "?getParent@Widget@MyGUI@@QBEPAV12@XZ");
+    g_wVis = (FnVisible)lvProc(mod,
+        "?getVisible@Widget@MyGUI@@QEBA_NXZ",
+        "?getVisible@Widget@MyGUI@@QBE_NXZ");
+    if (!g_guiInst || !g_wName || !g_wCount || !g_wAt || !g_wParent || !g_wVis)
+    {
+        LvLog("LimbVigor: mygui dump skipped — exports missing");
+        return 0;
+    }
+    g_myguiOk = 1;
+    return 1;
+}
+
+static int lvWidgetName(void* w, char* out, int n)
+{
+    if (!w || !g_wName || !out || n < 2)
+        return 0;
+    out[0] = 0;
+    const void* s = nullptr;
+    int seh = 0;
+    LV_TRY { s = g_wName(w); }
+    LV_EXCEPT { s = nullptr; seh = 1; }
+    if (seh || !s)
+        return 0;
+    GameStrRead(s, out, n);
+    return 1;
+}
+
+static int lvLooksLikeType(const char* s)
+{
+    if (!s || !s[0])
+        return 0;
+    int n = 0;
+    if (!((s[0] >= 'A' && s[0] <= 'Z') || (s[0] >= 'a' && s[0] <= 'z')))
+        return 0;
+    for (; s[n]; ++n)
+    {
+        char c = s[n];
+        if (n > 40)
+            return 0;
+        if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+           || (c >= '0' && c <= '9') || c == '_'))
+            return 0;
+    }
+    return n >= 3 ? 1 : 0;
+}
+
+/* IObject::getTypeName is vtable[1] after the dtor. Call that slot only.
+ * Do not probe other slots (could run a destructor or a write). */
+static void lvWidgetType(void* w, char* out, int n)
+{
+    if (out && n > 0)
+        out[0] = 0;
+    if (!w || !out || n < 2)
+        return;
+    void** vt = nullptr;
+    LV_TRY { std::memcpy(&vt, w, sizeof(vt)); }
+    LV_EXCEPT { vt = nullptr; }
+    if (!vt || !vt[1])
+        return;
+    char buf[64];
+    buf[0] = 0;
+    int ok = 0;
+    LV_TRY
+    {
+        const void* s = ((FnGetName)vt[1])(w);
+        if (s && GameStrRead(s, buf, (int)sizeof(buf)) && lvLooksLikeType(buf))
+            ok = 1;
+    }
+    LV_EXCEPT { ok = 0; }
+    if (ok)
+        std::snprintf(out, (size_t)n, "%s", buf);
+}
+
+static int lvIsWidget(void* w)
+{
+    if (!w)
+        return 0;
+    char n[8];
+    return lvWidgetName(w, n, (int)sizeof(n));
+}
+
+static int lvVecAt(void* obj, int off, void*** start, int* count)
+{
+    void** s = nullptr;
+    void** e = nullptr;
+    void** c = nullptr;
+    LV_TRY
+    {
+        std::memcpy(&s, (const char*)obj + off, sizeof(s));
+        std::memcpy(&e, (const char*)obj + off + (int)sizeof(void*), sizeof(e));
+        std::memcpy(&c, (const char*)obj + off + 2 * (int)sizeof(void*), sizeof(c));
+    }
+    LV_EXCEPT { return 0; }
+    if (!s || !e || e < s || !c || c < e)
+        return 0;
+    const std::ptrdiff_t bytes = (char*)e - (char*)s;
+    if (bytes <= 0 || (bytes % (int)sizeof(void*)) != 0)
+        return 0;
+    const int n = (int)(bytes / (int)sizeof(void*));
+    if (n < 1 || n > 256)
+        return 0;
+    *start = s;
+    *count = n;
+    return 1;
+}
+
+static int lvSeenHas(void** seen, int n, void* p)
+{
+    for (int i = 0; i < n; ++i)
+        if (seen[i] == p)
+            return 1;
+    return 0;
+}
+
+static void lvEnqueueKids(void* w, void** q, int* qn, int qmax, void** seen, int seenN)
+{
+    if (!w)
+        return;
+    if (g_wCount && g_wAt)
+    {
+        std::size_t n = 0;
+        int seh = 0;
+        LV_TRY { n = g_wCount(w); }
+        LV_EXCEPT { n = 0; seh = 1; }
+        if (!seh && n > 0 && n <= 256)
+        {
+            for (std::size_t i = 0; i < n && *qn < qmax; ++i)
+            {
+                void* c = nullptr;
+                LV_TRY { c = g_wAt(w, i); }
+                LV_EXCEPT { c = nullptr; }
+                if (!c || lvSeenHas(seen, seenN, c) || lvSeenHas(q, *qn, c))
+                    continue;
+                if (lvIsWidget(c))
+                    q[(*qn)++] = c;
+            }
+        }
+    }
+    for (int off = 0; off <= 0x1C0; off += (int)sizeof(void*))
+    {
+        void** start = nullptr;
+        int n = 0;
+        if (!lvVecAt(w, off, &start, &n))
+            continue;
+        int good = 0;
+        for (int i = 0; i < n && i < 8; ++i)
+        {
+            if (lvIsWidget(start[i]))
+                good++;
+        }
+        if (good < 1)
+            continue;
+        for (int i = 0; i < n && *qn < qmax; ++i)
+        {
+            void* c = start[i];
+            if (!c || lvSeenHas(seen, seenN, c) || lvSeenHas(q, *qn, c))
+                continue;
+            if (lvIsWidget(c))
+                q[(*qn)++] = c;
+        }
+    }
+}
+
+static void lvDumpMyGuiOnce()
+{
+    if (g_myguiDump)
+        return;
+    g_myguiDump = 1;
+    if (!LvWorldInGame())
+        return;
+    if (!lvResolveMyGui())
+        return;
+
+    void* gui = nullptr;
+    LV_TRY { gui = g_guiInst(); }
+    LV_EXCEPT { gui = nullptr; }
+    if (!gui)
+    {
+        LvLog("LimbVigor: mygui dump skipped — Gui instance null");
+        return;
+    }
+
+    const int kMax = 1500;
+    const int kLog = 400;
+    void* seen[1500];
+    void* q[1500];
+    int seenN = 0;
+    int qn = 0;
+
+    for (int off = 0; off <= 0x80; off += (int)sizeof(void*))
+    {
+        void** start = nullptr;
+        int n = 0;
+        if (!lvVecAt(gui, off, &start, &n))
+            continue;
+        int good = 0;
+        for (int i = 0; i < n && i < 8; ++i)
+            if (lvIsWidget(start[i]))
+                good++;
+        if (good < 1)
+            continue;
+        for (int i = 0; i < n && qn < kMax; ++i)
+        {
+            void* c = start[i];
+            if (c && !lvSeenHas(q, qn, c) && lvIsWidget(c))
+                q[qn++] = c;
+        }
+    }
+    if (qn == 0)
+    {
+        LvLog("LimbVigor: mygui dump — no root widgets on Gui");
+        return;
+    }
+
+    LvLog("LimbVigor: mygui tree dump begin");
+    int logged = 0;
+    int qi = 0;
+    while (qi < qn && seenN < kMax)
+    {
+        void* w = q[qi++];
+        if (!w || lvSeenHas(seen, seenN, w))
+            continue;
+        seen[seenN++] = w;
+
+        char name[96];
+        char type[64];
+        char pname[96];
+        name[0] = 0;
+        type[0] = 0;
+        pname[0] = 0;
+        lvWidgetName(w, name, (int)sizeof(name));
+        lvWidgetType(w, type, (int)sizeof(type));
+        void* par = nullptr;
+        LV_TRY { par = g_wParent(w); }
+        LV_EXCEPT { par = nullptr; }
+        if (par)
+            lvWidgetName(par, pname, (int)sizeof(pname));
+        int vis = 0;
+        LV_TRY { vis = g_wVis(w) ? 1 : 0; }
+        LV_EXCEPT { vis = 0; }
+        std::size_t kids = 0;
+        LV_TRY { kids = g_wCount(w); }
+        LV_EXCEPT { kids = 0; }
+        if (kids > 256)
+            kids = 256;
+
+        if (logged < kLog)
+        {
+            LvLogf("LimbVigor: mygui name='%s' type='%s' parent='%s' visible=%d children=%u",
+                   name, type[0] ? type : "?", pname, vis, (unsigned)kids);
+            logged++;
+        }
+        lvEnqueueKids(w, q, &qn, kMax, seen, seenN);
+    }
+    if (logged >= kLog)
+        LvLogf("LimbVigor: mygui tree dump capped at %d (visited=%d queued=%d)",
+               kLog, seenN, qn);
+    LvLogf("LimbVigor: mygui tree dump end visited=%d logged=%d", seenN, logged);
+}
+#else
+static void lvDumpMyGuiOnce() {}
+#endif
 
 void LvWalkSelPanel(DatapanelGUI* panel)
 {
@@ -877,6 +1110,7 @@ void LvWalkSelPanel(DatapanelGUI* panel)
     }
     else
         lvDumpSummary();
+    lvDumpMyGuiOnce();
 }
 
 static void lvRemoveKey(DatapanelGUI* panel, const char* key, int cat)
@@ -912,8 +1146,7 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
 {
     (void)med;
     (void)snap;
-    /* v1.14 is a probe. Do not guess-paint Goal/State. Do not write
-     * Hemolymph until a dump line shows live key Blood on this panel. */
+    /* v1.15 probe: never paint. */
     if (!panel || !LvWorldInGame())
         return;
     if (lvLiveKeyCat(panel, "Blood") < 0)

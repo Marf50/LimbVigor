@@ -2,12 +2,12 @@
 
 #include "lv_config.h"
 
-// I-key tooltip snapshot only. v1.14 dumps DatapanelGUI keys; it does
-// not guess-paint. No MyGUI create. No layout file.
+// I-key tooltip snapshot only. v1.15 dumps Datapanel keys + one MyGUI
+// tree. No paint. No MyGUI create. No layout file.
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: HUD is after-orig dump — no guess-paint, no load-time GUI hooks");
+    LvLog("LimbVigor: HUD is after-orig dump — no paint, no load-time GUI hooks");
 }
 
 void LvHudEnsureAfterInGame() {}

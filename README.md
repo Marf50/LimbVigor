@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-v1.14 does **not** guess-paint Hemolymph. After In-game it dumps every DatapanelGUI it can see (pointer, medicalPanel match, getNumLines, live keys). It will not `setLineProgress` on Goal/State, and it will not write Hemolymph until a dump line shows a live key `Blood` on that same panel. Spoken lines use `_NV_say`. I-key on the LV part is the backup. No layout file. No widget create.
+v1.15 does **not** paint Hemolymph. After In-game it dumps every DatapanelGUI (pointer, medicalPanel match, getNumLines, live keys) and one full MyGUI tree (`name`, `type`, `parent`, `visible`, `children`, cap 400). No `setLineProgress`. Spoken lines use `_NV_say`. I-key on the LV part is the backup. No layout file. No widget create.
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.14: dump every panel key after In-game. No guess-paint on Goal/State. No `setLineProgress` unless a dump shows live `Blood` (this build still does not paint). Panel dumps are once per pointer. HUD SEH does not kill `LvTick`. No load-time GUI hooks.
+v1.15: full MyGUI tree dump after In-game, plus the v1.14 Datapanel key dump. No paint. Walk is once, on the after-orig GUI path only, after `LvWorldInGame`. Walk SEH does not kill `LvTick`. No load-time GUI hooks.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 
@@ -40,7 +40,7 @@ Documented KenshiLib methods. No TitleScreen hook. No widget create.
 | Hook | Why |
 | --- | --- |
 | `MedicalSystem::medicalUpdate` | Tick vigor and growth; slot LV parts after in-game (snapshot only, no MyGUI) |
-| `MedicalSystem::getMedicalGUIData` | After orig: In-game gate first (no Character). Dump panel keys once. No guess-paint |
+| `MedicalSystem::getMedicalGUIData` | After orig: In-game gate first (no Character). Dump panel keys + one MyGUI tree. No paint |
 | `Character::_NV_getGUIData` | Same after orig. In-game gate before `getMedical()`. `GetRealAddress` on `_NV_` only |
 | `MedicalSystem::applyDoctoring` | Splint Kit / stimulant starts the catalyst |
 | `InventoryItemBase::getTooltipData1` | I-key tooltip RVA `0x7A8E30` (never `GetRealAddress` on the virtual) |
@@ -59,7 +59,7 @@ src/lv_hooks.cpp      medical + I-key tooltip hooks
 src/lv_config.cpp     LimbVigor.cfg / config.ini
 src/lv_persist.cpp    LimbVigor.progress
 src/lv_parts.cpp      growth-stage LimbReplacement catalog + equip
-src/lv_hud.cpp        I-key snapshot only (no MyGUI walk, no layout)
+src/lv_hud.cpp        I-key snapshot only (no layout)
 src/lv_sim_test.cpp   headless checks (also run in CI)
 ```
 
