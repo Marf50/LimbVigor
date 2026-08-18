@@ -55,11 +55,11 @@
                 <Property key="TextAlign" value="Center"/>
             </Widget>
         </Widget>
-        <Widget type="Widget" skin="Kenshi_SpeedPanelSkin" position_real="0.74791663885116577 0.6796296238899231 0.11041666567325592 0.075000002980232239" name="SpeedButtonsPanel">
-            <Widget type="Button" skin="Kenshi_TimeSpeedButton1Skin" position_real="0.047169812023639679 0.27160492539405823 0.22641509771347046 0.61728394031524658" name="TimeSpeedButton1"/>
-            <Widget type="Button" skin="Kenshi_TimeSpeedButton2Skin" position_real="0.27358490228652954 0.27160492539405823 0.22641509771347046 0.61728394031524658" name="TimeSpeedButton2"/>
-            <Widget type="Button" skin="Kenshi_TimeSpeedButton3Skin" position_real="0.5 0.27160492539405823 0.22641509771347046 0.61728394031524658" name="TimeSpeedButton3"/>
-            <Widget type="Button" skin="Kenshi_TimeSpeedButton4Skin" position_real="0.72641509771347046 0.27160492539405823 0.22641509771347046 0.61728394031524658" name="TimeSpeedButton4"/>
+        <Widget type="Widget" skin="Kenshi_SpeedPanelSkin" position_real="0.74791663885116577 0.76203703880310059 0.10729166865348816 0.057407408952713013" name="SpeedButtonsPanel">
+            <Widget type="Button" skin="Kenshi_TimeSpeedButton1Skin" position_real="0.043689321726560593 0.11290322244167328 0.22815534472465515 0.80645161867141724" name="TimeSpeedButton1"/>
+            <Widget type="Button" skin="Kenshi_TimeSpeedButton2Skin" position_real="0.27184465527534485 0.11290322244167328 0.22815534472465515 0.80645161867141724" name="TimeSpeedButton2"/>
+            <Widget type="Button" skin="Kenshi_TimeSpeedButton3Skin" position_real="0.5 0.11290322244167328 0.21844659745693207 0.80645161867141724" name="TimeSpeedButton3"/>
+            <Widget type="Button" skin="Kenshi_TimeSpeedButton4Skin" position_real="0.71844661235809326 0.11290322244167328 0.23786407709121704 0.80645161867141724" name="TimeSpeedButton4"/>
         </Widget>
         <Widget type="Widget" skin="Kenshi_TimeMoneyPanelSkin" position_real="0.85364586114883423 0.76111114025115967 0.10468749701976776 0.06111111119389534" name="TimeMoneyPanel">
             <Widget type="TextBox" skin="Kenshi_TextboxStandardText" position_real="0.089552238583564758 0.13636364042758942 0.31840795278549194 0.28787878155708313" align="Left Top" name="MoneyLabelText">
@@ -186,7 +186,6 @@
                     <Widget type="Widget" skin="Kenshi_LifeBarCrushedSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar9Crushed"/>
                     <Widget type="Widget" skin="PanelEmpty" position_real="0 0.1304347813129425 0.99579828977584839 0.73913043737411499" name="LifeBar9Datapanel"/>
                 </Widget>
-                <!-- LimbVigor v1.24: LifeBar10 after Hunger. Back grown only; 1-9 rescaled to keep pixel size. MedicalPanel unchanged. -->
                 <Widget type="Widget" skin="PanelEmpty" position_real="0.0071942447684705257 0.90495866537094116 0.85611510276794434 0.095041319727897644" name="LifeBar10">
                     <Widget type="Widget" skin="Kenshi_LifeBarStunnedSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10Grey"/>
                     <Widget type="Widget" skin="Kenshi_LifeBarHurtSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10Red"/>
@@ -237,7 +236,7 @@
                     <Property key="TextAlign" value="Center"/>
                 </Widget>
                 <Widget type="TextBox" skin="Kenshi_TextboxStandardText" position_real="0.84563755989074707 0.92307692766189575 0.12751677632331848 0.052307691425085068" name="LifeBar10Value">
-                    <Property key="Caption" value=""/>
+                    <Property key="Caption" value="100"/>
                     <Property key="TextAlign" value="Center"/>
                 </Widget>
                 <Widget type="Widget" skin="PanelEmpty" position_real="0.046979866921901703 0.10769230872392654 0.90268456935882568 0.070769228041172028" name="StatusPanel">
