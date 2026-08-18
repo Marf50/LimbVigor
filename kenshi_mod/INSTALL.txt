@@ -23,14 +23,15 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-v1.23 LifeBar10 after Hunger.
-Blood stays Blood. Do not shift
-LifeBar1-9. Widget::setCaption
-every tick on LifeBar10. Read-back
-Hemolymph. Not TextBox-on-Widget.
+v1.24 Dark UI exact + LifeBar10
+tucked. Do not grow MedicalPanel.
+Blood stays Blood and in-slot.
+Widget::setCaption every tick on
+LifeBar10. setVisible LifeBar10 /
+Value only. Read-back Hemolymph.
 No LifeBar1 overwrite. No _getWidget.
-Person only. Door clears LifeBar10
-only. No setSize.
+Person only. Door hides LifeBar10
+only. No parent scale.
 
 Spoken lines appear over the character.
 I-key on a stump/bud/knit/grown item is
@@ -41,8 +42,8 @@ gui/layout/Kenshi_MainPanel.layout
 (Dark UI override + LifeBar10).
 This build does not create widgets.
 
-v1.23: LifeBar10 after Hunger,
-no LifeBar1 overwrite.
+v1.24: Dark UI exact + LifeBar10
+tucked, no parent scale.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 

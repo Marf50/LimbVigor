@@ -3,8 +3,8 @@
 #include "lv_types.h"
 
 // I-key tooltip snapshot only. No TitleScreen. No widget create.
-// Layout: LifeBar10 after Hunger. Widget::setCaption every tick on LifeBar10.
-// Never LifeBar1. No _getWidget.
+// Layout: Dark UI exact + LifeBar10 tucked (Back only). Widget::setCaption
+// every tick on LifeBar10. setVisible LifeBar10 / LifeBar10Value only.
 void LvHudInstall();
 void LvHudEnsureAfterInGame();
 void LvHudPaint(const CharSnap* snap);

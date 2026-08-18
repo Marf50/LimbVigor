@@ -468,7 +468,7 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
         LvHudNote(live);
     }
 
-    /* After orig: Widget::setCaption every tick on LifeBar10. Never LifeBar1. Never _getWidget. */
+    /* After orig: show LifeBar10 + Widget::setCaption every tick. Never LifeBar1. Never _getWidget. */
     PaintSafe(med, who, live);
 }
 

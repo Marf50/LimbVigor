@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-v1.23 adds **LifeBar10 after Hunger** (RE_Kenshi layout override, started from Dark UI). Blood stays Blood. The rejected `46d810a` LifeBar1 overwrite is not this cut. Widget::setCaption (QEAAX) writes Hemolymph / Vigor / Battle-heat on LifeBar10 **after orig every selected-person tick**, then reads `getCaption` back. **No `_getWidget`.** See [testdoc/HUD.md](testdoc/HUD.md).
+v1.24 tucks **LifeBar10 after Hunger** on a Dark UI–exact MainPanel (workshop 1200632417). MedicalPanel is not scaled. v1.23 (`2bc122a`) grew MedicalPanel and drifted the whole HUD. Widget::setCaption (QEAAX) writes Hemolymph on LifeBar10 **after orig every selected-person tick**; `setVisible` is LifeBar10 / LifeBar10Value only. **No `_getWidget`.** See [testdoc/HUD.md](testdoc/HUD.md).
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.23: LifeBar10 after Hunger, no LifeBar1 overwrite. v1.22 LifeBar1 find+write was a no-op (TextBox-on-Widget, once-only). `46d810a` LifeBar1 overwrite is rejected.
+v1.24: Dark UI exact + LifeBar10 tucked, no parent scale. v1.23 full-layout drift is rejected. `46d810a` LifeBar1 overwrite is rejected.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 
@@ -40,7 +40,7 @@ Documented KenshiLib methods. No TitleScreen hook. No widget create.
 | Hook | Why |
 | --- | --- |
 | `MedicalSystem::medicalUpdate` | Tick vigor and growth; slot LV parts after in-game (snapshot only, no MyGUI) |
-| `MedicalSystem::getMedicalGUIData` | After orig: Widget::setCaption Hemolymph on cached LifeBar10 every tick. Never LifeBar1. No `_getWidget` |
+| `MedicalSystem::getMedicalGUIData` | After orig: show LifeBar10 + Widget::setCaption Hemolymph every tick. Never LifeBar1. No `_getWidget` |
 | `Character::_NV_getGUIData` | Same after orig. In-game gate before `getMedical()`. `GetRealAddress` on `_NV_` only |
 | `MedicalSystem::applyDoctoring` | Splint Kit / stimulant starts the catalyst |
 | `InventoryItemBase::getTooltipData1` | I-key tooltip RVA `0x7A8E30` (never `GetRealAddress` on the virtual) |

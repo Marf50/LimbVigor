@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.23 — LifeBar10 after Hunger, no LifeBar1 overwrite");
+        LvLog("LimbVigor: ready v1.24 — Dark UI exact + LifeBar10 tucked, no parent scale");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }
