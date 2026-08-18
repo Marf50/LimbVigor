@@ -23,20 +23,26 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-v1.23 Widget::setCaption every
-tick on LifeBar1. Read-back
+v1.23 LifeBar10 after Hunger.
+Blood stays Blood. Do not shift
+LifeBar1-9. Widget::setCaption
+every tick on LifeBar10. Read-back
 Hemolymph. Not TextBox-on-Widget.
-No _getWidget. Person only.
-Door stays a door. No setSize.
+No LifeBar1 overwrite. No _getWidget.
+Person only. Door clears LifeBar10
+only. No setSize.
 
 Spoken lines appear over the character.
 I-key on a stump/bud/knit/grown item is
 the backup.
 
-This build does not create widgets. No layout file.
+RE_Kenshi loads
+gui/layout/Kenshi_MainPanel.layout
+(Dark UI override + LifeBar10).
+This build does not create widgets.
 
-v1.23: Widget::setCaption every
-tick, read-back Hemolymph.
+v1.23: LifeBar10 after Hunger,
+no LifeBar1 overwrite.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 

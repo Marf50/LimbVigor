@@ -2,13 +2,15 @@
 
 Proven facts. Update when a playtest proves a new one.
 
-## Layout names (Dark UI workshop 1200632417 + vanilla)
+## Layout names (Dark UI workshop 1200632417 + LimbVigor override)
 
-- Blood is **LifeBar1** (first bar). LifeBar2..9 = Head / body / limbs / Hunger.
-- Dark UI has **no LifeBar10**. MyGUI `LifeBar10 not found` is Dark UI, not a missing Blood row.
-- LifeBar1 is a **Widget** (PanelEmpty), not a TextBox. LifeBar1Value is the digit TextBox.
-- LifeBar1Green / fill skins: do not setCaption them.
-- Captions (Blood/Head/…) are written by `MedicalSystem::getMedicalGUIData` **every tick**.
+- Blood is **LifeBar1** (first bar). LifeBar2..9 = Head / Stomach / Chest / arms / legs / Hunger.
+- Dark UI omitted **LifeBar10**. MyGUI `LifeBar10 not found` is Dark UI omitting a slot MainBar already `assignWidget`-binds.
+- LimbVigor ships `kenshi_mod/gui/layout/Kenshi_MainPanel.layout` (RE_Kenshi override, started from Dark UI). It inserts **LifeBar10 after Hunger / LifeBar9**. MedicalPanel / MedicalPanel_Back grow one row. **Do not shift LifeBar1–9.** Blood stays Blood.
+- SHA `46d810a` (LifeBar1 overwrite / `Widget::setCaption` on Blood) is **rejected**. Do not ship that ready string.
+- LifeBar1 / LifeBar10 are **Widget** (PanelEmpty), not a TextBox. LifeBarNValue is the digit TextBox.
+- LifeBarN Green / fill skins: do not setCaption them.
+- Captions (Blood/Head/…) are written by `MedicalSystem::getMedicalGUIData` **every tick**. That is why LifeBar1 overwrite lost to Blood.
 
 ## Pointers
 
@@ -24,25 +26,27 @@ Proven facts. Update when a playtest proves a new one.
 - getName on Root was `'0,000,000,048,7F5,0E0_Root'` — prefix + widget name.
 - **Do not skip 3-arg findWidgetT because the prefix looks ugly.** That skip was the v1.21 miss.
 
-## Find path (v1.22 proved)
+## Find path (v1.22 proved the prefix; v1.23 finds LifeBar10)
 
-- 3-arg `findWidgetT(name, prefix, throw=false)` found LifeBar1=`0x43E26FF0` name=`…_LifeBar1` orig=Blood. Also LifeBar1Datapanel and LifeBar1Value.
+- 3-arg `findWidgetT(name, prefix, throw=false)` found LifeBar1 in v1.22. Same path, **different names**: `LifeBar10`, `LifeBar10Datapanel`, `LifeBar10Value`. Also `Widget::findWidget` on Root (`bar+0x8`).
 - **Do not hunt again.** Cache those three. **Do not call `_getWidget` RVA `0x723780`.**
+- Never cache or `setCaption` LifeBar1 / LifeBar1Datapanel / LifeBar1Value.
 
-## Write path (v1.23)
+## Write path (v1.23 — new row, not Blood overwrite)
 
 - v1.22 find+write logged `painted=1` but Dylan saw only the vanilla HUD. Two causes:
   1. Bound `?setCaption@TextBox@MyGUI@@UEAAXAEBVUString@2@@Z` and called it on LifeBar1 (Widget). Wrong vtable. No pixels.
   2. Paint ran once. `getMedicalGUIData` writes Blood back every tick after that.
-- Bind `Widget::setCaption` — prefer exact `?setCaption@Widget@MyGUI@@QEAAXAEBVUString@2@@Z`, keep UEAAX. Call that on LifeBar1 and LifeBar1Datapanel.
-- `TextBox::setCaption` only on LifeBar1Value (the digit). Never TextBox-on-Widget.
-- Write **after orig** every selected-person tick. Read back `getCaption`. `painted=1` only if it is Hemolymph / Vigor / Battle-heat. Still Blood is a fail.
-- Door / box / chair restore Blood/Oil the same every-tick way.
-- No MedicalPanel resize. No second row. No `setSize`. No LifeBar2–9 shift.
+- CoS rejects another LifeBar1 overwrite. New row only: **LifeBar10 after Hunger.**
+- Bind `Widget::setCaption` — prefer exact `?setCaption@Widget@MyGUI@@QEAAXAEBVUString@2@@Z`, keep UEAAX. Call that on LifeBar10 and LifeBar10Datapanel.
+- `TextBox::setCaption` only on LifeBar10Value (the digit). Never TextBox-on-Widget. Never `setCaption` on LifeBar1.
+- Write **after orig** every selected-person tick. Read back `getCaption`. `painted=1` only if it is Hemolymph / Vigor / Battle-heat. Still Blood is a fail (wrong dest).
+- Door / box / chair: **hide or clear LifeBar10 only.** Never touch LifeBar1. Blood stays Blood.
+- No MedicalPanel runtime `setSize`. No LifeBar1–9 shift.
 
 ## Landmines
 
-No `createWidget`. No MainBar ctor `0x72C1E0`. No `eventFrameStart`. No TitleScreen MyGUI. No `ForgottenGUI::changeFontSize`. No DatapanelGUI `_NV_update` / `_NV_setObject`. No `GetRealAddress` on virtuals. No Gui tree walk. No Goal/State paint. No WindowCX. No `setSize`. No `_getWidget`. No `setVisible(false)`.
+No `createWidget`. No MainBar ctor `0x72C1E0`. No `eventFrameStart`. No TitleScreen MyGUI. No `ForgottenGUI::changeFontSize`. No DatapanelGUI `_NV_update` / `_NV_setObject`. No `GetRealAddress` on virtuals. No Gui tree walk. No Goal/State paint. No WindowCX. No `setSize`. No `_getWidget`. No `setVisible` on Root / parents. No Datapanel / `setLineProgress` HUD path.
 
 ## Version trail
 
@@ -51,4 +55,5 @@ No `createWidget`. No MainBar ctor `0x72C1E0`. No `eventFrameStart`. No TitleScr
 - v1.20: crash lock PASS. Skipped `_getWidget`. Unprefixed find all null. `painted=0`.
 - v1.21: prefix dumped as "ugly" and findWidgetT skipped. Then `_getWidget`/probe SEH. `painted=0`. **Whole HUD hid.** Prefix was real.
 - v1.22: prefixed find+write succeeded (`painted=1` Hemolymph on LifeBar1). TextBox::setCaption on Widget + once-only lost to Blood overwrite. Vanilla HUD only.
-- v1.23: Widget::setCaption every `getMedicalGUIData`. Read-back must be Hemolymph. No `_getWidget`.
+- v1.23 **rejected** (`46d810a`): Widget::setCaption every tick on LifeBar1. CoS / Dylan: Blood stays Blood. Do not ship that ready string.
+- v1.23: LifeBar10 after Hunger. Grow MedicalPanel one row. Do not shift 1–9. Every-tick LifeBar10 write. Door clears LifeBar10 only. Ready: `ready v1.23 — LifeBar10 after Hunger, no LifeBar1 overwrite`.

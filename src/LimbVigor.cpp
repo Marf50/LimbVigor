@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.23 — Widget::setCaption every tick on LifeBar1, read-back Hemolymph");
+        LvLog("LimbVigor: ready v1.23 — LifeBar10 after Hunger, no LifeBar1 overwrite");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

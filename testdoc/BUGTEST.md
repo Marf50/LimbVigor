@@ -2,17 +2,17 @@
 
 Throwaway save. Tick the box. Write the last I-key tooltip line and anything in `RE_Kenshi_log.txt`.
 
-**Where to look:** select a **character** after In-game. The Blood label must become **Hemolymph** (or Vigor / Battle-heat) on screen, not only in the log. Log must bind `Widget::setCaption` (not TextBox on LifeBar1), write every tick, and `getCaption` read-back must be Hemolymph. Must NOT call `_getWidget`. Door stays a door. See testdoc/HUD.md.
+**Where to look:** select a **character** after In-game. A **new row under Hunger** (LifeBar10) must show **Hemolymph** (or Vigor / Battle-heat). Blood stays Blood. Head/Stomach/Chest/arms/legs/Hunger stay where they are. Log must bind `Widget::setCaption` on LifeBar10 (not TextBox-on-Widget, not LifeBar1), write every tick, and `getCaption` read-back must be Hemolymph. Must NOT call `_getWidget`. Door clears LifeBar10 only. See testdoc/HUD.md.
 
 Every ~15s the log prints `LimbVigor: Boop  Hemolymph 38/100  left leg 4% dormant`.
 
 Send the notes back and the plugin gets patched.
 
-- [ ] **Reaches the menu.** `ready v1.23 — Widget::setCaption every tick on LifeBar1, read-back Hemolymph` then `Main menu loaded`. Must NOT log `HUD created at title screen`. Must NOT hook MainBarGUI ctor `0x72C1E0`. Must NOT walk the Gui tree. Must NOT `setSize`. Must NOT `setVisible`. Must NOT call `_getWidget`.
+- [ ] **Reaches the menu.** `ready v1.23 — LifeBar10 after Hunger, no LifeBar1 overwrite` then `Main menu loaded`. Must NOT log `HUD created at title screen`. Must NOT hook MainBarGUI ctor `0x72C1E0`. Must NOT walk the Gui tree. Must NOT `setSize`. Must NOT `setVisible` on Root / parents. Must NOT call `_getWidget`. Must NOT log the rejected `46d810a` LifeBar1 overwrite ready string.
 - [ ] **Loads the save.** `LimbVigor: In-game` (or `In-game — ignoring stuck gameResetting`) then `player squad seen`. A −15 empty stump must get an LV part (`slotted LV Stump/Grown … (-15 empty socket)`) or a logged skip saying why. If it does not tick, the log must say **why**. Must NOT touch Character during title / save load. Must NOT crash after In-game.
-- [ ] **Person-select shows Hemolymph on the Blood row.** Select a **person**. Whole HUD stays visible. You must **see** Hemolymph (not only a log line). Read-back `getCaption` is Hemolymph. `painted=1` only after read-back. Door / box / chair: Blood/Oil back every tick. Send `RE_Kenshi_log.txt`.
+- [ ] **Person-select shows Hemolymph on LifeBar10 (after Hunger).** Select a **person**. Whole HUD stays visible. Blood stays Blood. You must **see** Hemolymph on the new bottom row (not only a log line). Read-back `getCaption` is Hemolymph. `painted=1` only after read-back. Door / box / chair: clear LifeBar10 only — never touch LifeBar1. Send `RE_Kenshi_log.txt`.
 - [ ] **HUD SEH does not kill growth.** If a HUD write excepts, growth / heartbeat keep ticking. Must NOT latch `medical row stopped` forever. Must NOT log 500+ empty panel walks. Must NOT die after one `medical tick SEH`.
-- [ ] **Selected body, not the player pawn.** Select a **hired Hive** and a **hired Shek**. Blood row is that body's Hemolymph / Battle-heat on screen. I-key snap matches the selected body. Door / building: Blood/Oil back. Must NOT only paint the player character. Second HUD row is not in v1.23.
+- [ ] **Selected body, not the player pawn.** Select a **hired Hive** and a **hired Shek**. LifeBar10 is that body's Hemolymph / Battle-heat on screen. Blood stays Blood. I-key snap matches the selected body. Door / building: clear LifeBar10 only. Must NOT only paint the player character. Must NOT shift LifeBar1–9.
 - [ ] **First-stump bark.** A new stump (not an already-missing limb on load) speaks once: Hive `The stump itches. It will grow.` / Shek `The stump wants a fight, or a splint.` / Human `The stump will not grow on its own.` Hired squad bodies bark too. Must NOT spam every tick or on save load.
 - [ ] **Heartbeat.** After ~15s in-game, RE_Kenshi_log.txt has a `LimbVigor: <name>  Hemolymph …` line. It must NOT spam `restored limb 0` every frame.
 - [ ] **New game.** Same — no crash at the first medical panel. No MyGUI create.
