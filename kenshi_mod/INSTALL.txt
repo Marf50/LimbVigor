@@ -23,14 +23,17 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-v1.24 Dark UI exact + LifeBar10
-tucked. Do not grow MedicalPanel.
+v1.25 Widget setCaption + show
+LifeBar10 after orig. Same e062b6d
+layout. Do not grow MedicalPanel.
 Blood stays Blood and in-slot.
-Widget::setCaption every tick on
-LifeBar10. setVisible LifeBar10 /
-Value only. Read-back Hemolymph.
+Dump every setCaption export.
+Bind Widget QEAAX (not TextBox-only).
+setVisible LifeBar10 / Datapanel /
+Value / Green after orig. Read-back
+Hemolymph. painted=1 only if vis=1.
 No LifeBar1 overwrite. No _getWidget.
-Person only. Door hides LifeBar10
+Person only. Door hides LifeBar10*
 only. No parent scale.
 
 Spoken lines appear over the character.
@@ -42,8 +45,8 @@ gui/layout/Kenshi_MainPanel.layout
 (Dark UI override + LifeBar10).
 This build does not create widgets.
 
-v1.24: Dark UI exact + LifeBar10
-tucked, no parent scale.
+v1.25: Widget setCaption + show
+LifeBar10 after orig.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 

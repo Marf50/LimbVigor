@@ -707,6 +707,7 @@ static void* g_capWidget = nullptr;  /* LifeBar10 cache alias */
 static void* g_wLifeBar10 = nullptr;
 static void* g_wLifeBar10Data = nullptr;
 static void* g_wLifeBar10Value = nullptr;
+static void* g_wLifeBar10Green = nullptr;
 static char  g_capOrig[96] = {};
 static char  g_origData[96] = {};
 static char  g_origValue[96] = {};
@@ -823,10 +824,11 @@ static void lvDumpExtrasOnce()
 }
 
 #if !defined(LIMBVIGOR_IDE)
-/* v1.23: cache prefixed findWidgetT LifeBar10 (after Hunger).
- * Widget::setCaption on LifeBar10 every selected-person tick.
- * TextBox::setCaption is LifeBar10Value only. Never touch LifeBar1.
- * Do NOT call _getWidget 0x723780. setVisible only on LifeBar10 / LifeBar10Value.
+/* v1.25: cache prefixed findWidgetT LifeBar10* (after Hunger).
+ * After orig every selected-person tick: setVisible LifeBar10 / Datapanel /
+ * Value / Green (name-gated). Widget::setCaption on LifeBar10 / Datapanel.
+ * TextBox or ISubWidgetText::setCaption on LifeBar10Value only.
+ * Never touch LifeBar1. Do NOT call _getWidget 0x723780.
  * Never setVisible on Root / MedicalPanel / Back / Front / LifeBar1-9 / parents.
  * No setSize. No Datapanel HUD. No tree walk. No ctor 0x72C1E0. No createWidget. */
 
@@ -859,12 +861,15 @@ static FnCaption  g_wCaption = nullptr;
 static FnSetCaption g_setCapWidget = nullptr;     /* Widget::setCaption — LifeBar10 / Datapanel */
 static FnSetCaption g_setCapWidgetVirt = nullptr; /* Widget::setCaption UEAAX fallback */
 static FnSetCaption g_setCapTextBox = nullptr;    /* TextBox::setCaption — LifeBar10Value only */
-static FnSetVisible g_setVis = nullptr;           /* Widget::setVisible — LifeBar10 / Value only */
+static FnSetCaption g_setCapISub = nullptr;       /* ISubWidgetText::setCaption — Value only */
+static FnSetVisible g_setVis = nullptr;           /* Widget::setVisible — four LifeBar10* only */
 static FnSetCapStr  g_setCapStr  = nullptr;
 static FnUStrCtorS  g_ustrCtorS  = nullptr;
 static FnUStrCtorC  g_ustrCtorC  = nullptr;
 static FnUStrDtor   g_ustrDtor   = nullptr;
 static int        g_setCapWidgetNonVirt = 0;
+static int        g_setCapISubNonVirt = 0;
+static int        g_capExportNamesLogged = 0;
 static void*      g_myguiLo = nullptr;
 static void*      g_myguiHi = nullptr;
 static int        g_exportDumped = 0;
@@ -1102,8 +1107,10 @@ static void lvTryBindExport(const char* n, void* addr)
     if (lvHasI(n, "setCaption") && !lvHasI(n, "getCaption")
      && !lvHasI(n, "Replacing") && !lvHasI(n, "createWidget"))
     {
-        const int isText = lvHasI(n, "TextBox@MyGUI") || lvHasI(n, "TextBox");
-        const int isWid  = !isText && (lvHasI(n, "Widget@MyGUI")
+        const int isText = (lvHasI(n, "TextBox@MyGUI") || lvHasI(n, "TextBox"))
+                        && !lvHasI(n, "ISubWidgetText");
+        const int isISub = lvHasI(n, "ISubWidgetText") ? 1 : 0;
+        const int isWid  = !isText && !isISub && (lvHasI(n, "Widget@MyGUI")
                          || (lvHasI(n, "@Widget@") && lvHasI(n, "MyGUI")));
         const int isNonVirt = lvHasI(n, "QEAAX") ? 1 : 0;
         if (isWid)
@@ -1118,6 +1125,15 @@ static void lvTryBindExport(const char* n, void* addr)
                 g_setCapWidget = (FnSetCaption)addr;
                 g_setCapWidgetNonVirt = isNonVirt;
                 LvLogf("LimbVigor: mygui bind Widget::setCaption '%s'", n);
+            }
+        }
+        else if (isISub)
+        {
+            if (!g_setCapISub || (isNonVirt && !g_setCapISubNonVirt))
+            {
+                g_setCapISub = (FnSetCaption)addr;
+                g_setCapISubNonVirt = isNonVirt;
+                LvLogf("LimbVigor: mygui bind ISubWidgetText::setCaption '%s'", n);
             }
         }
         else if (isText && !g_setCapTextBox)
@@ -1178,45 +1194,114 @@ static void lvSetMyGuiRange(HMODULE mod)
     LvLogf("LimbVigor: MyGUIEngine range %p-%p size=0x%X", g_myguiLo, g_myguiHi, (unsigned)sz);
 }
 
+static FARPROC lvGetProcOne(HMODULE mod, const char* const* names)
+{
+    if (!mod || !names)
+        return nullptr;
+    for (int i = 0; names[i]; ++i)
+    {
+        FARPROC p = GetProcAddress(mod, names[i]);
+        if (p)
+            return p;
+    }
+    return nullptr;
+}
+
+static const char* lvGetProcName(HMODULE mod, const char* const* names)
+{
+    if (!mod || !names)
+        return nullptr;
+    for (int i = 0; names[i]; ++i)
+    {
+        if (GetProcAddress(mod, names[i]))
+            return names[i];
+    }
+    return nullptr;
+}
+
+static void lvLogBindFlags(const char* why)
+{
+    LvLogf("LimbVigor: setCapW=%d setCapText=%d setCapISub=%d setVis=%d (%s)",
+           g_setCapWidget ? 1 : 0, g_setCapTextBox ? 1 : 0,
+           g_setCapISub ? 1 : 0, g_setVis ? 1 : 0,
+           why ? why : "?");
+}
+
+/* Prefer Widget QEAAX. TextBox-only is not success. Retry if Widget missing. */
 static void lvBindWidgetSetCaption(HMODULE mod)
 {
     if (!mod)
         return;
-    static const char kSetCapWidgetQ[] =
-        "?setCaption@Widget@MyGUI@@QEAAXAEBVUString@2@@Z";
-    static const char kSetCapWidgetU[] =
-        "?setCaption@Widget@MyGUI@@UEAAXAEBVUString@2@@Z";
-    static const char kSetVisQ[] =
-        "?setVisible@Widget@MyGUI@@QEAAX_N@Z";
-    static const char kSetVisU[] =
-        "?setVisible@Widget@MyGUI@@UEAAX_N@Z";
-    FARPROC wq = GetProcAddress(mod, kSetCapWidgetQ);
+    static const char* kSetCapWidgetQ[] = {
+        "?setCaption@Widget@MyGUI@@QEAAXAEBVUString@2@@Z",
+        "?setCaption@Widget@MyGUI@@QEAAXAEBVUString@MyGUI@@@Z",
+        nullptr
+    };
+    static const char* kSetCapWidgetU[] = {
+        "?setCaption@Widget@MyGUI@@UEAAXAEBVUString@2@@Z",
+        "?setCaption@Widget@MyGUI@@UEAAXAEBVUString@MyGUI@@@Z",
+        nullptr
+    };
+    static const char* kSetCapISubQ[] = {
+        "?setCaption@ISubWidgetText@MyGUI@@QEAAXAEBVUString@2@@Z",
+        "?setCaption@ISubWidgetText@MyGUI@@QEAAXAEBVUString@MyGUI@@@Z",
+        nullptr
+    };
+    static const char* kSetCapISubU[] = {
+        "?setCaption@ISubWidgetText@MyGUI@@UEAAXAEBVUString@2@@Z",
+        "?setCaption@ISubWidgetText@MyGUI@@UEAAXAEBVUString@MyGUI@@@Z",
+        nullptr
+    };
+    static const char* kSetVis[] = {
+        "?setVisible@Widget@MyGUI@@QEAAX_N@Z",
+        "?setVisible@Widget@MyGUI@@UEAAX_N@Z",
+        nullptr
+    };
+    FARPROC wq = lvGetProcOne(mod, kSetCapWidgetQ);
     if (wq)
     {
         g_setCapWidget = (FnSetCaption)wq;
         g_setCapWidgetNonVirt = 1;
-        LvLogf("LimbVigor: mygui bind Widget::setCaption EXACT QEAAX '%s'", kSetCapWidgetQ);
+        LvLogf("LimbVigor: mygui bind Widget::setCaption EXACT QEAAX '%s'",
+               lvGetProcName(mod, kSetCapWidgetQ));
     }
-    FARPROC wu = GetProcAddress(mod, kSetCapWidgetU);
+    FARPROC wu = lvGetProcOne(mod, kSetCapWidgetU);
     if (wu)
     {
         g_setCapWidgetVirt = (FnSetCaption)wu;
         if (!g_setCapWidget)
             g_setCapWidget = g_setCapWidgetVirt;
-        LvLogf("LimbVigor: mygui bind Widget::setCaption EXACT UEAAX '%s'", kSetCapWidgetU);
+        LvLogf("LimbVigor: mygui bind Widget::setCaption EXACT UEAAX '%s'",
+               lvGetProcName(mod, kSetCapWidgetU));
     }
-    FARPROC vq = GetProcAddress(mod, kSetVisQ);
-    if (!vq)
-        vq = GetProcAddress(mod, kSetVisU);
+    FARPROC iq = lvGetProcOne(mod, kSetCapISubQ);
+    if (iq)
+    {
+        g_setCapISub = (FnSetCaption)iq;
+        g_setCapISubNonVirt = 1;
+        LvLogf("LimbVigor: mygui bind ISubWidgetText::setCaption EXACT QEAAX '%s'",
+               lvGetProcName(mod, kSetCapISubQ));
+    }
+    else
+    {
+        FARPROC iu = lvGetProcOne(mod, kSetCapISubU);
+        if (iu && !g_setCapISub)
+        {
+            g_setCapISub = (FnSetCaption)iu;
+            LvLogf("LimbVigor: mygui bind ISubWidgetText::setCaption EXACT UEAAX '%s'",
+                   lvGetProcName(mod, kSetCapISubU));
+        }
+    }
+    FARPROC vq = lvGetProcOne(mod, kSetVis);
     if (vq && !g_setVis)
     {
         g_setVis = (FnSetVisible)vq;
         LvLogf("LimbVigor: mygui bind Widget::setVisible EXACT '%s'",
-               GetProcAddress(mod, kSetVisQ) ? kSetVisQ : kSetVisU);
+               lvGetProcName(mod, kSetVis));
     }
-    LvLogf("LimbVigor: setCapW=%d setVis=%d (Widget::setCaption %s — LifeBar10 only)",
-           g_setCapWidget ? 1 : 0, g_setVis ? 1 : 0,
-           g_setCapWidgetNonVirt ? "QEAAX" : (g_setCapWidget ? "UEAAX" : "MISSING"));
+    lvLogBindFlags(g_setCapWidget
+        ? (g_setCapWidgetNonVirt ? "Widget QEAAX" : "Widget UEAAX")
+        : "Widget::setCaption MISSING — not TextBox-only");
 }
 
 static void lvDumpMyGuiExports()
@@ -1232,9 +1317,9 @@ static void lvDumpMyGuiExports()
         }
         return;
     }
-    if (g_exportDumped && g_setCapWidget)
+    /* Do not latch a TextBox-only bind as success. Retry dump until Widget binds. */
+    if (g_exportDumped && g_setCapWidget && g_setVis)
         return;
-    g_exportDumped = 1;
     lvSetMyGuiRange(mod);
     LvLogf("LimbVigor: mygui module=%p", (void*)mod);
 
@@ -1273,8 +1358,7 @@ static void lvDumpMyGuiExports()
     FARPROC exactWm = GetProcAddress(mod, kWmGetInstanceExact);
     if (exactWm)
         g_wmInst = (FnGuiInst)exactWm;
-    /* v1.23 log: setCapW=0, TextBox on LifeBar10Value stayed empty.
-     * Bind Widget::setCaption for real (QEAAX + UEAAX). Retry if missing. */
+    /* v1.24 log: setCapW=0 every tick. Bind Widget QEAAX/UEAAX + ISub. Retry if Widget missing. */
     lvBindWidgetSetCaption(mod);
     static const char kSetCapTextQ[] =
         "?setCaption@TextBox@MyGUI@@QEAAXAEBVUString@2@@Z";
@@ -1293,10 +1377,7 @@ static void lvDumpMyGuiExports()
         LvLogf("LimbVigor: LifeBar10 uses Widget::setCaption %s — not TextBox, not LifeBar1",
                g_setCapWidgetNonVirt ? "QEAAX" : "UEAAX");
     else
-    {
-        g_exportDumped = 0;
-        LvLog("LimbVigor: Widget::setCaption missing — setCapW=0, will retry");
-    }
+        LvLog("LimbVigor: Widget::setCaption missing — setCapW=0, dump will retry (TextBox-only is not success)");
     static const char kSetCapRep[] =
         "?setCaptionWithReplacing@TextBox@MyGUI@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z";
     FARPROC rep = GetProcAddress(mod, kSetCapRep);
@@ -1337,6 +1418,7 @@ static void lvDumpMyGuiExports()
     const WORD* ords = (const WORD*)(base + exp.AddressOfNameOrdinals);
     const DWORD* funcs = (const DWORD*)(base + exp.AddressOfFunctions);
     int loggedFind = 0;
+    int loggedCap = 0;
     for (DWORD i = 0; i < exp.NumberOfNames; ++i)
     {
         DWORD nrva = 0;
@@ -1365,12 +1447,20 @@ static void lvDumpMyGuiExports()
             continue;
         void* addr = (void*)(base + frva);
         lvTryBindExport(en, addr);
+        if (lvHasI(en, "setCaption"))
+        {
+            if (!g_capExportNamesLogged)
+                LvLogf("LimbVigor: mygui export setCaption '%s' %p", en, addr);
+            loggedCap++;
+        }
         if (lvHasI(en, "findWidget") || lvHasI(en, "findById"))
         {
             LvLogf("LimbVigor: mygui export find '%s' %p", en, addr);
             loggedFind++;
         }
     }
+    if (loggedCap > 0)
+        g_capExportNamesLogged = 1;
     static const char* kWFindExact[] = {
         "?findWidget@Widget@MyGUI@@QEAAPEAV12@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
         "?findWidget@Widget@MyGUI@@QEBAPEAV12@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
@@ -1398,12 +1488,16 @@ static void lvDumpMyGuiExports()
         }
     }
 
-    LvLogf("LimbVigor: mygui find exports=%d bind gui=%d find2=%d find3=%d wm=%d wm3=%d wFind=%d name=%d vis=%d setCapW=%d setCapT=%d setVis=%d capStr=%d ustr=%d",
-           loggedFind, g_guiInst ? 1 : 0, g_findW ? 1 : 0, g_findW3 ? 1 : 0,
+    LvLogf("LimbVigor: mygui find exports=%d setCaptionExports=%d bind gui=%d find2=%d find3=%d wm=%d wm3=%d wFind=%d name=%d vis=%d capStr=%d ustr=%d",
+           loggedFind, loggedCap, g_guiInst ? 1 : 0, g_findW ? 1 : 0, g_findW3 ? 1 : 0,
            g_wmFind ? 1 : 0, g_wmFind3 ? 1 : 0, (g_wFind1 || g_wFind2) ? 1 : 0,
-           g_wName ? 1 : 0, g_wVis ? 1 : 0,
-           g_setCapWidget ? 1 : 0, g_setCapTextBox ? 1 : 0, g_setVis ? 1 : 0, g_setCapStr ? 1 : 0,
+           g_wName ? 1 : 0, g_wVis ? 1 : 0, g_setCapStr ? 1 : 0,
            (g_ustrCtorC || g_ustrCtorS) && g_ustrDtor ? 1 : 0);
+    lvLogBindFlags(g_setCapWidget ? "after export scan" : "after export scan — Widget MISSING, will retry");
+    if (g_setCapWidget)
+        g_exportDumped = 1;
+    else
+        g_exportDumped = 0;
     if (g_find3Sym)
         LvLogf("LimbVigor: mygui findWidgetT 3-arg symbol '%s'", g_find3Sym);
 }
@@ -1785,8 +1879,10 @@ static int lvIsForbiddenParent(const char* n)
     if (!n || !n[0])
         return 1;
     return (lvHasSub(n, "Root") || lvHasSub(n, "MedicalPanel")
+         || lvHasSub(n, "MedicalPanel_Back") || lvHasSub(n, "MedicalPanel_Front")
          || lvHasSub(n, "StatusPanel") || lvHasSub(n, "SquadPanel")
          || lvHasSub(n, "Squad") || lvHasSub(n, "Floor")
+         || lvHasSub(n, "NamePanel") || lvEndsWith(n, "Name")
          || lvHasSub(n, "Money") || lvHasSub(n, "Biome")
          || lvHasSub(n, "Paused") || lvHasSub(n, "Loading")
          || lvHasSub(n, "Day") || (lvHasSub(n, "Time") && !lvHasSub(n, "LifeBar"))) ? 1 : 0;
@@ -2005,13 +2101,20 @@ static int lvSehSetCapFakeFn(FnSetCaption fn, void* w, void* fake)
     return 0;
 }
 
-/* textBox=1 → TextBox::setCaption (LifeBar10Value only).
+/* textBox=1 → TextBox then ISub (LifeBar10Value only).
+ * textBox=2 → ISubWidgetText only (Value fallback).
  * textBox=0 → Widget::setCaption. Never TextBox on LifeBar10 / Datapanel.
- * Never setCaption LifeBar1. */
+ * Never setCaption LifeBar1. Never setCaption Green/fill skins. */
 static FnSetCaption lvPickSetCap(int textBox)
 {
+    if (textBox == 2)
+        return g_setCapISub;
     if (textBox)
-        return g_setCapTextBox;
+    {
+        if (g_setCapTextBox)
+            return g_setCapTextBox;
+        return g_setCapISub;
+    }
     if (g_setCapWidget)
         return g_setCapWidget;
     return g_setCapWidgetVirt;
@@ -2198,13 +2301,18 @@ static int lvTryWriteCaption(void* w, const char* text)
     return lvTryWriteCaptionOn(w, text, 0);
 }
 
+/* Show gate: name ends with one of the four exact tokens. Never parents / 1–9. */
 static int lvNameIsShowOk(const char* name)
 {
     if (!name || !name[0])
         return 0;
-    if (lvNameIsLifeBar1Strict(name) || lvIsForbiddenParent(name) || lvIsFillBarName(name))
+    if (lvNameIsLifeBar1Strict(name) || lvIsForbiddenParent(name))
         return 0;
+    if (lvEndsWith(name, "LifeBar10Datapanel"))
+        return 1;
     if (lvEndsWith(name, "LifeBar10Value"))
+        return 1;
+    if (lvEndsWith(name, "LifeBar10Green"))
         return 1;
     if (lvEndsWith(name, "LifeBar10"))
         return 1;
@@ -2226,7 +2334,7 @@ static void lvSetVisible10(void* w, int on)
         if (!once)
         {
             once = 1;
-            LvLogf("LimbVigor: refuse setVisible dest name='%s' — LifeBar10 / LifeBar10Value only",
+            LvLogf("LimbVigor: refuse setVisible dest name='%s' — LifeBar10 / Datapanel / Value / Green only",
                    name);
         }
         return;
@@ -2235,18 +2343,92 @@ static void lvSetVisible10(void* w, int on)
     LV_EXCEPT {}
 }
 
-/* LifeBar10 + LifeBar10Value only. Never Root / MedicalPanel / LifeBar1-9. */
+static int lvReadVis(void* w)
+{
+    char name[96], cap[96];
+    int vis = -1;
+    name[0] = 0;
+    cap[0] = 0;
+    if (!w)
+        return -1;
+    lvReadWidget(w, name, (int)sizeof(name), cap, (int)sizeof(cap), &vis);
+    (void)name;
+    (void)cap;
+    return vis;
+}
+
+/* LifeBar10 + Datapanel + Value + Green. Never Root / MedicalPanel / LifeBar1-9. */
 static void lvShowLifeBar10(int on)
 {
     if (g_wLifeBar10)
         lvSetVisible10(g_wLifeBar10, on);
+    if (g_wLifeBar10Data)
+        lvSetVisible10(g_wLifeBar10Data, on);
     if (g_wLifeBar10Value)
         lvSetVisible10(g_wLifeBar10Value, on);
+    if (g_wLifeBar10Green)
+        lvSetVisible10(g_wLifeBar10Green, on);
+}
+
+static void lvLogVisAfterShow()
+{
+    static int n = 0;
+    const int v10 = lvReadVis(g_wLifeBar10);
+    const int vD = lvReadVis(g_wLifeBar10Data);
+    const int vV = lvReadVis(g_wLifeBar10Value);
+    const int vG = lvReadVis(g_wLifeBar10Green);
+    if (n < 12 || v10 != 1)
+    {
+        if (n < 24)
+        {
+            n++;
+            LvLogf("LimbVigor: after show vis10=%d visData=%d visVal=%d visGreen=%d",
+                   v10, vD, vV, vG);
+        }
+    }
+}
+
+static int lvCapIsHudKey(const char* c)
+{
+    if (!c || !c[0])
+        return 0;
+    return (std::strcmp(c, "Hemolymph") == 0
+         || std::strcmp(c, "Vigor") == 0
+         || std::strcmp(c, "Battle-heat") == 0) ? 1 : 0;
+}
+
+static int lvLifeBar10VisOk()
+{
+    if (!g_wLifeBar10)
+        return 0;
+    char name[96], cap[96];
+    int vis = -1;
+    name[0] = 0;
+    cap[0] = 0;
+    lvReadWidget(g_wLifeBar10, name, (int)sizeof(name), cap, (int)sizeof(cap), &vis);
+    if (!lvNameIsShowOk(name) || !lvEndsWith(name, "LifeBar10") || lvEndsWith(name, "LifeBar10Green"))
+        return 0;
+    return vis == 1 ? 1 : 0;
+}
+
+static int lvLifeBar10CapOk(void* dest)
+{
+    if (!dest)
+        return 0;
+    char name[96], cap[96];
+    int vis = -1;
+    name[0] = 0;
+    cap[0] = 0;
+    lvReadWidget(dest, name, (int)sizeof(name), cap, (int)sizeof(cap), &vis);
+    (void)vis;
+    if (lvCapIsBlood(cap) || !cap[0])
+        return 0;
+    return lvCapIsHudKey(cap);
 }
 
 static void lvRestoreCaption()
 {
-    /* Door / box / chair: hide/clear LifeBar10 only. Never touch LifeBar1. */
+    /* Door / box / chair: hide/clear LifeBar10* only. Never touch LifeBar1. */
     lvShowLifeBar10(0);
     if (g_wLifeBar10 && lvDestNameGated(g_wLifeBar10))
         lvTryWriteCaptionOn(g_wLifeBar10, "", 0);
@@ -2294,6 +2476,15 @@ static void lvCacheFound(void* w, const char* name, const char* cap)
             LvLogf("LimbVigor: cache LifeBar10Datapanel=%p orig='%s'", w, g_origData);
         }
         lvConsider(w, "cache-data");
+        return;
+    }
+    if (lvEndsWith(name, "LifeBar10Green") && !lvIsForbiddenParent(name))
+    {
+        if (!g_wLifeBar10Green)
+        {
+            g_wLifeBar10Green = w;
+            LvLogf("LimbVigor: cache LifeBar10Green=%p (setVisible only, no setCaption)", w);
+        }
         return;
     }
     if (lvEndsWith(name, "LifeBar10")
@@ -2420,11 +2611,12 @@ static void lvResolveLifeBar()
     lvTryPrefixedFind("LifeBar10", root);
     lvTryPrefixedFind("LifeBar10Datapanel", root);
     lvTryPrefixedFind("LifeBar10Value", root);
+    lvTryPrefixedFind("LifeBar10Green", root);
 
     if (!g_capWidget && g_wLifeBar10)
         g_capWidget = g_wLifeBar10;
-    LvLogf("LimbVigor: cache LifeBar10=%p Datapanel=%p Value=%p — no LifeBar1, no _getWidget",
-           g_wLifeBar10, g_wLifeBar10Data, g_wLifeBar10Value);
+    LvLogf("LimbVigor: cache LifeBar10=%p Datapanel=%p Value=%p Green=%p — no LifeBar1, no _getWidget",
+           g_wLifeBar10, g_wLifeBar10Data, g_wLifeBar10Value, g_wLifeBar10Green);
     if (g_wLifeBar10 && lvDestNameGated(g_wLifeBar10))
         LvLogf("LimbVigor: hunt dest=%p orig='%s' — Widget::setCaption LifeBar10 every selected-person tick",
                g_wLifeBar10, g_capOrig);
@@ -2453,6 +2645,9 @@ static void lvRestoreCaption() {}
 static int  lvDestNameGated(void* w) { (void)w; return 0; }
 static void lvShowLifeBar10(int on) { (void)on; }
 static void lvDumpMyGuiExports() {}
+static void lvLogVisAfterShow() {}
+static int  lvLifeBar10VisOk() { return 0; }
+static int  lvLifeBar10CapOk(void* dest) { (void)dest; return 0; }
 #endif
 
 static int KeyEqI(const char* a, const char* b)
@@ -2553,14 +2748,17 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     if (med && !LvIsPlayerSquad(LvCharFromMed(med)))
         return;
 
-    /* v1.23: setCapW=0 latched. Retry Widget::setCaption bind if missing. */
+    /* v1.24: setCapW=0 every tick. Retry dump until Widget::setCaption binds. */
 #if !defined(LIMBVIGOR_IDE)
-    if (!g_setCapWidget)
+    if (!g_setCapWidget || !g_setVis)
         lvDumpMyGuiExports();
 #endif
 
-    /* Every selected-person tick after orig. Show LifeBar10, then Widget::setCaption. */
+    /* After orig every selected-person tick. Show four LifeBar10*, then caption. */
     lvShowLifeBar10(1);
+#if !defined(LIMBVIGOR_IDE)
+    lvLogVisAfterShow();
+#endif
     void* dest = lvCaptionDest();
     if (!dest)
     {
@@ -2579,28 +2777,40 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
         return;
     }
 
-    /* Widget::setCaption on LifeBar10 (+ Datapanel). Not TextBox. Never LifeBar1. */
+    /* Widget::setCaption on LifeBar10 (+ Datapanel). Not TextBox. Never LifeBar1. Never Green. */
     const int ok1 = lvWriteAndReadBack(dest, key1, 0, "LifeBar10");
     if (g_wLifeBar10Data && g_wLifeBar10Data != dest)
         lvWriteAndReadBack(g_wLifeBar10Data, key1, 0, "LifeBar10Datapanel");
 
-    if (g_wLifeBar10Value && lvValueIsDigitBox(g_wLifeBar10Value))
+    if (g_wLifeBar10Value)
     {
-        char num[96], bar2[8], tip[8];
-        float f1 = 0.f, f2 = 0.f;
-        num[0] = 0;
-        LvHudLines(snap, num, (int)sizeof(num), &f1, bar2, (int)sizeof(bar2), &f2, tip, (int)sizeof(tip));
-        if (num[0] && lvWriteAndReadBack(g_wLifeBar10Value, num, 1, "LifeBar10Value"))
+        int vok = 0;
+        if (lvValueIsDigitBox(g_wLifeBar10Value))
+        {
+            char num[96], bar2[8], tip[8];
+            float f1 = 0.f, f2 = 0.f;
+            num[0] = 0;
+            LvHudLines(snap, num, (int)sizeof(num), &f1, bar2, (int)sizeof(bar2), &f2, tip, (int)sizeof(tip));
+            if (num[0])
+                vok = lvWriteAndReadBack(g_wLifeBar10Value, num, 1, "LifeBar10Value");
+        }
+        if (!vok)
+            vok = lvWriteAndReadBack(g_wLifeBar10Value, key1, 1, "LifeBar10Value");
+        if (!vok)
+            vok = lvWriteAndReadBack(g_wLifeBar10Value, key1, 2, "LifeBar10Value");
+        if (vok)
             g_wroteValue = 1;
     }
 
-    if (!ok1)
+    const int visOk = lvLifeBar10VisOk();
+    const int capOk = ok1 || lvLifeBar10CapOk(dest);
+    if (!visOk || !capOk)
     {
         static int once = 0;
         if (!once)
         {
             once = 1;
-            LvErr("LimbVigor: Widget::setCaption LifeBar10 read-back failed — not painted=1, will retry next tick");
+            LvErr("LimbVigor: painted=0 vis/caption fail — vis=0 or empty/Blood is a fail, will retry");
         }
         return;
     }
@@ -2610,7 +2820,7 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     {
         g_paintLogged = 1;
         g_paintedOnce = 1;
-        LvLogf("LimbVigor: painted=1 Widget::setCaption '%s' read-back ok on LifeBar10 %p (every tick, LifeBar1 untouched)",
+        LvLogf("LimbVigor: painted=1 vis=1 Widget::setCaption '%s' read-back ok on LifeBar10 %p (every tick, LifeBar1 untouched)",
                key1, dest);
     }
 }

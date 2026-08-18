@@ -2,12 +2,12 @@
 
 #include "lv_config.h"
 
-// I-key tooltip snapshot only. v1.24 Widget::setCaption every tick
-// on LifeBar10 (tucked after Hunger). setVisible LifeBar10 / Value only.
+// I-key tooltip snapshot only. v1.25 Widget::setCaption after orig
+// every tick. setVisible LifeBar10 / Datapanel / Value / Green only.
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: HUD is Widget::setCaption every tick on LifeBar10 — setVisible LifeBar10/Value only");
+    LvLog("LimbVigor: HUD is Widget::setCaption after orig on LifeBar10 — show LifeBar10/Datapanel/Value/Green");
 }
 
 void LvHudEnsureAfterInGame() {}
