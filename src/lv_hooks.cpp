@@ -468,7 +468,7 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
         LvHudNote(live);
     }
 
-    /* Prefixed findWidget LifeBar1 + setCaption. Never _getWidget. No setVisible. */
+    /* After orig: Widget::setCaption every tick on cached LifeBar1. Never _getWidget. */
     PaintSafe(med, who, live);
 }
 

@@ -6,8 +6,9 @@ Proven facts. Update when a playtest proves a new one.
 
 - Blood is **LifeBar1** (first bar). LifeBar2..9 = Head / body / limbs / Hunger.
 - Dark UI has **no LifeBar10**. MyGUI `LifeBar10 not found` is Dark UI, not a missing Blood row.
-- LifeBar1Value / LifeBar1Green / fill skins: log only. Do not setCaption them.
-- Captions (Blood/Head/…) are written by `MedicalSystem::getMedicalGUIData`.
+- LifeBar1 is a **Widget** (PanelEmpty), not a TextBox. LifeBar1Value is the digit TextBox.
+- LifeBar1Green / fill skins: do not setCaption them.
+- Captions (Blood/Head/…) are written by `MedicalSystem::getMedicalGUIData` **every tick**.
 
 ## Pointers
 
@@ -19,23 +20,25 @@ Proven facts. Update when a playtest proves a new one.
 
 - BaseLayout prefix @ +0x40 is a real MSVC `std::string` (v1.21: size=22 cap=31 heap=1).
 - Value `'0,000,000,048,7F5,0E0_'` with MainBar `0x487F50B0`. That is **hex(bar+0x30) grouped in threes + `_`**. `0x487F50E0 == bar+0x30`.
-- v1.19 `'0,000,000,048,8D2,510_'` is the same pattern. Not C-string garbage.
+- v1.19 `'0,000,000,048,8D2,510_'` / v1.22 `'0,000,000,048,722,1C0_'` are the same pattern. Not C-string garbage.
 - getName on Root was `'0,000,000,048,7F5,0E0_Root'` — prefix + widget name.
 - **Do not skip 3-arg findWidgetT because the prefix looks ugly.** That skip was the v1.21 miss.
 
-## Find path (v1.22)
+## Find path (v1.22 proved)
 
-- 3-arg `findWidgetT(name, prefix, throw=false)` for `LifeBar1`, `LifeBar1Datapanel`, `LifeBar1Value`.
-- Also `findWidgetT(prefix+name, throw=false)`.
-- `Widget::findWidget` on Root (`bar+0x8`) for the short name and the full prefixed name.
-- **Do not call `_getWidget` RVA `0x723780`.** v1.19 died on it. v1.21: scan logged 17 chrome members (no LifeBar), then `GUI probe SEH`, `painted=0`, whole HUD hid. `_getWidget` / the probe after the scan damaged MyGUI.
-- MainBar member scan does not contain LifeBar / MedicalPanel. Log only. Not write dests.
+- 3-arg `findWidgetT(name, prefix, throw=false)` found LifeBar1=`0x43E26FF0` name=`…_LifeBar1` orig=Blood. Also LifeBar1Datapanel and LifeBar1Value.
+- **Do not hunt again.** Cache those three. **Do not call `_getWidget` RVA `0x723780`.**
 
-## Write gate
+## Write path (v1.23)
 
-- `setCaption` only if `getName` **ends with** `LifeBar1` or `LifeBar1Datapanel`, **or** `getCaption` is Blood/Oil.
-- Never write Root, MedicalPanel, MedicalPanel_Back, StatusPanel, SquadPanel, Squad, Floor, Day, Money, Time, Biome, Paused, Loading, or fill bars.
-- Never `setVisible`. No `setSize`. Door restores Blood/Oil on the same gated widget.
+- v1.22 find+write logged `painted=1` but Dylan saw only the vanilla HUD. Two causes:
+  1. Bound `?setCaption@TextBox@MyGUI@@UEAAXAEBVUString@2@@Z` and called it on LifeBar1 (Widget). Wrong vtable. No pixels.
+  2. Paint ran once. `getMedicalGUIData` writes Blood back every tick after that.
+- Bind `Widget::setCaption` — prefer exact `?setCaption@Widget@MyGUI@@QEAAXAEBVUString@2@@Z`, keep UEAAX. Call that on LifeBar1 and LifeBar1Datapanel.
+- `TextBox::setCaption` only on LifeBar1Value (the digit). Never TextBox-on-Widget.
+- Write **after orig** every selected-person tick. Read back `getCaption`. `painted=1` only if it is Hemolymph / Vigor / Battle-heat. Still Blood is a fail.
+- Door / box / chair restore Blood/Oil the same every-tick way.
+- No MedicalPanel resize. No second row. No `setSize`. No LifeBar2–9 shift.
 
 ## Landmines
 
@@ -47,4 +50,5 @@ No `createWidget`. No MainBar ctor `0x72C1E0`. No `eventFrameStart`. No TitleScr
 - v1.19: `_getWidget` person-select crash. Retry after probe SEH killed the process.
 - v1.20: crash lock PASS. Skipped `_getWidget`. Unprefixed find all null. `painted=0`.
 - v1.21: prefix dumped as "ugly" and findWidgetT skipped. Then `_getWidget`/probe SEH. `painted=0`. **Whole HUD hid.** Prefix was real.
-- v1.22: use the real prefix with findWidgetT + Widget::findWidget on Root. No `_getWidget`. setCaption if gated dest found.
+- v1.22: prefixed find+write succeeded (`painted=1` Hemolymph on LifeBar1). TextBox::setCaption on Widget + once-only lost to Blood overwrite. Vanilla HUD only.
+- v1.23: Widget::setCaption every `getMedicalGUIData`. Read-back must be Hemolymph. No `_getWidget`.

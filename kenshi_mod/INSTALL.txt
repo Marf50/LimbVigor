@@ -23,12 +23,11 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-v1.22 prefixed findWidget LifeBar1
-+ setCaption. No _getWidget (v1.21
-SEH hid the HUD). Person only.
+v1.23 Widget::setCaption every
+tick on LifeBar1. Read-back
+Hemolymph. Not TextBox-on-Widget.
+No _getWidget. Person only.
 Door stays a door. No setSize.
-On GUI SEH it skips paint and does
-not retry _getWidget.
 
 Spoken lines appear over the character.
 I-key on a stump/bud/knit/grown item is
@@ -36,9 +35,8 @@ the backup.
 
 This build does not create widgets. No layout file.
 
-v1.22: prefixed findWidget
-LifeBar1 + setCaption, no
-_getWidget.
+v1.23: Widget::setCaption every
+tick, read-back Hemolymph.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 
