@@ -2,13 +2,12 @@
 
 #include "lv_config.h"
 
-// I-key tooltip snapshot only. v1.22 setCaption only if getName
-// contains LifeBar1. No parent write. No setVisible. No Datapanel.
-// No _getWidget retry after SEH. No tree walk. No createWidget.
+// I-key tooltip snapshot only. v1.22 prefixed findWidget LifeBar1
+// + setCaption. No _getWidget. No setVisible. No Datapanel.
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: HUD is name-gated setCaption LifeBar1 only — no parent write, no setVisible");
+    LvLog("LimbVigor: HUD is prefixed findWidget LifeBar1 + setCaption — no _getWidget");
 }
 
 void LvHudEnsureAfterInGame() {}

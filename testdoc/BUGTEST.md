@@ -2,15 +2,15 @@
 
 Throwaway save. Tick the box. Write the last I-key tooltip line and anything in `RE_Kenshi_log.txt`.
 
-**Where to look:** select a **character** after In-game. The **whole HUD must stay up** (v1.21 hid it). Blood row may read Hemolymph only if `getName` contains `LifeBar1` (`painted=1`). If the dest name is empty / Root / MedicalPanel / StatusPanel, `painted=0` is correct. Door / box / chair must look like a door. Must NOT `setCaption` a parent. Must NOT `setVisible`. Must NOT `setSize`. Must NOT retry `_getWidget` after `GUI probe SEH`. See testdoc/HUD.md.
+**Where to look:** select a **character** after In-game. Whole HUD must stay up. Log must use the real prefix (comma/hex + `_`) with `findWidgetT3` / `Root.findWidget`. Must NOT call `_getWidget`. `painted=1 setCaption` if LifeBar1 was found; `painted=0` if not. Door stays a door. See testdoc/HUD.md.
 
 Every ~15s the log prints `LimbVigor: Boop  Hemolymph 38/100  left leg 4% dormant`.
 
 Send the notes back and the plugin gets patched.
 
-- [ ] **Reaches the menu.** `ready v1.22 — name-gated setCaption LifeBar1 only, no parent write` then `Main menu loaded`. Must NOT log `HUD created at title screen` or `Blood HUD created after in-game`. Must NOT die after title create / at ~12s with `Log manager destructor`. Must NOT hook MainBarGUI ctor `0x72C1E0` / changeFontSize / `_NV_update` / `_NV_setObject`. Must NOT walk the Gui tree. Must NOT `setSize`. Must NOT `setVisible`.
+- [ ] **Reaches the menu.** `ready v1.22 — prefixed findWidget LifeBar1 + setCaption, no _getWidget` then `Main menu loaded`. Must NOT log `HUD created at title screen`. Must NOT hook MainBarGUI ctor `0x72C1E0`. Must NOT walk the Gui tree. Must NOT `setSize`. Must NOT `setVisible`. Must NOT call `_getWidget`.
 - [ ] **Loads the save.** `LimbVigor: In-game` (or `In-game — ignoring stuck gameResetting`) then `player squad seen`. A −15 empty stump must get an LV part (`slotted LV Stump/Grown … (-15 empty socket)`) or a logged skip saying why. If it does not tick, the log must say **why**. Must NOT touch Character during title / save load. Must NOT crash after In-game.
-- [ ] **Person-select does not hide the HUD.** Select a **person**. Whole Kenshi HUD stays visible. `painted=1` only on a dest whose `getName` contains `LifeBar1`. `painted=0` if uncertain. Must NOT retry `_getWidget` after `GUI probe SEH`. Door / box / chair: Blood/Oil back on that same gated widget. Send `RE_Kenshi_log.txt`.
+- [ ] **Person-select keeps the HUD and may paint.** Select a **person**. Whole HUD stays visible. Log prefixed find ptrs + names. `painted=1` if LifeBar1 / Blood dest; else `painted=0`. Must NOT call `_getWidget`. Door / box / chair: Blood/Oil back. Send `RE_Kenshi_log.txt`.
 - [ ] **HUD SEH does not kill growth.** If a HUD write excepts, growth / heartbeat keep ticking. Must NOT latch `medical row stopped` forever. Must NOT log 500+ empty panel walks. Must NOT die after one `medical tick SEH`.
 - [ ] **Selected body, not the player pawn.** Select a **hired Hive** and a **hired Shek**. If painted, Blood row is that body's Hemolymph / Battle-heat. I-key snap matches the selected body. Door / building: Blood/Oil back. Must NOT only paint the player character. Second HUD row is not in v1.22.
 - [ ] **First-stump bark.** A new stump (not an already-missing limb on load) speaks once: Hive `The stump itches. It will grow.` / Shek `The stump wants a fight, or a splint.` / Human `The stump will not grow on its own.` Hired squad bodies bark too. Must NOT spam every tick or on save load.

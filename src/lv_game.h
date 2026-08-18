@@ -32,9 +32,9 @@ int       LvIsSelectedCharacter(Character* me); // squad body the panel is drawi
 int       LvPanelIsLeftMedical(DatapanelGUI* panel); // live key "Blood" only — v1.14 does not guess-paint
 int       LvPanelHasBlood(DatapanelGUI* panel); // live key "Blood" on a real line
 void      LvWalkSelPanel(DatapanelGUI* panel); // hunt MainBar widgets (no tree walk)
-void      LvNoteHudProbeSeh(); // freeze _getWidget — do not retry after GUI probe SEH
+void      LvNoteHudProbeSeh(); // skip further HUD resolve after SEH — never retry _getWidget
 void      LvClearHud(DatapanelGUI* panel); // restore Blood/Oil caption — door stays a door
-void      LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap); // setCaption only if getName has LifeBar1
+void      LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap); // prefixed find + setCaption, no _getWidget
 int       LvReadMsvcString(const void* strObj, char* out, int outsz);
 int       LvItemLooksLikeCatalyst(Item* item);
 void      LvResolvePluginDirFromSelf();

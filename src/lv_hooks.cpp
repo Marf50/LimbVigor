@@ -468,7 +468,7 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
         LvHudNote(live);
     }
 
-    /* setCaption only if getName contains LifeBar1. Never a parent. No setVisible. */
+    /* Prefixed findWidget LifeBar1 + setCaption. Never _getWidget. No setVisible. */
     PaintSafe(med, who, live);
 }
 
