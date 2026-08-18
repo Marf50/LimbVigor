@@ -92,7 +92,7 @@
                 <Property key="Caption" value="Squad 3"/>
             </Widget>
         </Widget>
-        <Widget type="Widget" skin="PanelEmpty" position_real="0.13489583134651184 0.71851849555969238 0.15572915971279144 0.30000001192092896" name="MedicalPanel">
+        <Widget type="Widget" skin="PanelEmpty" position_real="0.13489583134651184 0.68851849555969238 0.15572915971279144 0.30000001192092896" name="MedicalPanel">
             <Widget type="Widget" skin="Kenshi_HealthPanelBottomSkin" position_real="0.040133778005838394 0.24074074625968933 0.92976588010787964 0.7469136118888855" name="MedicalPanel_Back">
                 <Property key="Depth" value="1"/>
                 <Widget type="Widget" skin="PanelEmpty" position_real="0.0071942447684705257 0.012396694160997868 0.85611510276794434 0.095041319727897644" name="LifeBar1">

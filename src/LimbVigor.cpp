@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.25 — Widget setCaption + show LifeBar10 after orig");
+        LvLog("LimbVigor: ready v1.26 — MedicalPanel up + ISub setCaption Hemolymph");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

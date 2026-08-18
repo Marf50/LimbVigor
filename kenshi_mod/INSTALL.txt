@@ -23,12 +23,11 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-v1.25 Widget setCaption + show
-LifeBar10 after orig. Same e062b6d
-layout. Do not grow MedicalPanel.
-Blood stays Blood and in-slot.
-Dump every setCaption export.
-Bind Widget QEAAX (not TextBox-only).
+v1.26 MedicalPanel up + ISub
+setCaption Hemolymph. Slide MedicalPanel
+y 0.71852 to 0.68852 only. Widget
+setCaption is not exported. ISub
+writes Datapanel / getSubWidgetText.
 setVisible LifeBar10 / Datapanel /
 Value / Green after orig. Read-back
 Hemolymph. painted=1 only if vis=1.
@@ -45,8 +44,8 @@ gui/layout/Kenshi_MainPanel.layout
 (Dark UI override + LifeBar10).
 This build does not create widgets.
 
-v1.25: Widget setCaption + show
-LifeBar10 after orig.
+v1.26: MedicalPanel up + ISub
+setCaption Hemolymph.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 

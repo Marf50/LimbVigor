@@ -468,7 +468,7 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
         LvHudNote(live);
     }
 
-    /* After orig: show LifeBar10/Datapanel/Value/Green + Widget::setCaption. Never LifeBar1. */
+    /* After orig: show LifeBar10/Datapanel/Value/Green + ISub setCaption. Never LifeBar1. */
     PaintSafe(med, who, live);
 }
 

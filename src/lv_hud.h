@@ -3,9 +3,9 @@
 #include "lv_types.h"
 
 // I-key tooltip snapshot only. No TitleScreen. No widget create.
-// Layout: e062b6d Dark UI exact + LifeBar10 (do not recut). After orig:
-// setVisible LifeBar10 / Datapanel / Value / Green. Widget::setCaption
-// on LifeBar10 / Datapanel. TextBox or ISubWidgetText on Value only.
+// Layout: MedicalPanel y slid 0.71852→0.68852 only. After orig:
+// setVisible LifeBar10 / Datapanel / Value / Green. ISubWidgetText
+// setCaption on Datapanel / getSubWidgetText(LifeBar10). Not Widget::setCaption.
 void LvHudInstall();
 void LvHudEnsureAfterInGame();
 void LvHudPaint(const CharSnap* snap);

@@ -34,7 +34,7 @@ int       LvPanelHasBlood(DatapanelGUI* panel); // live key "Blood" on a real li
 void      LvWalkSelPanel(DatapanelGUI* panel); // hunt MainBar widgets (no tree walk)
 void      LvNoteHudProbeSeh(); // skip further HUD resolve after SEH — never retry _getWidget
 void      LvClearHud(DatapanelGUI* panel); // hide/clear LifeBar10* only — never touch LifeBar1
-void      LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap); // after orig: show four LifeBar10* + Widget::setCaption
+void      LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap); // after orig: show four LifeBar10* + ISub setCaption
 int       LvReadMsvcString(const void* strObj, char* out, int outsz);
 int       LvItemLooksLikeCatalyst(Item* item);
 void      LvResolvePluginDirFromSelf();

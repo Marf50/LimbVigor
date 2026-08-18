@@ -2,12 +2,12 @@
 
 #include "lv_config.h"
 
-// I-key tooltip snapshot only. v1.25 Widget::setCaption after orig
+// I-key tooltip snapshot only. v1.26 ISubWidgetText::setCaption after orig
 // every tick. setVisible LifeBar10 / Datapanel / Value / Green only.
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: HUD is Widget::setCaption after orig on LifeBar10 — show LifeBar10/Datapanel/Value/Green");
+    LvLog("LimbVigor: HUD is ISub setCaption after orig on LifeBar10 — Widget::setCaption not exported");
 }
 
 void LvHudEnsureAfterInGame() {}

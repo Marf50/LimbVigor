@@ -6,7 +6,7 @@ Proven facts. Update when a playtest proves a new one.
 
 - Blood is **LifeBar1** (first bar). LifeBar2..9 = Head / Stomach / Chest / arms / legs / Hunger.
 - Dark UI omitted **LifeBar10**. MyGUI `LifeBar10 not found` is Dark UI omitting a slot MainBar already `assignWidget`-binds.
-- LimbVigor ships `kenshi_mod/gui/layout/Kenshi_MainPanel.layout` started from workshop **1200632417** Dark UI (MedicalPanel `position_real` locked). **Do not grow MedicalPanel.** Grow **MedicalPanel_Back only**, rescale LifeBar1–9 (`new_frac = old_frac * oldH/newH`) so pixel size stays the same, insert **LifeBar10 after Hunger** at the same pixel h as LifeBar9. Touch no other chrome.
+- LimbVigor ships `kenshi_mod/gui/layout/Kenshi_MainPanel.layout` started from workshop **1200632417** Dark UI. **Do not grow MedicalPanel h.** v1.26 slides MedicalPanel **y only** `0.71851849555969238 → 0.68851849555969238` (minus 0.030) so LifeBar10 is on-screen. Touch no other widget. Grow **MedicalPanel_Back only** was the v1.24 tuck.
 - SHA `2bc122a` (v1.23 full-layout drift: MedicalPanel `0.3→0.333`, children `position_real` so every bar grew ~11%) is **rejected**. SHA `46d810a` (LifeBar1 overwrite) is also rejected.
 - LifeBar1 / LifeBar10 are **Widget** (PanelEmpty), not a TextBox. LifeBarNValue is the digit TextBox.
 - LifeBarN Green / fill skins: do not setCaption them.
@@ -32,7 +32,7 @@ Proven facts. Update when a playtest proves a new one.
 - **Do not hunt again.** Cache those three. **Do not call `_getWidget` RVA `0x723780`.**
 - Never cache or `setCaption` LifeBar1 / LifeBar1Datapanel / LifeBar1Value.
 
-## Write path (v1.25 — show after orig + Widget::setCaption)
+## Write path (v1.26 — ISub setCaption, not Widget::setCaption)
 
 - v1.22 find+write logged `painted=1` but Dylan saw only the vanilla HUD. Two causes:
   1. Bound `?setCaption@TextBox@MyGUI@@UEAAXAEBVUString@2@@Z` and called it on LifeBar1 (Widget). Wrong vtable. No pixels.
@@ -49,6 +49,8 @@ Proven facts. Update when a playtest proves a new one.
 - `painted=1` only if LifeBar10 `vis=1` **and** getCaption is Hemolymph / Vigor / Battle-heat. `vis=0` or empty / Blood is a fail.
 - Door / box / chair: `setVisible(false)` + clear those LifeBar10* only. Never touch LifeBar1. Blood stays Blood.
 - Layout stays e062b6d (`d7a31296…`). No layout recut. No MedicalPanel grow. No LifeBar1 `setCaption`.
+- v1.25 playtest (Dylan, Boop): chrome OK. LifeBar10 FOUND. After show `vis10=1 visData=1 visVal=1 visGreen=1` every tick. `painted=0` because caption empty. **Widget::setCaption is not in MyGUIEngine exports** (12 names: EditBox, EditText, ISubWidgetText, ListScrollBar, MenuItem, MultiListItem, MultiSlider, Slider, TabItem, TextBox, Window). `setCapW=0` forever. `setCapISub=1` was bound and never used for the key write. LifeBar10 was ON but off the bottom of the screen (MedicalPanel y+h = 1.018).
+- v1.26: slide MedicalPanel y `0.71852→0.68852` only. Write **ISubWidgetText::setCaption** on LifeBar10Datapanel and/or `getSubWidgetText(LifeBar10)`. Bind EditText::setCaption if the text child is EditText. `setCapW=0` is expected — do not hunt Widget::setCaption. TextBox-on-Value is not `painted=1`. Show-after-orig stays.
 
 ## Landmines
 
@@ -65,3 +67,5 @@ No `createWidget`. No MainBar ctor `0x72C1E0`. No `eventFrameStart`. No TitleScr
 - v1.23 (`2bc122a`): LifeBar10 after Hunger, but grew MedicalPanel and drifted the whole layout. Children are `position_real` so parent scale changes pixel size. Bars larger, Blood off the top, Hunger off the bottom, name plate / chrome shifted. Find: LifeBar10 `vis=0`, `setCapW=0`, TextBox write empty.
 - v1.24: Dark UI exact layout (e062b6d, sha256 `d7a31296…`). Chrome OK. `setCapW=0`, LifeBar10 stayed `vis=0`. Ready was `ready v1.24 — Dark UI exact + LifeBar10 tucked, no parent scale`.
 - v1.25: same layout. Dump every setCaption export. Bind Widget QEAAX/UEAAX + ISub. Show LifeBar10 / Datapanel / Value / Green after orig. `painted=1` only if vis=1 and Hemolymph/Vigor/Battle-heat. Ready: `ready v1.25 — Widget setCaption + show LifeBar10 after orig`.
+- v1.25 playtest: show worked (`vis10=1`). Widget::setCaption **not exported**. ISub bound, unused for the write. LifeBar10 off the bottom. Ready v1.25 rejected as a write hunt.
+- v1.26: MedicalPanel y `0.71852→0.68852` only (nothing else). ISub setCaption on Datapanel / `getSubWidgetText(LifeBar10)`. EditText if the child is EditText. `setCapW=0` expected. Ready: `ready v1.26 — MedicalPanel up + ISub setCaption Hemolymph`.
