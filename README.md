@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-v1.21 hunts MainBar MyGUI widgets and **setCaption** Hemolymph / Vigor / Battle-heat on LifeBar1 (or the Blood-caption widget) if found. Person selected only — door / box / chair restore Blood/Oil. No Datapanel. No `setSize` / MedicalPanel resize / LifeBar2–9 shift. Person-select must not kill the process. See [testdoc/HUD.md](testdoc/HUD.md).
+v1.22 **setCaption** Hemolymph / Vigor / Battle-heat only if `getName` contains `LifeBar1`. v1.21 hid the whole HUD — a parent dest (empty name / Blood caption) likely got the write. Blood/Oil caption is confirmation, never a substitute. Person selected only; door restores Blood/Oil on that same gated widget. No parent write. No `setVisible`. No Datapanel. No `setSize`. See [testdoc/HUD.md](testdoc/HUD.md).
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.21: hunt + setCaption on LifeBar1 if found. v1.20 crash lock passed then skipped `_getWidget` (all null). Prefix is a real std::string, not a C string at +0x40. No `_getWidget` retry after SEH. No setSize.
+v1.22: name-gated setCaption LifeBar1 only. v1.21 no crash, but a parent write hid the whole HUD. No `_getWidget` retry after SEH. No setVisible. No setSize.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 
@@ -40,7 +40,7 @@ Documented KenshiLib methods. No TitleScreen hook. No widget create.
 | Hook | Why |
 | --- | --- |
 | `MedicalSystem::medicalUpdate` | Tick vigor and growth; slot LV parts after in-game (snapshot only, no MyGUI) |
-| `MedicalSystem::getMedicalGUIData` | After orig: In-game gate first. SEH-safe LifeBar1* lookup; paint LifeBar1Datapanel only if safe |
+| `MedicalSystem::getMedicalGUIData` | After orig: In-game gate first. Name-gated setCaption on LifeBar1 only; never a parent |
 | `Character::_NV_getGUIData` | Same after orig. In-game gate before `getMedical()`. `GetRealAddress` on `_NV_` only |
 | `MedicalSystem::applyDoctoring` | Splint Kit / stimulant starts the catalyst |
 | `InventoryItemBase::getTooltipData1` | I-key tooltip RVA `0x7A8E30` (never `GetRealAddress` on the virtual) |

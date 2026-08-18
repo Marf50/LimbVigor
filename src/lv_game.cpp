@@ -826,11 +826,10 @@ static void lvDumpExtrasOnce()
 }
 
 #if !defined(LIMBVIGOR_IDE)
-/* v1.21: Blood is a MyGUI widget. Hunt MainBar members, then setCaption.
- * Do not skip _getWidget on a proven bar (v1.20 did — all null, painted=0).
- * _getWidget once on bar and once on bar+0x30 (BaseLayout this). No retry
- * after SEH. No Datapanel / setLineProgress HUD path. No tree walk.
- * No MainBar ctor 0x72C1E0. No createWidget. */
+/* v1.22: setCaption ONLY if getName contains LifeBar1. Blood/Oil caption
+ * is confirmation, never a substitute. v1.21 likely wrote a parent
+ * (Root / MainBar / MedicalPanel) and hid the whole HUD. No setVisible.
+ * No setSize. No Datapanel. No tree walk. No ctor 0x72C1E0. No createWidget. */
 
 typedef void*         (*FnGuiInst)();
 typedef void*         (*FnFindW)(void* gui, const GameStr* name, unsigned char throwFlag);
@@ -1042,6 +1041,7 @@ static void lvTryBindExport(const char* n, void* addr)
         g_wName = (FnGetName)addr;
         LvLogf("LimbVigor: mygui bind getName '%s'", n);
     }
+    /* getVisible only. Never bind or call setVisible (v1.21 parent hide). */
     if (!g_wVis && lvHasI(n, "getVisible") && lvHasI(n, "Widget")
      && !lvHasI(n, "Inherited") && !lvHasI(n, "setVisible"))
     {
@@ -1590,26 +1590,39 @@ static int lvIsFillBarName(const char* n)
          || lvHasSub(n, "LifeBar1Crushed") || lvHasSub(n, "LifeBar1Value")) ? 1 : 0;
 }
 
-/* Rank write dest. Never MedicalPanel / _Back. Never LifeBar2–9. No setSize. */
-static int lvRankWidget(const char* name, const char* cap)
+static int lvIsForbiddenParent(const char* n)
 {
-    if (lvHasSub(name, "MedicalPanel"))
+    if (!n || !n[0])
+        return 1;
+    return (lvHasSub(n, "Root") || lvHasSub(n, "MedicalPanel")
+         || lvHasSub(n, "StatusPanel") || lvHasSub(n, "MedicalPanel_Back")) ? 1 : 0;
+}
+
+/* Write gate: getName must contain LifeBar1. Empty name is a parent. */
+static int lvNameIsLifeBar1Write(const char* name)
+{
+    if (!name || !name[0])
         return 0;
-    if (lvHasSub(name, "LifeBar2") || lvHasSub(name, "LifeBar3")
-     || lvHasSub(name, "LifeBar4") || lvHasSub(name, "LifeBar5")
-     || lvHasSub(name, "LifeBar6") || lvHasSub(name, "LifeBar7")
-     || lvHasSub(name, "LifeBar8") || lvHasSub(name, "LifeBar9")
-     || lvHasSub(name, "LifeBar10"))
+    if (lvIsForbiddenParent(name))
+        return 0;
+    if (!lvHasSub(name, "LifeBar1"))
+        return 0;
+    if (lvHasSub(name, "LifeBar10"))
         return 0;
     if (lvIsFillBarName(name))
         return 0;
+    return 1;
+}
+
+/* Blood/Oil is extra confirmation only. Never ranks a nameless / parent dest. */
+static int lvRankWidget(const char* name, const char* cap)
+{
+    if (!lvNameIsLifeBar1Write(name))
+        return 0;
+    int r = lvHasSub(name, "Datapanel") ? 1 : 2;
     if (lvCapIsBlood(cap))
-        return 3;
-    if (lvHasSub(name, "LifeBar1") && !lvHasSub(name, "Datapanel"))
-        return 2;
-    if (lvHasSub(name, "LifeBar1") && lvHasSub(name, "Datapanel"))
-        return 1;
-    return 0;
+        r += 1;
+    return r;
 }
 
 static void lvReadWidget(void* w, char* name, int nn, char* cap, int nc, int* vis)
@@ -1631,6 +1644,28 @@ static void lvReadWidget(void* w, char* name, int nn, char* cap, int nc, int* vi
     catch (...) { s = nullptr; }
     if (s && cap)
         lvReadCaption(s, cap, nc);
+}
+
+/* Live getName check — this is the write-path gate, not a comment. */
+static int lvWriteDestOk(void* w, char* nameOut, int nsz)
+{
+    if (nameOut && nsz > 0)
+        nameOut[0] = 0;
+    if (!w)
+        return 0;
+    char name[96], cap[96];
+    int vis = -1;
+    name[0] = 0;
+    cap[0] = 0;
+    lvReadWidget(w, name, (int)sizeof(name), cap, (int)sizeof(cap), &vis);
+    if (nameOut && nsz > 0)
+        std::snprintf(nameOut, (size_t)nsz, "%s", name);
+    return lvNameIsLifeBar1Write(name);
+}
+
+static int lvDestNameGated(void* w)
+{
+    return lvWriteDestOk(w, nullptr, 0);
 }
 
 static void lvConsider(void* w, const char* src)
@@ -1783,6 +1818,21 @@ static int lvTryWriteCaption(void* w, const char* text)
 {
     if (!w || !text || !text[0])
         return 1;
+    {
+        char nm[96];
+        nm[0] = 0;
+        if (!lvWriteDestOk(w, nm, (int)sizeof(nm)))
+        {
+            static int once = 0;
+            if (!once)
+            {
+                once = 1;
+                LvLogf("LimbVigor: refuse setCaption dest name='%s' — not LifeBar1, no parent write",
+                       nm);
+            }
+            return 1;
+        }
+    }
     if (g_setCaption && (g_ustrCtorC || g_ustrCtorS) && g_ustrDtor)
     {
         char ustr[512];
@@ -1906,11 +1956,14 @@ static void lvResolveLifeBar()
     else
         LvLog("LimbVigor: 3-arg findWidgetT skipped — prefix not a real std::string");
 
-    if (g_capWidget)
-        LvLogf("LimbVigor: hunt dest=%p rank=%d orig='%s' setCaption=%d — will write on person-select",
+    if (g_capWidget && lvDestNameGated(g_capWidget))
+        LvLogf("LimbVigor: hunt dest=%p rank=%d orig='%s' setCaption=%d — name-gated LifeBar1, will write on person-select",
                g_capWidget, g_capRank, g_capOrig, (g_setCaption || g_setCapStr) ? 1 : 0);
     else
-        lvWhyOnce("LimbVigor: hunt found no LifeBar1 / Blood-caption widget — not creating, not setSize");
+    {
+        g_capWidget = nullptr;
+        lvWhyOnce("LimbVigor: hunt found no getName LifeBar1 — not writing, painted=0, no parent write");
+    }
 }
 
 static void lvDumpMyGuiOnce()
@@ -1925,6 +1978,7 @@ static void lvResolveLifeBar() { (void)g_getWidget; }
 static void lvWhyOnce(const char* why) { (void)why; }
 static int  lvTryWriteCaption(void* w, const char* t) { (void)w; (void)t; return 1; }
 static void lvRestoreCaption() {}
+static int  lvDestNameGated(void* w) { (void)w; return 0; }
 #endif
 
 static int KeyEqI(const char* a, const char* b)
@@ -1992,6 +2046,14 @@ static void* lvCaptionDest()
 {
     if (!g_resolveOnce)
         lvResolveLifeBar();
+    if (!g_capWidget)
+        return nullptr;
+    if (!lvDestNameGated(g_capWidget))
+    {
+        lvWhyOnce("LimbVigor: dest getName does not contain LifeBar1 — not writing, painted=0");
+        g_capWidget = nullptr;
+        return nullptr;
+    }
     return g_capWidget;
 }
 
@@ -2021,7 +2083,7 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
         if (!g_paintedOnce)
         {
             g_paintedOnce = 1;
-            LvLog("LimbVigor: painted=0 (no LifeBar1 / Blood-caption widget)");
+            LvLog("LimbVigor: painted=0 (no name-gated LifeBar1 dest)");
         }
         return;
     }
@@ -2055,7 +2117,7 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     {
         g_paintLogged = 1;
         g_paintedOnce = 1;
-        LvLogf("LimbVigor: painted=1 setCaption '%s' on LifeBar1/Blood widget %p",
+        LvLogf("LimbVigor: painted=1 setCaption '%s' on name-gated LifeBar1 %p",
                key1, dest);
     }
 }

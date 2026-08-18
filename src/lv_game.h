@@ -34,7 +34,7 @@ int       LvPanelHasBlood(DatapanelGUI* panel); // live key "Blood" on a real li
 void      LvWalkSelPanel(DatapanelGUI* panel); // hunt MainBar widgets (no tree walk)
 void      LvNoteHudProbeSeh(); // freeze _getWidget — do not retry after GUI probe SEH
 void      LvClearHud(DatapanelGUI* panel); // restore Blood/Oil caption — door stays a door
-void      LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap); // setCaption LifeBar1 only
+void      LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap); // setCaption only if getName has LifeBar1
 int       LvReadMsvcString(const void* strObj, char* out, int outsz);
 int       LvItemLooksLikeCatalyst(Item* item);
 void      LvResolvePluginDirFromSelf();

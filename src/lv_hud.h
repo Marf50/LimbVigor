@@ -3,7 +3,7 @@
 #include "lv_types.h"
 
 // I-key tooltip snapshot only. No TitleScreen. No widget create.
-// No layout file. Visible path is Widget::setCaption on LifeBar1 (lv_game).
+// No layout file. Visible path is name-gated setCaption on LifeBar1 only.
 void LvHudInstall();
 void LvHudEnsureAfterInGame();
 void LvHudPaint(const CharSnap* snap);

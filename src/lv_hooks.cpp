@@ -468,7 +468,7 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
         LvHudNote(live);
     }
 
-    /* setCaption on LifeBar1 / Blood only. Never Goal/State. No setSize. */
+    /* setCaption only if getName contains LifeBar1. Never a parent. No setVisible. */
     PaintSafe(med, who, live);
 }
 

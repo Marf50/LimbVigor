@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.21 — hunt MainBar widgets + setCaption Hemolymph if found, no Datapanel");
+        LvLog("LimbVigor: ready v1.22 — name-gated setCaption LifeBar1 only, no parent write");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

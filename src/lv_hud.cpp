@@ -2,13 +2,13 @@
 
 #include "lv_config.h"
 
-// I-key tooltip snapshot only. v1.21 setCaption on LifeBar1 /
-// Blood-caption if the hunt finds it. No Datapanel. No setSize.
+// I-key tooltip snapshot only. v1.22 setCaption only if getName
+// contains LifeBar1. No parent write. No setVisible. No Datapanel.
 // No _getWidget retry after SEH. No tree walk. No createWidget.
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: HUD is setCaption on LifeBar1 if found — no Datapanel, no setSize, no tree walk");
+    LvLog("LimbVigor: HUD is name-gated setCaption LifeBar1 only — no parent write, no setVisible");
 }
 
 void LvHudEnsureAfterInGame() {}
