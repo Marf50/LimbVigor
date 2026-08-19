@@ -3,9 +3,8 @@
 #include "lv_types.h"
 
 // I-key tooltip snapshot only. No TitleScreen. No widget create.
-// Layout: MedicalPanel y slid 0.71852→0.68852 only. After orig:
-// setVisible LifeBar10 / Datapanel / Value / Green. ISubWidgetText
-// setCaption on Datapanel / getSubWidgetText(LifeBar10). Not Widget::setCaption.
+// Layout: MedicalPanel grown + 1–10 / Value / Tooltip rescaled.
+// After orig: ISub on Datapanel, numeric Value, setSize LifeBar10Green.
 void LvHudInstall();
 void LvHudEnsureAfterInGame();
 void LvHudPaint(const CharSnap* snap);

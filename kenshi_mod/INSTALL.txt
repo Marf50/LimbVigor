@@ -23,14 +23,15 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-v1.26 MedicalPanel up + ISub
-setCaption Hemolymph. Slide MedicalPanel
-y 0.71852 to 0.68852 only. Widget
-setCaption is not exported. ISub
-writes Datapanel / getSubWidgetText.
+v1.27 MedicalPanel grow + Hemolymph
+on Datapanel + Green fill. Grow
+MedicalPanel, rescale 1-10. ISub
+label on Datapanel only. Value is
+the number. Green setSize fill.
 setVisible LifeBar10 / Datapanel /
-Value / Green after orig. Read-back
-Hemolymph. painted=1 only if vis=1.
+Value / Green after orig. painted=1
+if vis=1, Datapanel Hemolymph,
+Value is a number, green w>0.
 No LifeBar1 overwrite. No _getWidget.
 Person only. Door hides LifeBar10*
 only. No parent scale.
@@ -44,8 +45,8 @@ gui/layout/Kenshi_MainPanel.layout
 (Dark UI override + LifeBar10).
 This build does not create widgets.
 
-v1.26: MedicalPanel up + ISub
-setCaption Hemolymph.
+v1.27: MedicalPanel grow + Hemolymph
+on Datapanel + Green fill.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 
