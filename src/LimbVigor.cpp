@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.27 — MedicalPanel grow + Hemolymph on Datapanel + Green fill");
+        LvLog("LimbVigor: ready v1.28 — revert 1–9 + new Hemolymph strip + pixel Green");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

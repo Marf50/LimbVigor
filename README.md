@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-v1.27 grows MedicalPanel so LifeBar10 sits on the grey plate, writes **Hemolymph on LifeBar10Datapanel**, a **number** on Value, and sizes **LifeBar10Green**. Widget::setCaption is not exported. **No `_getWidget`.** See [testdoc/HUD.md](testdoc/HUD.md).
+v1.28 **reverts** the v1.27 9-bar stretch (LifeBar1–9 back to v1.26 / `3b999b9` coords) and puts Hemolymph on a **new one-row strip** (`HemolymphStrip`, `Kenshi_FloatingPanelSkin`) under the unstretched 9-bar plate. Write: **pixel** Green fill (99/100 is nearly full, not a 1px sliver) and **Hemolymph on Datapanel**. Value stays the number. Widget::setCaption is not exported. **No `_getWidget`.** See [testdoc/HUD.md](testdoc/HUD.md).
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.27: MedicalPanel grow + Hemolymph on Datapanel + Green fill. Widget::setCaption hunt is rejected. v1.23 full-layout drift is rejected. `46d810a` LifeBar1 overwrite is rejected.
+v1.28: revert 1–9 + new Hemolymph strip + pixel Green. Widget::setCaption hunt is rejected. Stretching the 9-bar skin is rejected. v1.23 full-layout drift is rejected. `46d810a` LifeBar1 overwrite is rejected.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 

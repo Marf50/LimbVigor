@@ -2,12 +2,11 @@
 
 #include "lv_config.h"
 
-// I-key tooltip snapshot only. v1.27 ISub on Datapanel, numeric Value,
-// Green setSize after orig. setVisible LifeBar10 / Datapanel / Value / Green only.
+// I-key tooltip snapshot only. v1.28: 1–9 reverted, Hemolymph on new strip.
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: HUD is ISub on Datapanel + numeric Value + Green fill — setCapW=0 expected");
+    LvLog("LimbVigor: HUD is revert 1-9 + Hemolymph strip + pixel Green — setCapW=0 expected");
 }
 
 void LvHudEnsureAfterInGame() {}
