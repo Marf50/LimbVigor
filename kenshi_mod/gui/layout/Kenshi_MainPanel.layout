@@ -260,6 +260,10 @@
         <Widget type="Widget" skin="PanelEmpty" position_real="0.13906249786902594 0.9806644488065657 0.14635415632726892 0.01944444549699285" name="LifeBar10Tooltip">
             <Property key="Depth" value="1"/>
         </Widget>
+        <Widget type="Widget" skin="PanelEmpty" position_real="0 0 0 0" name="LifeBar11">
+            <Property key="Visible" value="false"/>
+            <Property key="Depth" value="0"/>
+        </Widget>
         <Widget type="Widget" skin="Kenshi_OrdersPanelSkin" position_real="0.74843752384185791 0.82222223281860352 0.25156250596046448 0.17870371043682098" name="OrdersPanel">
             <Widget type="Button" skin="Kenshi_TickButton1" position_real="0.016563147306442261 0.031088082119822502 0.24430641531944275 0.12953367829322815" name="OrdersBlockButton">
                 <Property key="Caption" value="BLOCK"/>

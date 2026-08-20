@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-v1.38: HUD freeze across Options reload. OptionsPanel findWidgetT (not an ESC/button hook) nulls every MyGUI pointer before Kenshi_MainPanel.layout reloads. Stay frozen until LifeBar10* re-resolve. Logs `HUD freeze (MainPanel reload)` / `HUD thaw`. Stump / chrome / 1–9 unchanged. **No `_getWidget`.** See [testdoc/HUD.md](testdoc/HUD.md).
+v1.39: HUD lifetime + LifeBar11 bind. Resolve / paint / invalidate live in `lv_hud.cpp` (not a wall in `lv_game.cpp`). A cached LifeBar10* that fails getName / getVisible or is no longer named `*LifeBar10` nulls every MyGUI pointer, drops the prefix, skips writes that tick, and re-resolves after MainPanel exists again. Log `HUD invalidate (widget died)`. OptionsPanel / odSettingsOpen name-guess is deleted (`odSettingsOpen` is a dump string). LifeBar11 is a hidden 0-size bind stub — vanilla/Dark UI omit 10 and 11; BaseLayout assignWidget-s them. Hemolymph bar stays. 1–9 / chrome unchanged. **No `_getWidget`.** See [testdoc/HUD.md](testdoc/HUD.md).
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.38: HUD freeze across Options reload, ESC close must live. Cached LifeBar10* across MainPanel reload is rejected. ESC/settings-button hooks are rejected. Epoch-drop is rejected. `LifeBar10Slot` is rejected. PausedPanel vis=1 skip-paint is rejected.
+v1.39: HUD lifetime + LifeBar11 bind, bar stays, ESC close must live. OptionsPanel name-guess is rejected. Cached LifeBar10* across MainPanel reload without a name/vis probe is rejected. ESC/settings-button hooks are rejected. Epoch-drop is rejected. `LifeBar10Slot` is rejected. PausedPanel vis=1 skip-paint is rejected. EnableHud=0 as the crash fix is rejected.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 

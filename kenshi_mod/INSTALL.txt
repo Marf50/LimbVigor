@@ -23,16 +23,19 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-v1.38 HUD freeze across
-Options reload, ESC close
-must live. OptionsPanel
-find nulls all MyGUI
-pointers until LifeBar10
-re-resolve. No ESC hook.
-No LifeBar10Slot. Layout
+v1.39 HUD lifetime +
+LifeBar11 bind, bar stays,
+ESC close must live.
+Dead LifeBar10* invalidates
+the whole MyGUI cache.
+No OptionsPanel guess.
+No ESC hook. No
+LifeBar10Slot. Layout
 is the 1.37 Root-after-
-MedicalPanel bar. No
-epoch-drop. No _getWidget.
+MedicalPanel bar plus a
+hidden 0-size LifeBar11
+bind stub. No epoch-drop.
+No _getWidget.
 
 Spoken lines appear over the character.
 I-key on a stump/bud/knit/grown item is
@@ -43,9 +46,9 @@ gui/layout/Kenshi_MainPanel.layout
 (Dark UI override + LifeBar10).
 This build does not create widgets.
 
-v1.38: HUD freeze across
-Options reload, ESC close
-must live.
+v1.39: HUD lifetime +
+LifeBar11 bind, bar stays,
+ESC close must live.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 

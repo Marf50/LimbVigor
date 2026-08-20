@@ -31,18 +31,12 @@ int       LvIsPlayerSquad(Character* me);
 int       LvIsSelectedCharacter(Character* me); // squad body the panel is drawing — not isPlayerCharacter()
 int       LvPanelIsLeftMedical(DatapanelGUI* panel); // live key "Blood" only — v1.14 does not guess-paint
 int       LvPanelHasBlood(DatapanelGUI* panel); // live key "Blood" on a real line
-void      LvWalkSelPanel(DatapanelGUI* panel); // hunt MainBar widgets (no tree walk)
-void      LvNoteHudProbeSeh(); // SEH skip only — do not wipe the LifeBar10 cache
-void      LvHudCacheDrop(const char* why); // no-op v1.33 — never drop cache on ESC/pause/pointer change
-int       LvHudCacheAlive(); // 0 while Options MainPanel-reload freeze
-int       LvHudWritesOk(); // 0 while Options MainPanel-reload freeze
-void      LvHudResumeWrites(); // no-op v1.33
-void      LvHudWatchGui(); // no-op v1.33 — no epoch-drop
-void      LvHudFreezeTick(); // OptionsPanel / options-layout find — not an ESC/button hook
+int       LvPanelHasGoalKeys(DatapanelGUI* panel); // Goal/State/Encumbrance — HUD must not paint these
+void*     LvMainBar(); // ForgottenGUI gui+0x10 — no ctor 0x72C1E0
+void*     LvMedicalPanel(); // MainBarGUI::getMedicalPanel / +0x188
+int       LvMainBarProven(void* bar, void* med); // *(bar+0x188) == med
 int       LvGrowStumpNub(MedicalSystem* med, int limbId, float progress, float realMaxHint,
                          float* hpBefore, float* hpAfter, float* maxAfter);
-void      LvClearHud(DatapanelGUI* panel); // hide/clear LifeBar10* only — never touch LifeBar1
-void      LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap); // after orig: Datapanel label + numeric Value + Green fill
 int       LvReadMsvcString(const void* strObj, char* out, int outsz);
 int       LvItemLooksLikeCatalyst(Item* item);
 void      LvResolvePluginDirFromSelf();

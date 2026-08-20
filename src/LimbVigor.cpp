@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.38 — HUD freeze across Options reload, ESC close must live");
+        LvLog("LimbVigor: ready v1.39 — HUD lifetime + LifeBar11 bind, bar stays, ESC close must live");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }
