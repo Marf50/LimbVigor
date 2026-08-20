@@ -81,4 +81,4 @@ No runtime `createWidget`. No HemolymphStrip. No MainBar ctor `0x72C1E0`. No `ev
 - v1.27 playtest: 10th row on the plate, number 99. Then 1–9 slot drift + LifeBar10 chopped by the 9-bar dashed cap. Blank label. 1px sliver (getWidth=0 clamped to 1, or fraction-as-pixels). Stretching the 9-bar skin is rejected.
 - v1.28: revert 1–9 to `3b999b9`. New Hemolymph strip. Ready: `ready v1.28 — revert 1–9 + new Hemolymph strip + pixel Green`.
 - v1.28 playtest FAIL: separate strip (no 10th row). Caption `''`. parentW ~1.1e9. `no stump` while Left Leg 5 crippled. parts SEH.
-- v1.29: LifeBar10 in MedicalPanel under Back. Real pixel getWidth. Hemolymph on Datapanel. Stump = official / crippled / cut-off nub. Per-limb parts SEH. Ready: `ready v1.29 — LifeBar10 in MedicalPanel + pixel Green + stump growth`.
+- v1.29: LifeBar10 in MedicalPanel under Back. Real pixel getWidth. Hemolymph on Datapanel. Stump = official / crippled / cut-off nub. Per-limb parts SEH (cheap; not a parts rewrite). **75-HP arms were a false alarm** — no intact-limb heal. Ready: `ready v1.29 — LifeBar10 in MedicalPanel + pixel Green + stump growth`.
