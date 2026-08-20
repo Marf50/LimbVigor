@@ -23,19 +23,16 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-v1.36 ESC/settings close
-lives + nub attach actually
-runs. Every HUD MyGUI call
-is SEH'd. Options teardown
-nulls that widget and logs
-HUD SEH skip (options
-teardown). Skip paint while
-findWidget sees Paused or
-Options; re-find after
-close. No LifeBar10Slot.
-Datapanel setSize host W x
-Hunger H (never copy 0x0).
-Green width =
+v1.37 quiet log + bar
+visible like 1.33 + ESC
+close still lives. No
+Paused/Options skip-paint.
+Only skip after a real HUD
+SEH, then re-find. Per-tick
+logs are gated. No
+LifeBar10Slot. Datapanel
+setSize host W x Hunger H.
+Green setSize
 (hemo/max)*parentW (272).
 A STUMP left leg calls
 EquipWriteSeh (STUMP nub
@@ -53,9 +50,9 @@ gui/layout/Kenshi_MainPanel.layout
 (Dark UI override + LifeBar10).
 This build does not create widgets.
 
-v1.36: ESC/settings close
-lives + nub attach actually
-runs.
+v1.37: quiet log + bar
+visible like 1.33 + ESC
+close still lives.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 

@@ -656,16 +656,7 @@ int LvGrowStumpNub(MedicalSystem* med, int limbId, float progress, float realMax
         {
             alt = lvPartByType(med, limbId);
             if (!lvReadPartHp(alt, &hp, &mx))
-            {
-                static int n = 0;
-                if (n < 8)
-                {
-                    n++;
-                    LvLogf("LimbVigor: stump HP skip %s — no named flesh",
-                           LvLimbLabel((LimbId)limbId));
-                }
                 return 0;
-            }
             part = alt;
         }
         else
@@ -676,16 +667,7 @@ int LvGrowStumpNub(MedicalSystem* med, int limbId, float progress, float realMax
     if (maxAfter) *maxAfter = mx;
 
     if ((limbId == LIMB_LEFT_ARM || limbId == LIMB_RIGHT_ARM) && hp >= 10.f)
-    {
-        static int n = 0;
-        if (n < 4)
-        {
-            n++;
-            LvLogf("LimbVigor: stump HP skip %s hp=%.1f/%.1f — arm HP>=10, no heal",
-                   LvLimbLabel((LimbId)limbId), hp, mx);
-        }
         return 0;
-    }
 
     float realMax = mx;
     if (realMaxHint > realMax)
@@ -745,13 +727,6 @@ int LvGrowStumpNub(MedicalSystem* med, int limbId, float progress, float realMax
     }
     LV_EXCEPT
     {
-        static int n = 0;
-        if (n < 4)
-        {
-            n++;
-            LvLogf("LimbVigor: stump HP SEH %s write flesh/max — skipped",
-                   LvLimbLabel((LimbId)limbId));
-        }
         return 0;
     }
 
@@ -759,13 +734,6 @@ int LvGrowStumpNub(MedicalSystem* med, int limbId, float progress, float realMax
     lvReadPartHp(part, &after, &afterMx);
     if (hpAfter) *hpAfter = after;
     if (maxAfter) *maxAfter = afterMx;
-    static int n = 0;
-    if (n < 32)
-    {
-        n++;
-        LvLogf("LimbVigor: stump HP %s %.1f/%.1f -> %.1f/%.1f progress=%.1f (flesh+max staged +%.1f, no GROWN)",
-               LvLimbLabel((LimbId)limbId), hp, mx, after, afterMx, progress, add);
-    }
     return (after > hp + 0.05f || afterMx > mx + 0.05f) ? 1 : 0;
 }
 
@@ -1020,11 +988,6 @@ int LvPanelHasBlood(DatapanelGUI* panel)
     return lvLiveKeyCat(panel, "Blood") >= 0 ? 1 : 0;
 }
 
-static int g_dumpBlood = 0;
-static int g_dumpSummary = 0;
-static int g_extraDump = 0;
-static void* g_dumpSeen[24] = {};
-static int g_dumpSeenN = 0;
 static void* g_hookReject = nullptr; /* Goal/State DatapanelGUI* — never paint */
 static void* g_capWidget = nullptr;  /* LifeBar10 cache alias */
 static void* g_wLifeBar10 = nullptr;
@@ -1111,7 +1074,6 @@ static int   g_capOrigHave = 0;
 static int   g_capRank = 0;
 static int   g_wroteCaption = 0;
 static int   g_wroteValue = 0;
-static int   g_rbLog = 0;
 
 static int lvPanelHasGoalKeys(DatapanelGUI* p)
 {
@@ -1121,102 +1083,6 @@ static int lvPanelHasGoalKeys(DatapanelGUI* p)
          || lvLiveKeyCat(p, "State") >= 0
          || lvLiveKeyCat(p, "Encumbrance:") >= 0
          || lvLiveKeyCat(p, "Current Skill") >= 0) ? 1 : 0;
-}
-
-static int lvDumpSeen(void* p)
-{
-    if (!p)
-        return 1;
-    for (int i = 0; i < g_dumpSeenN; ++i)
-    {
-        if (g_dumpSeen[i] == p)
-            return 1;
-    }
-    if (g_dumpSeenN >= 24)
-        return 1;
-    g_dumpSeen[g_dumpSeenN++] = p;
-    return 0;
-}
-
-static void lvDumpSummary()
-{
-    if (g_dumpSummary)
-        return;
-    if (!g_extraDump || g_dumpSeenN < 1)
-        return;
-    g_dumpSummary = 1;
-    if (g_dumpBlood)
-        LvLog("LimbVigor: dump saw live key Blood on a DatapanelGUI — still not a paint target");
-    else
-        LvLog("LimbVigor: dump: no DatapanelGUI has live key Blood (expected — Blood is LifeBar1)");
-}
-
-static void lvDumpOnePanel(DatapanelGUI* panel, const char* src)
-{
-    if (!panel || lvDumpSeen((void*)panel))
-        return;
-
-    void* med = lvMedicalPanel();
-    const int match = (med && (void*)panel == med) ? 1 : 0;
-    LvLogf("LimbVigor: dump panel=%p medicalPanel=%p match=%d src=%s",
-           (void*)panel, med, match, src ? src : "?");
-
-    int liveBlood = 0;
-    if (!g_numLines)
-    {
-        LvLog("LimbVigor: dump getNumLines missing");
-        return;
-    }
-    for (int cat = 0; cat < 4; ++cat)
-    {
-        int n = 0;
-        int seh = 0;
-        LV_TRY { n = g_numLines(panel, cat); }
-        LV_EXCEPT { n = 0; seh = 1; }
-        if (seh)
-        {
-            LvLogf("LimbVigor: dump getNumLines(%d)=SEH", cat);
-            continue;
-        }
-        LvLogf("LimbVigor: dump getNumLines(%d)=%d", cat, n);
-        if (n <= 0 || !g_lineByNum)
-            continue;
-        for (int i = 0; i < n && i < 24; ++i)
-        {
-            void* line = nullptr;
-            LV_TRY { line = g_lineByNum(panel, cat, i); }
-            LV_EXCEPT { line = nullptr; }
-            if (!line)
-                continue;
-            char buf[96];
-            if (!lvReadLineKey(line, buf, (int)sizeof(buf)))
-                continue;
-            LvLogf("LimbVigor: dump line[%d][%d] key='%s'", cat, i, buf);
-            if (std::strcmp(buf, "Blood") == 0)
-            {
-                liveBlood = 1;
-                g_dumpBlood = 1;
-            }
-        }
-    }
-    if (liveBlood)
-        LvLogf("LimbVigor: dump panel=%p has live key Blood", (void*)panel);
-    else
-        LvLogf("LimbVigor: dump panel=%p has no live key Blood", (void*)panel);
-}
-
-static void lvDumpExtrasOnce()
-{
-    if (g_extraDump)
-        return;
-    g_extraDump = 1;
-
-    void* med = lvMedicalPanel();
-    /* Addendum: MainBar+0x188 is MedicalDatapanel*, not DatapanelGUI.
-     * getNumLines=0 there is a type mismatch, not an empty panel. */
-    LvLogf("LimbVigor: medicalPanel=%p is MedicalDatapanel* (MainBar+0x188) — not DatapanelGUI, not setLineProgress",
-           med);
-    lvDumpSummary();
 }
 
 #if !defined(LIMBVIGOR_IDE)
@@ -1288,11 +1154,9 @@ static FnUStrCtorC  g_ustrCtorC  = nullptr;
 static FnUStrDtor   g_ustrDtor   = nullptr;
 static int        g_setCapISubNonVirt = 0;
 static int        g_setCapEditNonVirt = 0;
-static int        g_capExportNamesLogged = 0;
 static void*      g_myguiLo = nullptr;
 static void*      g_myguiHi = nullptr;
 static int        g_exportDumped = 0;
-static int        g_foundLogged = 0;
 static int        g_lifeBarWhy = 0;
 static int        g_prefixLogged = 0;
 static char       g_prefix[96] = {};
@@ -1964,9 +1828,14 @@ static void lvBindISubSetCaption(HMODULE mod)
         LvLogf("LimbVigor: mygui bind Widget::setDepth EXACT '%s'",
                lvGetProcName(mod, kSetDepth));
     }
-    lvLogBindFlags(g_setCapISub
-        ? "ISub Datapanel + strip + pixel Green, setCapW=0 expected"
-        : "ISub MISSING — will retry (setCapW=0 expected)");
+    static int bindTalked = 0;
+    if (!bindTalked)
+    {
+        bindTalked = 1;
+        lvLogBindFlags(g_setCapISub
+            ? "ISub Datapanel + strip + pixel Green, setCapW=0 expected"
+            : "ISub MISSING — will retry (setCapW=0 expected)");
+    }
 }
 
 static void lvDumpMyGuiExports()
@@ -1985,15 +1854,16 @@ static void lvDumpMyGuiExports()
     /* Latch on ISub + setVis. Widget::setCaption is not exported — do not wait for it. */
     if (g_exportDumped && g_setCapISub && g_setVis && (g_setSizeHH || g_setCoordHHHH))
         return;
+    static int dumpTalked = 0;
+    const int talk = !dumpTalked;
+    dumpTalked = 1;
     lvSetMyGuiRange(mod);
-    LvLogf("LimbVigor: mygui module=%p", (void*)mod);
+    if (talk)
+        LvLogf("LimbVigor: mygui module=%p", (void*)mod);
 
     FARPROC exactGui = GetProcAddress(mod, kGuiGetInstanceExact);
     if (exactGui)
-    {
         g_guiInst = (FnGuiInst)exactGui;
-        LvLogf("LimbVigor: mygui bind getInstancePtr EXACT '%s'", kGuiGetInstanceExact);
-    }
     static const char kFindWidgetTConst[] =
         "?findWidgetT@Gui@MyGUI@@QEBAPEAVWidget@2@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@_N@Z";
     FARPROC exactFind = GetProcAddress(mod, kFindWidgetTExact);
@@ -2003,10 +1873,7 @@ static void lvDumpMyGuiExports()
     {
         g_findW = (FnFindW)exactFind;
         g_findSym = GetProcAddress(mod, kFindWidgetTExact) ? kFindWidgetTExact : kFindWidgetTConst;
-        LvLogf("LimbVigor: mygui bind findWidget EXACT '%s'", g_findSym);
     }
-    else
-        LvLog("LimbVigor: mygui exact findWidgetT missing — scanning exports");
     static const char kFindWidgetT3[] =
         "?findWidgetT@Gui@MyGUI@@QEAAPEAVWidget@2@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@0_N@Z";
     static const char kFindWidgetT3c[] =
@@ -2018,7 +1885,6 @@ static void lvDumpMyGuiExports()
     {
         g_findW3 = (FnFindW3)exact3;
         g_find3Sym = GetProcAddress(mod, kFindWidgetT3) ? kFindWidgetT3 : kFindWidgetT3c;
-        LvLogf("LimbVigor: mygui bind findWidgetT 3-arg EXACT '%s'", g_find3Sym);
     }
     FARPROC exactWm = GetProcAddress(mod, kWmGetInstanceExact);
     if (exactWm)
@@ -2035,13 +1901,7 @@ static void lvDumpMyGuiExports()
     if (tq)
     {
         g_setCapTextBox = (FnSetCaption)tq;
-        LvLogf("LimbVigor: mygui bind TextBox::setCaption EXACT (LifeBar10Value only) '%s'",
-               GetProcAddress(mod, kSetCapTextQ) ? kSetCapTextQ : kSetCapTextU);
     }
-    if (g_setCapISub)
-        LvLog("LimbVigor: LifeBar10Datapanel write is ISubWidgetText::setCaption — Widget::setCaption not exported, setCapW=0 expected");
-    else
-        LvLog("LimbVigor: ISubWidgetText::setCaption missing — dump will retry (setCapW=0 expected, TextBox-only is not success)");
     static const char kSetCapRep[] =
         "?setCaptionWithReplacing@TextBox@MyGUI@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z";
     FARPROC rep = GetProcAddress(mod, kSetCapRep);
@@ -2112,22 +1972,10 @@ static void lvDumpMyGuiExports()
         void* addr = (void*)(base + frva);
         lvTryBindExport(en, addr);
         if (lvHasI(en, "setCaption"))
-        {
-            if (!g_capExportNamesLogged)
-                LvLogf("LimbVigor: mygui export setCaption '%s' %p", en, addr);
             loggedCap++;
-        }
         if (lvHasI(en, "findWidget") || lvHasI(en, "findById"))
-        {
-            LvLogf("LimbVigor: mygui export find '%s' %p", en, addr);
             loggedFind++;
-        }
-        if (lvHasI(en, "getWidth") || lvHasI(en, "getCoord") || lvHasI(en, "getSize")
-         || lvHasI(en, "getAbsoluteCoord"))
-            LvLogf("LimbVigor: mygui export pixel '%s' %p", en, addr);
     }
-    if (loggedCap > 0)
-        g_capExportNamesLogged = 1;
     static const char* kWFindExact[] = {
         "?findWidget@Widget@MyGUI@@QEAAPEAV12@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
         "?findWidget@Widget@MyGUI@@QEBAPEAV12@AEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z",
@@ -2143,30 +1991,18 @@ static void lvDumpMyGuiExports()
         if (lvHasI(kWFindExact[i], "_N"))
         {
             if (!g_wFind2)
-            {
                 g_wFind2 = (FnWFind2)wf;
-                LvLogf("LimbVigor: mygui bind Widget::findWidget EXACT '%s'", kWFindExact[i]);
-            }
         }
         else if (!g_wFind1)
-        {
             g_wFind1 = (FnWFind1)wf;
-            LvLogf("LimbVigor: mygui bind Widget::findWidget EXACT '%s'", kWFindExact[i]);
-        }
     }
 
-    LvLogf("LimbVigor: mygui find exports=%d setCaptionExports=%d bind gui=%d find2=%d find3=%d wm=%d wm3=%d wFind=%d name=%d vis=%d capStr=%d ustr=%d",
-           loggedFind, loggedCap, g_guiInst ? 1 : 0, g_findW ? 1 : 0, g_findW3 ? 1 : 0,
-           g_wmFind ? 1 : 0, g_wmFind3 ? 1 : 0, (g_wFind1 || g_wFind2) ? 1 : 0,
-           g_wName ? 1 : 0, g_wVis ? 1 : 0, g_setCapStr ? 1 : 0,
-           (g_ustrCtorC || g_ustrCtorS) && g_ustrDtor ? 1 : 0);
-    lvLogBindFlags(g_setCapISub ? "after export scan" : "after export scan — ISub MISSING, will retry");
+    (void)loggedFind;
+    (void)loggedCap;
     if (g_setCapISub)
         g_exportDumped = 1;
     else
         g_exportDumped = 0;
-    if (g_find3Sym)
-        LvLogf("LimbVigor: mygui findWidgetT 3-arg symbol '%s'", g_find3Sym);
 }
 
 static int lvGameStrLooksName(const char* s)
@@ -2301,7 +2137,6 @@ static void lvReadBasePrefix(void* bar)
         return;
     g_prefixLogged = 1;
     g_prefix[0] = 0;
-    LvLog("LimbVigor: prefix is std::string (not a C string); ugly hex-grouped + '_' is real");
     if (!bar)
         return;
     /* v1.21: +0x40 size=22 heap=1 is the real prefix. Try it first. */
@@ -2314,17 +2149,12 @@ static void lvReadBasePrefix(void* bar)
         buf[0] = 0;
         const int ok = lvReadMsvcStdStr((const char*)bar + kOff[i], buf, (int)sizeof(buf),
                                         &sz, &cap, &heap);
-        LvLogf("LimbVigor: prefix std::string@+0x%X size=%zu cap=%zu heap=%d ok=%d '%s'",
-               kOff[i], sz, cap, heap, ok, buf);
         if (ok && lvPrefixUsable(buf, sz))
         {
             std::snprintf(g_prefix, sizeof(g_prefix), "%s", buf);
-            LvLogf("LimbVigor: using prefix '%s' (do not skip findWidgetT because it looks ugly)",
-                   g_prefix);
             return;
         }
     }
-    LvLog("LimbVigor: BaseLayout prefix std::string unreadable — findWidgetT skipped");
 }
 
 /* POD-only SEH stubs. MSVC will not mix __try with C++ objects in one fn.
@@ -2684,8 +2514,6 @@ static void lvConsider(void* w, const char* src)
     char name[96], cap[96];
     int vis = -1;
     lvReadWidget(w, name, (int)sizeof(name), cap, (int)sizeof(cap), &vis);
-    LvLogf("LimbVigor: hunt %s widget=%p vis=%d name='%s' caption='%s'",
-           src ? src : "?", w, vis, name, cap);
     const int rank = lvRankWidget(name, cap);
     if (rank <= g_capRank)
         return;
@@ -2701,8 +2529,6 @@ static void lvConsider(void* w, const char* src)
         std::snprintf(g_capOrig, sizeof(g_capOrig), "Blood");
         g_capOrigHave = 1;
     }
-    LvLogf("LimbVigor: caption dest rank=%d %p name='%s' orig='%s'",
-           rank, w, name, g_capOrig);
 }
 
 static int lvVtInMyGui(void* p)
@@ -2983,13 +2809,9 @@ static int lvReadBackOk(void* w, const char* want, const char* tag)
     lvReadWidget(w, name, (int)sizeof(name), cap, (int)sizeof(cap), &vis);
     const int match = (want && want[0] && std::strcmp(cap, want) == 0) ? 1 : 0;
     const int stillBlood = lvCapIsBlood(cap);
-    if (g_rbLog < 8)
-    {
-        g_rbLog++;
-        LvLogf("LimbVigor: after setCaption %s ptr=%p name='%s' getCaption='%s' want='%s'%s",
-               tag ? tag : "?", w, name, cap, want ? want : "?",
-               stillBlood ? " — still Blood, fail (not painted=1)" : "");
-    }
+    (void)tag;
+    (void)name;
+    (void)vis;
     if (stillBlood)
         return 0;
     return match;
@@ -3362,16 +3184,7 @@ static int lvFillGreen(float fill01, float hemo, float maxv)
     if (bar)
         lvReadWidget(bar, hname, (int)sizeof(hname), hcap, (int)sizeof(hcap), &hvis);
     if (!bar || !lvNameIsHost10(hname))
-    {
-        static int n = 0;
-        if (n < 8)
-        {
-            n++;
-            LvLogf("LimbVigor: Green FAIL host name='%s' — need LifeBar10 after show, not Green/Datapanel",
-                   hname);
-        }
         return 0;
-    }
     int pw = 0, ph = 0;
     const int rawW = lvSehGetInt(g_getWidth, bar);
     int w9 = 0, h9 = 0;
@@ -3396,35 +3209,11 @@ static int lvFillGreen(float fill01, float hemo, float maxv)
         ph = h9;
         if (ph < 4)
             lvReadHostWh(g_wLifeBar9, &pw, &ph);
-        static int n = 0;
-        if (n < 12)
-        {
-            n++;
-            LvLogf("LimbVigor: Green host fallback LifeBar9 parentW=%d (LifeBar10 getW=%d)",
-                   pw, rawW);
-        }
     }
     else
-    {
         lvLayoutHungerPx(&pw, &ph);
-        static int n = 0;
-        if (n < 12)
-        {
-            n++;
-            LvLogf("LimbVigor: Green host fallback layout Hunger parentW=%d (LifeBar10 getW=%d LifeBar9 getW=%d)",
-                   pw, rawW, w9);
-        }
-    }
     if (pw > 1000)
-    {
-        static int n = 0;
-        if (n < 8)
-        {
-            n++;
-            LvLogf("LimbVigor: Green FAIL parentW=%d looks like a pointer — painted=0", pw);
-        }
         return 0;
-    }
     if (maxv < 1.f) maxv = 100.f;
     float useFill = (hemo > 0.f) ? (hemo / maxv) : fill01;
     if (useFill < 0.f) useFill = 0.f;
@@ -3439,26 +3228,20 @@ static int lvFillGreen(float fill01, float hemo, float maxv)
     const int nh = ph > 0 ? ph : 16;
     if (pw < 50 || pw > 400)
         return 0;
-    if (g_setCoordHHHH)
-    {
-        LV_TRY { g_setCoordHHHH(w, 0, 0, fillW, nh); }
-        LV_EXCEPT { lvHudSehHit(w); }
-    }
-    else if (g_setSizeHH)
+    /* Prefer setSize so parentW=272 writes fillW (setCoord left w=0 in 1.36). */
+    if (g_setSizeHH)
     {
         LV_TRY { g_setSizeHH(w, fillW, nh); }
+        LV_EXCEPT { lvHudSehHit(w); }
+    }
+    else if (g_setCoordHHHH)
+    {
+        LV_TRY { g_setCoordHHHH(w, 0, 0, fillW, nh); }
         LV_EXCEPT { lvHudSehHit(w); }
     }
     int got = 0, gh = 0;
     if (!lvReadPixelSize(w, &got, &gh))
         got = lvSehGetInt(g_getWidth, w);
-    static int n = 0;
-    if (n < 12)
-    {
-        n++;
-        LvLogf("LimbVigor: parentW=%d fillW=%d green w=%d fill=%.3f hemo=%.1f max=%.1f",
-               pw, fillW, got, useFill, hemo, maxv);
-    }
     /* painted=0 only if green w≤4 AFTER the write */
     return (got > 4) ? 1 : 0;
 }
@@ -3486,24 +3269,15 @@ static void lvEnsureDatapanelVisible()
     lvReadWidget(w, name, (int)sizeof(name), cap, (int)sizeof(cap), &vis);
     if (!lvNameIsData10(name))
         return;
-    int dw = 0, dh = 0, dl = 0, dt = 0;
+    int dw = 0, dh = 0;
     LvIntCoord c;
     if (lvSehGetCoord(g_getCoord, w, &c))
     {
-        dl = c.left;
-        dt = c.top;
         dw = c.width;
         dh = c.height;
     }
     if (!lvPixelLooksReal(dw))
         lvReadPixelSize(w, &dw, &dh);
-    static int n = 0;
-    if (n < 12)
-    {
-        n++;
-        LvLogf("LimbVigor: Datapanel vis=%d coord=%d,%d %dx%d getCaption='%s'",
-               vis, dl, dt, dw, dh, cap);
-    }
     lvSetVisible10(w, 1);
     /* Do NOT copy LifeBar9Datapanel if 0x0. Size to real host W × Hunger H. */
     int sw = 0, sh = 0, sl = 0, st = 0;
@@ -3525,16 +3299,6 @@ static void lvEnsureDatapanelVisible()
             {
                 sw = dw9;
                 sh = dh9;
-            }
-        }
-        if (sw >= 50)
-        {
-            static int n = 0;
-            if (n < 8)
-            {
-                n++;
-                LvLogf("LimbVigor: Datapanel size from LifeBar9Datapanel %dx%d (LifeBar10Datapanel was %dx%d)",
-                       sw, sh, dw, dh);
             }
         }
     }
@@ -3562,16 +3326,7 @@ static void lvEnsureDatapanelVisible()
             }
         }
         if (!lvPixelLooksReal(bw))
-        {
             lvLayoutHungerPx(&bw, &bh);
-            static int n = 0;
-            if (n < 8)
-            {
-                n++;
-                LvLogf("LimbVigor: Datapanel host fallback layout Hunger %dx%d (LifeBar9Datapanel was 0x0)",
-                       bw, bh);
-            }
-        }
         if (bw >= 50 && bw <= 400)
         {
             sw = bw;
@@ -3593,8 +3348,6 @@ static void lvEnsureDatapanelVisible()
             LV_TRY { g_setCoordHHHH(w, sl, st, sw, sh); }
             LV_EXCEPT { lvHudSehHit(w); }
         }
-        LvLogf("LimbVigor: Datapanel was %dx%d — setSize host %dx%d",
-               dw, dh, sw, sh);
     }
 }
 
@@ -3633,19 +3386,6 @@ static void lvRaiseLifeBar10Z(void)
     lvSetDepth10(g_wLifeBar10Data, 1);
     lvSetDepth10(g_wLifeBar10Tooltip, 1);
     lvSetDepth10(g_wLifeBar10Green, 1);
-    static int once = 0;
-    if (once)
-        return;
-    once = 1;
-    void* par = lvSehGetParent(g_wLifeBar10);
-    char pn[96], pc[96];
-    int pvis = -1;
-    pn[0] = 0;
-    pc[0] = 0;
-    if (par)
-        lvReadWidget(par, pn, (int)sizeof(pn), pc, (int)sizeof(pc), &pvis);
-    LvLogf("LimbVigor: LifeBar10 parent='%s' Depth=1 (Root after MedicalPanel, above Front)",
-           pn);
 }
 
 /* Show gate: name ends with one of the four exact tokens. Never parents / 1–9. */
@@ -3764,21 +3504,6 @@ static void lvShowLifeBar10(int on)
 
 static void lvLogVisAfterShow()
 {
-    static int n = 0;
-    const int v10 = lvReadVis(g_wLifeBar10);
-    const int vD = lvReadVis(g_wLifeBar10Data);
-    const int vV = lvReadVis(g_wLifeBar10Value);
-    const int vG = lvReadVis(g_wLifeBar10Green);
-    const int vGrey = lvReadVis(g_wLifeBar10Grey);
-    if (n < 12 || v10 != 1 || vGrey == 1)
-    {
-        if (n < 24)
-        {
-            n++;
-            LvLogf("LimbVigor: after show vis10=%d visData=%d visVal=%d visGreen=%d visGrey=%d",
-                   v10, vD, vV, vG, vGrey);
-        }
-    }
 }
 
 static int lvCapIsHudKey(const char* c)
@@ -3862,17 +3587,13 @@ static void lvCacheFound(void* w, const char* name, const char* cap)
     if (lvNameIsHost9(name))
     {
         if (!g_wLifeBar9)
-        {
             g_wLifeBar9 = w;
-            LvLogf("LimbVigor: cache LifeBar9=%p (width fallback only, no write)", w);
-        }
         return;
     }
     if (lvEndsWith(name, "LifeBar9Datapanel") && !lvHasSub(name, "LifeBar10")
      && !g_wLifeBar9Data)
     {
         g_wLifeBar9Data = w;
-        LvLogf("LimbVigor: cache LifeBar9Datapanel=%p (size source only, no write)", w);
         return;
     }
     if (lvNameIsLifeBar1Strict(name))
@@ -3892,8 +3613,6 @@ static void lvCacheFound(void* w, const char* name, const char* cap)
             g_wLifeBar10Value = w;
             if (cap && cap[0])
                 std::snprintf(g_origValue, sizeof(g_origValue), "%s", cap);
-            LvLogf("LimbVigor: cache LifeBar10Value=%p orig='%s' (TextBox::setCaption only)",
-                   w, g_origValue);
         }
         return;
     }
@@ -3909,7 +3628,6 @@ static void lvCacheFound(void* w, const char* name, const char* cap)
             g_wLifeBar10Data = w;
             if (cap && cap[0])
                 std::snprintf(g_origData, sizeof(g_origData), "%s", cap);
-            LvLogf("LimbVigor: cache LifeBar10Datapanel=%p orig='%s'", w, g_origData);
         }
         lvConsider(w, "cache-data");
         return;
@@ -3917,10 +3635,7 @@ static void lvCacheFound(void* w, const char* name, const char* cap)
     if (lvNameIsStunSkin(name))
     {
         if (lvEndsWith(name, "LifeBar10Grey") && !g_wLifeBar10Grey)
-        {
             g_wLifeBar10Grey = w;
-            LvLogf("LimbVigor: cache LifeBar10Grey=%p (hide after show)", w);
-        }
         else if (lvEndsWith(name, "LifeBar10Red") && !g_wLifeBar10Red)
             g_wLifeBar10Red = w;
         else if (lvEndsWith(name, "LifeBar10Yellow") && !g_wLifeBar10Yellow)
@@ -3936,10 +3651,7 @@ static void lvCacheFound(void* w, const char* name, const char* cap)
     if (lvEndsWith(name, "LifeBar10Green") && !lvIsForbiddenParent(name))
     {
         if (!g_wLifeBar10Green)
-        {
             g_wLifeBar10Green = w;
-            LvLogf("LimbVigor: cache LifeBar10Green=%p (setSize/setCoord fill, no setCaption)", w);
-        }
         return;
     }
     if (lvEndsWith(name, "LifeBar10")
@@ -3952,8 +3664,6 @@ static void lvCacheFound(void* w, const char* name, const char* cap)
             if (cap && cap[0])
                 std::snprintf(g_capOrig, sizeof(g_capOrig), "%s", cap);
             g_capOrigHave = 1;
-            LvLogf("LimbVigor: cache LifeBar10=%p orig='%s' (no setCaption on bar, Datapanel only)",
-                   w, g_capOrig);
         }
         lvConsider(w, "cache-bar10");
     }
@@ -3967,9 +3677,9 @@ static void lvLogFindHit(const char* src, const char* asked, void* w, int logOnl
     cap[0] = 0;
     if (w)
         lvReadWidget(w, nm, (int)sizeof(nm), cap, (int)sizeof(cap), &vis);
-    LvLogf("LimbVigor: find %s asked='%s' ptr=%p vis=%d name='%s' caption='%s'%s",
-           src ? src : "?", asked ? asked : "?", w, vis, nm, cap,
-           logOnly ? " (Value: TextBox only if digit)" : "");
+    (void)src;
+    (void)asked;
+    (void)logOnly;
     if (w)
         lvCacheFound(w, nm, cap);
 }
@@ -4022,46 +3732,6 @@ static void lvTryPrefixedFind(const char* shortName, void* root)
     }
 }
 
-static int lvNameLooksMenu(const char* n)
-{
-    if (!n || !n[0])
-        return 0;
-    if (lvEndsWith(n, "PausedPanel") || lvEndsWith(n, "lbPaused")
-     || lvEndsWith(n, "Paused"))
-        return 1;
-    if (lvEndsWith(n, "Options") || lvHasSub(n, "OptionsWindow")
-     || lvHasSub(n, "SettingsWindow") || lvEndsWith(n, "Settings"))
-        return 1;
-    return 0;
-}
-
-/* Read-only findWidget. Not an ESC/pause/options hook. Not WatchGui. */
-static int lvHudMenuOpen(void)
-{
-    static const char* kNames[] = {
-        "PausedPanel", "lbPaused", "Paused", "Options", "Settings", 0
-    };
-    void* root = g_wRoot;
-    for (int i = 0; kNames[i]; ++i)
-    {
-        void* w = nullptr;
-        if (g_prefix[0])
-            w = lvFind3(kNames[i]);
-        if (!w && root)
-            w = lvRootFind(root, kNames[i]);
-        if (!w)
-            continue;
-        char name[96], cap[96];
-        int vis = -1;
-        name[0] = 0;
-        cap[0] = 0;
-        lvReadWidget(w, name, (int)sizeof(name), cap, (int)sizeof(cap), &vis);
-        if (lvNameLooksMenu(name) && vis == 1)
-            return 1;
-    }
-    return 0;
-}
-
 static void lvResolveLifeBar()
 {
     /* Prefixed find only. Never _getWidget (v1.19 death, v1.21 HUD hide). */
@@ -4075,10 +3745,7 @@ static void lvResolveLifeBar()
     void* med = lvMedicalPanel();
     g_barProven = lvMainBarProven(bar, med);
     lvReadBasePrefix(bar);
-    LvLogf("LimbVigor: MainBar=%p medicalPanel=%p proven=%d (no _getWidget this cut)",
-           bar, med, g_barProven);
-    if (!bar)
-        LvLog("LimbVigor: MainBarGUI* null — hunt skipped");
+    (void)med;
 
     /* Prefixed find LifeBar10 only. Do not hunt LifeBar1. Do not hunt members. */
 
@@ -4090,8 +3757,6 @@ static void lvResolveLifeBar()
         char rn[96], rc[96];
         int vis = -1;
         lvReadWidget(root, rn, (int)sizeof(rn), rc, (int)sizeof(rc), &vis);
-        LvLogf("LimbVigor: Root bar+0x8 %p vis=%d name='%s' caption='%s'",
-               root, vis, rn, rc);
         if (root && !g_wRoot)
             g_wRoot = root;
         if (root && lvIsForbiddenParent(rn) == 0 && rn[0]
@@ -4102,9 +3767,6 @@ static void lvResolveLifeBar()
         if (root && !lvVtInMyGui(root))
             root = nullptr;
     }
-
-    if (!g_prefix[0])
-        LvLog("LimbVigor: prefix empty — findWidgetT skipped");
 
     lvTryPrefixedFind("MedicalPanel", root);
     lvTryPrefixedFind("MedicalPanel_Back", root);
@@ -4125,12 +3787,7 @@ static void lvResolveLifeBar()
 
     if (!g_capWidget && g_wLifeBar10Data)
         g_capWidget = g_wLifeBar10Data;
-    LvLogf("LimbVigor: cache LifeBar10=%p Datapanel=%p Value=%p Green=%p Grey=%p — no LifeBar1, no _getWidget",
-           g_wLifeBar10, g_wLifeBar10Data, g_wLifeBar10Value, g_wLifeBar10Green, g_wLifeBar10Grey);
-    if (g_wLifeBar10Data && lvDestNameGated(g_wLifeBar10Data))
-        LvLogf("LimbVigor: hunt dest=%p orig='%s' — ISub setCaption LifeBar10Datapanel every selected-person tick",
-               g_wLifeBar10Data, g_origData);
-    else
+    if (!g_wLifeBar10Data || !lvDestNameGated(g_wLifeBar10Data))
         lvWhyOnce("LimbVigor: prefixed find found no LifeBar10Datapanel dest — painted=0, no write");
 }
 
@@ -4143,7 +3800,6 @@ static void lvDumpMyGuiOnce()
 #else
 static int  lvProbeLifeBar10Alive(void) { return 1; }
 static void lvDumpMyGuiOnce() {}
-static int  lvHudMenuOpen(void) { return 0; }
 static void lvResolveLifeBar() {}
 static void lvWhyOnce(const char* why) { (void)why; }
 static int  lvTryWriteCaption(void* w, const char* t) { (void)w; (void)t; return 1; }
@@ -4217,10 +3873,8 @@ void LvWalkSelPanel(DatapanelGUI* panel)
         return;
     try
     {
-        lvDumpOnePanel(panel, "hook");
         if (lvPanelHasGoalKeys(panel) && !g_hookReject)
             g_hookReject = (void*)panel;
-        lvDumpExtrasOnce();
         lvDumpMyGuiOnce();
     }
     catch (...)
@@ -4282,13 +3936,9 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
         lvDumpMyGuiExports();
 #endif
 
+    /* Only skip remaining writes this tick after a real HUD SEH.
+     * Do NOT skip because PausedPanel / Options / Settings exist vis=1. */
     g_hudSkipTick = 0;
-    if (lvHudMenuOpen() || g_hudSkipTick)
-    {
-        /* Re-find after close. Not a cache wipe / epoch-drop / ESC hook. */
-        g_resolveOnce = 0;
-        return;
-    }
 
     /* After orig every selected-person tick. Resolve, then show + hide stun skins. */
     if (!LvHudWritesOk())
@@ -4352,30 +4002,20 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
             g_wroteValue = 1;
     }
 
-    int dataW = 0, dataH = 0, dataL = 0, dataT = 0;
+    int dataW = 0, dataH = 0;
+#if !defined(LIMBVIGOR_IDE)
     {
         LvIntCoord dc;
         if (lvSehGetCoord(g_getCoord, dest, &dc))
         {
-            dataL = dc.left;
-            dataT = dc.top;
             dataW = dc.width;
             dataH = dc.height;
         }
         if (dataW <= 0 || dataH <= 0)
             lvReadPixelSize(dest, &dataW, &dataH);
     }
+#endif
     const int dataOk = (dataW >= 8 && dataH >= 4) ? 1 : 0;
-    if (!dataOk)
-    {
-        static int n = 0;
-        if (n < 8)
-        {
-            n++;
-            LvLogf("LimbVigor: Datapanel %dx%d at %d,%d — 0x0, painted=0",
-                   dataW, dataH, dataL, dataT);
-        }
-    }
 
     const float maxv = LvCfg().maxVigor > 0.f ? LvCfg().maxVigor : 100.f;
     const int greenOk = lvFillGreen(fill1, snap->vigor, maxv);
@@ -4397,16 +4037,6 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     const int capOk = (okData || lvLifeBar10CapOk(dest)) && dcap[0] && !lvCapIsBlood(dcap);
     const int greyVis = lvReadVis(g_wLifeBar10Grey);
     const int greyOk = (g_wLifeBar10Grey && greyVis != 1) ? 1 : 0;
-    if (!greyOk)
-    {
-        static int n = 0;
-        if (n < 8)
-        {
-            n++;
-            LvLogf("LimbVigor: Grey still vis=%d ptr=%p — hide stun skin, painted=0",
-                   greyVis, g_wLifeBar10Grey);
-        }
-    }
     if (!visOk || !capOk || !valOk || !greenOk || !dataOk || !greyOk)
     {
         static int once = 0;
@@ -4423,7 +4053,5 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     {
         g_paintLogged = 1;
         g_paintedOnce = 1;
-        LvLogf("LimbVigor: painted=1 vis=1 ISub Datapanel '%s' Value='%s' green ok on %p (every tick, LifeBar1 untouched)",
-               key1, vcap, dest);
     }
 }
