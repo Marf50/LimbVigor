@@ -2,11 +2,11 @@
 
 #include "lv_config.h"
 
-// I-key tooltip snapshot only. v1.28: 1–9 reverted, Hemolymph on new strip.
+// I-key tooltip snapshot only. v1.29: LifeBar10 in MedicalPanel + stump growth.
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: HUD is revert 1-9 + Hemolymph strip + pixel Green — setCapW=0 expected");
+    LvLog("LimbVigor: HUD is LifeBar10 in MedicalPanel + pixel Green — setCapW=0 expected");
 }
 
 void LvHudEnsureAfterInGame() {}

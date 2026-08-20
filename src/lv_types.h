@@ -51,6 +51,8 @@ struct CharSnap
     unsigned lastLogMs;
     char     lastBlock[96];
     char     name[48];
+    float    limbHp[LIMB_COUNT];   // HealthPartStatus::flesh (can be negative)
+    float    limbMax[LIMB_COUNT];  // HealthPartStatus::_maxHealth
 };
 
 struct TickResult

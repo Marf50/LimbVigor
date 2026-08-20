@@ -11,6 +11,9 @@ const char* LvStageName(float progress01to100);
 
 int  LvAnyStump(const CharSnap* c);
 int  LvFirstStump(const CharSnap* c); // LimbId or -1, legs first
+/* HP fallback after official LimbState. Left Leg 5 / crippled / cut-off
+ * is a stump. Intact 75-HP arms are whole. Injured 23 is not a stump. */
+LimbKind LvClassifyFromHp(float hp, float mx, int haveHp, char* why, int whyN);
 int  LvNextStump(const CharSnap* c, int after); // next waiting stump, or -1
 int  LvHudLimbSlot(const CharSnap* c); // Line 2 socket, or -1
 void LvHeartbeatLine(const CharSnap* c, char* out, int n); // no "100% grown BLOCKED" on a live stump

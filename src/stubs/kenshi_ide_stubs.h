@@ -100,6 +100,7 @@ public:
     bool applyDoctoring(float, Item*, float, Character*) { return false; }
     LimbState getLimbState(RobotLimbs::Limb) const { return LIMB_ORIGINAL; }
     HealthPartStatus* getPart(RobotLimbs::Limb) { return nullptr; }
+    HealthPartStatus* getPart(HealthPartStatus::PartType, LeftRight) { return nullptr; }
     void setRobotLimbItem(RobotLimbs::Limb, Item*, bool) {}
     void updateStats() {}
     void validateHealthValues() {}

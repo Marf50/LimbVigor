@@ -54,3 +54,4 @@ int  LvGrowthPartStage(Item* item); // 0..4 or -1
 int  LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage);
 void LvClearGrowthPart(MedicalSystem* med, int limbId);
 void LvSyncGrowthParts(MedicalSystem* med, const CharSnap* snap);
+int  LvSyncOneLimb(MedicalSystem* med, const CharSnap* snap, int limbId);

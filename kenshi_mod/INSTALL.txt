@@ -23,20 +23,21 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-v1.28 revert 1-9 + new Hemolymph
-strip + pixel Green. LifeBar1-9
-are v1.26 coords (unstretched
-9-bar skin). LifeBar10 lives on
-HemolymphStrip, not under the
-9-bar frame. ISub label on
+v1.29 LifeBar10 in MedicalPanel
++ pixel Green + stump growth.
+LifeBar1-9 are v1.26 fractions
+of Back (unstretched 9-bar).
+LifeBar10 is under Back inside
+MedicalPanel. ISub label on
 Datapanel only. Value is the
-number. Green uses pixel parent
-width — 99/100 is nearly full,
-not a 1px sliver. painted=1 if
-vis=1, Datapanel Hemolymph,
-Value is a number, green is a
-real bar. No LifeBar1 overwrite.
-No _getWidget. Person only.
+number. Green parentW is 50-400
+px — 99/100 is nearly full, not
+a pointer. painted=1 if vis=1,
+Datapanel Hemolymph, Value is a
+number, green is a real bar.
+Left Leg 5 crippled is a stump.
+75-HP arms stay 75. No LifeBar1
+overwrite. No _getWidget.
 
 Spoken lines appear over the character.
 I-key on a stump/bud/knit/grown item is
@@ -47,8 +48,8 @@ gui/layout/Kenshi_MainPanel.layout
 (Dark UI override + LifeBar10).
 This build does not create widgets.
 
-v1.28: revert 1-9 + new Hemolymph
-strip + pixel Green.
+v1.29: LifeBar10 in MedicalPanel
++ pixel Green + stump growth.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 

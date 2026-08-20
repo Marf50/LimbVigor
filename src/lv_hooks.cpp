@@ -124,6 +124,8 @@ static CharSnap* Bind(MedicalSystem* med)
     {
         const LimbKind was = live->limbs[i];
         live->limbs[i] = tmp.limbs[i];
+        live->limbHp[i] = tmp.limbHp[i];
+        live->limbMax[i] = tmp.limbMax[i];
         if (firstSeen)
         {
             /* Already-missing limb on load: do not bark. */
@@ -288,20 +290,49 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                 if (!once) { LvErr("LimbVigor: say SEH — growth continues"); once = 1; }
             }
 
-            LV_TRY
+            /* Per-limb SEH so one AV does not skip the growth tick. */
+            for (int li = 0; li < LIMB_COUNT; ++li)
             {
-                LvSyncGrowthParts(med, live);
-
-                if (r.stageChanged >= 0 && r.stageChanged < LIMB_COUNT)
+                LV_TRY { LvSyncOneLimb(med, live, li); }
+                LV_EXCEPT
                 {
-                    const int st = r.stageValue;
-                    if (st >= 0 && st < LV_PART_COUNT)
-                        LvEquipGrowthPart(med, r.stageChanged, st);
+                    static int once[LIMB_COUNT] = {};
+                    if (!once[li])
+                    {
+                        once[li] = 1;
+                        LvLogf("LimbVigor: parts SEH site=LvSyncOneLimb %s hp=%.1f/%.1f kind=%d — growth tick continues",
+                            LvLimbLabel((LimbId)li), live->limbHp[li], live->limbMax[li],
+                            (int)live->limbs[li]);
+                    }
                 }
+            }
 
-                if (r.restored >= 0 && r.restored < LIMB_COUNT && live->restoreLock <= 0.f)
+            if (r.stageChanged >= 0 && r.stageChanged < LIMB_COUNT)
+            {
+                const int st = r.stageValue;
+                const int limb = r.stageChanged;
+                LV_TRY
                 {
-                    const int limb = r.restored;
+                    if (st >= 0 && st < LV_PART_COUNT)
+                        LvEquipGrowthPart(med, limb, st);
+                }
+                LV_EXCEPT
+                {
+                    static int once = 0;
+                    if (!once)
+                    {
+                        once = 1;
+                        LvLogf("LimbVigor: parts SEH site=stageEquip %s hp=%.1f/%.1f — growth numbers kept",
+                            LvLimbLabel((LimbId)limb), live->limbHp[limb], live->limbMax[limb]);
+                    }
+                }
+            }
+
+            if (r.restored >= 0 && r.restored < LIMB_COUNT && live->restoreLock <= 0.f)
+            {
+                const int limb = r.restored;
+                LV_TRY
+                {
                     CharSnap now;
                     std::memset(&now, 0, sizeof(now));
                     LvReadSnap(med, &now);
@@ -339,11 +370,16 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                             live->name, LvLimbLabel((LimbId)limb));
                     }
                 }
-            }
-            LV_EXCEPT
-            {
-                static int once = 0;
-                if (!once) { LvErr("LimbVigor: parts SEH — growth numbers kept"); once = 1; }
+                LV_EXCEPT
+                {
+                    static int once = 0;
+                    if (!once)
+                    {
+                        once = 1;
+                        LvLogf("LimbVigor: parts SEH site=restore %s hp=%.1f/%.1f — growth numbers kept",
+                            LvLimbLabel((LimbId)limb), live->limbHp[limb], live->limbMax[limb]);
+                    }
+                }
             }
 
             /* Persist 100% / Grown but the socket is still a stump: retry LV Grown.
@@ -468,7 +504,7 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
         LvHudNote(live);
     }
 
-    /* After orig: show four LifeBar10* + ISub on Datapanel + numeric Value + Green fill. */
+    /* After orig: show LifeBar10* + ISub on Datapanel + numeric Value + Green fill. */
     PaintSafe(med, who, live);
 }
 

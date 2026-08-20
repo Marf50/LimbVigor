@@ -506,6 +506,52 @@ int main()
         Expect(std::strcmp(r.speech, "Hemolymph is spent.") == 0, "speech about spent");
     }
 
+    {
+        /* Dylan v1.28 shot: Left Leg 5 crippled/cut-off is a stump.
+         * Arms 75/75 are intact. Right Leg 23 is injured, not a stump. */
+        char why[64];
+        Expect(LvClassifyFromHp(5.f, 100.f, 1, why, 64) == LIMB_KIND_STUMP,
+            "Left Leg 5 is a stump");
+        Expect(std::strstr(why, "nub") != nullptr, "Left Leg 5 why is cut-off nub");
+        Expect(LvClassifyFromHp(75.f, 75.f, 1, why, 64) == LIMB_KIND_WHOLE,
+            "75/75 arm is intact, not a stump");
+        Expect(std::strstr(why, "intact") != nullptr, "75-HP arm why is intact");
+        Expect(LvClassifyFromHp(23.f, 100.f, 1, why, 64) == LIMB_KIND_WHOLE,
+            "Right Leg 23 is injured, not a stump");
+        Expect(std::strstr(why, "injured") != nullptr, "Right Leg 23 why is injured");
+        Expect(LvClassifyFromHp(0.f, 100.f, 1, why, 64) == LIMB_KIND_STUMP,
+            "flesh 0 is crippled stump");
+        Expect(LvClassifyFromHp(-100.f, 100.f, 1, why, 64) == LIMB_KIND_STUMP,
+            "flesh -max is cut-off stump");
+        Expect(LvClassifyFromHp(0.f, 0.f, 0, why, 64) == LIMB_KIND_WHOLE,
+            "no hp stays whole (do not guess a heal-all)");
+
+        CharSnap c = Hive();
+        std::snprintf(c.name, sizeof(c.name), "%s", "Boop");
+        c.limbs[LIMB_RIGHT_LEG] = LIMB_KIND_WHOLE;
+        c.limbs[LIMB_LEFT_LEG] = LvClassifyFromHp(5.f, 100.f, 1, why, 64);
+        c.limbs[LIMB_RIGHT_ARM] = LvClassifyFromHp(75.f, 75.f, 1, why, 64);
+        c.limbs[LIMB_LEFT_ARM] = LvClassifyFromHp(75.f, 75.f, 1, why, 64);
+        c.limbHp[LIMB_LEFT_LEG] = 5.f;
+        c.limbMax[LIMB_LEFT_LEG] = 100.f;
+        c.limbHp[LIMB_RIGHT_ARM] = 75.f;
+        c.limbMax[LIMB_RIGHT_ARM] = 75.f;
+        c.limbHp[LIMB_LEFT_ARM] = 75.f;
+        c.limbMax[LIMB_LEFT_ARM] = 75.f;
+        Expect(LvFirstStump(&c) == LIMB_LEFT_LEG, "legs-first picks the left-leg stump");
+        TickResult r;
+        LvTick(&c, 0.1f, &r);
+        Expect(c.progress[LIMB_LEFT_LEG] > 0.f, "growth tick runs on the left-leg stump");
+        Expect(c.progress[LIMB_LEFT_ARM] == 0.f, "intact left arm is not healed");
+        Expect(c.progress[LIMB_RIGHT_ARM] == 0.f, "intact right arm is not healed");
+        Expect(c.limbs[LIMB_LEFT_ARM] == LIMB_KIND_WHOLE, "left arm stays whole");
+        Expect(c.limbs[LIMB_RIGHT_ARM] == LIMB_KIND_WHOLE, "right arm stays whole");
+        char beat[192];
+        LvHeartbeatLine(&c, beat, 192);
+        Expect(std::strstr(beat, "no stump") == nullptr, "heartbeat does not say no stump");
+        Expect(std::strstr(beat, "left leg") != nullptr, "heartbeat names the left-leg stump");
+    }
+
     if (g_fail)
     {
         std::fprintf(stderr, "%d failed\n", g_fail);

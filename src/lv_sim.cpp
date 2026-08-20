@@ -62,6 +62,42 @@ int LvFirstStump(const CharSnap* c)
     return -1;
 }
 
+LimbKind LvClassifyFromHp(float hp, float mx, int haveHp, char* why, int whyN)
+{
+    if (why && whyN > 0) why[0] = 0;
+    if (!haveHp)
+    {
+        if (why && whyN > 0)
+            std::snprintf(why, (size_t)whyN, "%s", "whole (no hp, state ORIGINAL)");
+        return LIMB_KIND_WHOLE;
+    }
+    /* Kenshi: flesh<=0 is crippled; flesh<=-max is cut off. UI may still
+     * show a small positive (Left Leg 5) on a cut-off nub. */
+    if (hp <= 0.f)
+    {
+        if (why && whyN > 0) std::snprintf(why, (size_t)whyN, "%s", "crippled flesh<=0");
+        return LIMB_KIND_STUMP;
+    }
+    if (mx > 1.f && hp <= -mx + 0.01f)
+    {
+        if (why && whyN > 0) std::snprintf(why, (size_t)whyN, "%s", "cut-off flesh<=-max");
+        return LIMB_KIND_STUMP;
+    }
+    if (hp > 0.f && hp < 10.f && (mx <= 1.f || hp <= mx * 0.12f))
+    {
+        if (why && whyN > 0) std::snprintf(why, (size_t)whyN, "%s", "cut-off nub hp<10");
+        return LIMB_KIND_STUMP;
+    }
+    if (why && whyN > 0)
+    {
+        if (hp >= 50.f)
+            std::snprintf(why, (size_t)whyN, "%s", "intact");
+        else
+            std::snprintf(why, (size_t)whyN, "%s", "injured — not a stump");
+    }
+    return LIMB_KIND_WHOLE;
+}
+
 int LvNextStump(const CharSnap* c, int after)
 {
     if (!c) return -1;
@@ -113,8 +149,17 @@ void LvHeartbeatLine(const CharSnap* c, char* out, int n)
     const int ok = LvEligible(c, why, (int)sizeof(why));
     if (stump < 0)
     {
-        std::snprintf(out, (size_t)n, "%s  %s %.0f/%.0f  no stump",
-            c->name, res, c->vigor, maxv);
+        std::snprintf(out, (size_t)n,
+            "%s  %s %.0f/%.0f  no stump (Rleg %.0f/%.0f %s, Lleg %.0f/%.0f %s, Rarm %.0f/%.0f %s, Larm %.0f/%.0f %s)",
+            c->name, res, c->vigor, maxv,
+            c->limbHp[LIMB_RIGHT_LEG], c->limbMax[LIMB_RIGHT_LEG],
+            (c->limbs[LIMB_RIGHT_LEG] == LIMB_KIND_STUMP || c->limbs[LIMB_RIGHT_LEG] == LIMB_KIND_CRUSHED) ? "stump" : "whole",
+            c->limbHp[LIMB_LEFT_LEG], c->limbMax[LIMB_LEFT_LEG],
+            (c->limbs[LIMB_LEFT_LEG] == LIMB_KIND_STUMP || c->limbs[LIMB_LEFT_LEG] == LIMB_KIND_CRUSHED) ? "stump" : "whole",
+            c->limbHp[LIMB_RIGHT_ARM], c->limbMax[LIMB_RIGHT_ARM],
+            (c->limbs[LIMB_RIGHT_ARM] == LIMB_KIND_STUMP || c->limbs[LIMB_RIGHT_ARM] == LIMB_KIND_CRUSHED) ? "stump" : "whole",
+            c->limbHp[LIMB_LEFT_ARM], c->limbMax[LIMB_LEFT_ARM],
+            (c->limbs[LIMB_LEFT_ARM] == LIMB_KIND_STUMP || c->limbs[LIMB_LEFT_ARM] == LIMB_KIND_CRUSHED) ? "stump" : "whole");
         return;
     }
 

@@ -3,7 +3,7 @@
 #include "lv_types.h"
 
 // I-key tooltip snapshot only. No TitleScreen. No widget create.
-// Layout: v1.26 LifeBar1–9 (unstretched 9-bar skin) + HemolymphStrip.
+// Layout: v1.26 LifeBar1–9 (unstretched 9-bar) + LifeBar10 under Back.
 // After orig: ISub on Datapanel, numeric Value, pixel-width Green fill.
 void LvHudInstall();
 void LvHudEnsureAfterInGame();
