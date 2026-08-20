@@ -205,7 +205,6 @@ static void DriveTick(MedicalSystem* med, float frameTime)
 {
     if (!med || !LvCfg().enableHooks) return;
     if (!LvWorldInGame()) return;
-    LvHudWatchGui();
     if (!g_loggedInGame)
     {
         g_loggedInGame = 1;
@@ -324,11 +323,8 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                     live->limbs[li] = LIMB_KIND_STUMP;
             }
 
-            LvHudWatchGui();
             for (int li = 0; li < LIMB_COUNT; ++li)
             {
-                if (!LvHudWritesOk())
-                    break;
                 if (live->limbs[li] != LIMB_KIND_STUMP
                     && live->limbs[li] != LIMB_KIND_CRUSHED)
                     continue;
@@ -503,12 +499,7 @@ static void PaintSafe(MedicalSystem* med, Character* who, CharSnap* live)
 static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* who)
 {
     if (!panel || !LvWorldInGame())
-    {
-        LvHudCacheDrop(panel ? "gui-rebuild-title" : "gui-rebuild-null");
         return;
-    }
-    /* Live panel after rebuild — allow resolve. Still skip if probe dies. */
-    LvHudResumeWrites();
 
     WalkSafe(panel);
 
@@ -530,16 +521,10 @@ static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
 {
     if (orig_medGui) orig_medGui(self, panel);
     if (!self || !panel)
-    {
-        LvHudCacheDrop("medGui-null");
         return;
-    }
     /* Do not touch Character or write DatapanelGUI until In-game. */
     if (!LvWorldInGame())
-    {
-        LvHudCacheDrop("medGui-title");
         return;
-    }
     Character* who = LvCharFromMed(self);
     LV_TRY { AfterGuiRebuild(self, panel, who); }
     LV_EXCEPT
@@ -554,15 +539,9 @@ static void hook_charGui(Character* self, DatapanelGUI* panel, int cat)
 {
     if (orig_charGui) orig_charGui(self, panel, cat);
     if (!self || !panel)
-    {
-        LvHudCacheDrop("charGui-null");
         return;
-    }
     if (!LvWorldInGame())
-    {
-        LvHudCacheDrop("charGui-title");
         return;
-    }
     MedicalSystem* med = LvMedFromChar(self);
     LV_TRY { AfterGuiRebuild(med, panel, self); }
     LV_EXCEPT

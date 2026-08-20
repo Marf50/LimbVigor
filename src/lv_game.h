@@ -32,12 +32,12 @@ int       LvIsSelectedCharacter(Character* me); // squad body the panel is drawi
 int       LvPanelIsLeftMedical(DatapanelGUI* panel); // live key "Blood" only — v1.14 does not guess-paint
 int       LvPanelHasBlood(DatapanelGUI* panel); // live key "Blood" on a real line
 void      LvWalkSelPanel(DatapanelGUI* panel); // hunt MainBar widgets (no tree walk)
-void      LvNoteHudProbeSeh(); // drop ALL stale HUD pointers — never retry _getWidget
-void      LvHudCacheDrop(const char* why); // settings-close / GUI teardown — drop LifeBar10* + Front/Back/MedicalPanel/Root
-int       LvHudCacheAlive(); // 0 if teardown or a cached HUD widget is gone
-int       LvHudWritesOk(); // 0 while settings/GUI teardown — skip paint and stump writes
-void      LvHudResumeWrites(); // live medical panel after rebuild — allow resolve again
-void      LvHudWatchGui(); // DriveTick: drop ALL MyGUI ptrs if MainBar/widgets die (options)
+void      LvNoteHudProbeSeh(); // SEH skip only — do not wipe the LifeBar10 cache
+void      LvHudCacheDrop(const char* why); // no-op v1.33 — never drop cache on ESC/pause/pointer change
+int       LvHudCacheAlive(); // always 1 — keep cache; SEH-skip a dead widget write
+int       LvHudWritesOk(); // always 1 — no ESC/pause/options latch
+void      LvHudResumeWrites(); // no-op v1.33
+void      LvHudWatchGui(); // no-op v1.33 — no epoch-drop
 int       LvGrowStumpNub(MedicalSystem* med, int limbId, float progress, float realMaxHint,
                          float* hpBefore, float* hpAfter, float* maxAfter);
 void      LvClearHud(DatapanelGUI* panel); // hide/clear LifeBar10* only — never touch LifeBar1

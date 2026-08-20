@@ -92,7 +92,7 @@
                 <Property key="Caption" value="Squad 3"/>
             </Widget>
         </Widget>
-        <Widget type="Widget" skin="PanelEmpty" position_real="0.13489583134651184 0.71073849555969238 0.15572915971279144 0.30000001192092896" name="MedicalPanel">
+        <Widget type="Widget" skin="PanelEmpty" position_real="0.13489583134651184 0.70473849555969238 0.15572915971279144 0.30000001192092896" name="MedicalPanel">
             <Widget type="Widget" skin="Kenshi_HealthPanelBottomSkin" position_real="0.040133778005838394 0.24074074625968933 0.92976588010787964 0.7469136118888855" name="MedicalPanel_Back">
                 <Property key="Depth" value="1"/>
                 <Widget type="Widget" skin="PanelEmpty" position_real="0.0071942447684705257 0.012396694160997868 0.85611510276794434 0.095041319727897644" name="LifeBar1">
@@ -239,22 +239,26 @@
                 <Widget type="Widget" skin="PanelEmpty" position_real="0.026845637708902359 0.69538462162017822 0.94295299053192139 0.064615383744239807" name="LifeBar7Tooltip"/>
                 <Widget type="Widget" skin="PanelEmpty" position_real="0.026845637708902359 0.76923078298568726 0.94295299053192139 0.064615383744239807" name="LifeBar8Tooltip"/>
                 <Widget type="Widget" skin="PanelEmpty" position_real="0.026845637708902359 0.84307694435119629 0.94295299053192139 0.064615383744239807" name="LifeBar9Tooltip"/>
-                <Widget type="Widget" skin="PanelEmpty" position_real="0.04697986436403179 0.91384615324979102 0.79865770369901634 0.07076922986877589" name="LifeBar10">
-                    <Widget type="Widget" skin="Kenshi_LifeBarStunnedSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10Grey"/>
-                    <Widget type="Widget" skin="Kenshi_LifeBarHurtSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10Red"/>
-                    <Widget type="Widget" skin="Kenshi_LifeBarHealedSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10Yellow"/>
-                    <Widget type="Widget" skin="Kenshi_LifeBarSplintSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10White"/>
-                    <Widget type="Widget" skin="Kenshi_LifeBarSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10Green"/>
-                    <Widget type="Widget" skin="Kenshi_LifeBarRobotSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10Robot"/>
-                    <Widget type="Widget" skin="Kenshi_LifeBarCrushedSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10Crushed"/>
-                    <Widget type="Widget" skin="PanelEmpty" position_real="0 0.1304347813129425 0.99579828977584839 0.73913043737411499" name="LifeBar10Datapanel"/>
-                </Widget>
-                <Widget type="TextBox" skin="Kenshi_TextboxStandardText" position_real="0.84563755989074707 0.92307692766189575 0.12751677632331848 0.052307691425085068" name="LifeBar10Value">
-                    <Property key="Caption" value="100"/>
-                    <Property key="TextAlign" value="Center"/>
-                </Widget>
-                <Widget type="Widget" skin="PanelEmpty" position_real="0.026845637708902359 0.91692310571670532 0.94295299053192139 0.064615383744239807" name="LifeBar10Tooltip"/>
             </Widget>
+        </Widget>
+        <Widget type="Widget" skin="PanelEmpty" position_real="0.14218749750845783 0.9797385139738242 0.12395832622918707 0.02129629746523392" name="LifeBar10">
+            <Property key="Depth" value="1"/>
+            <Widget type="Widget" skin="Kenshi_LifeBarStunnedSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10Grey"/>
+            <Widget type="Widget" skin="Kenshi_LifeBarHurtSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10Red"/>
+            <Widget type="Widget" skin="Kenshi_LifeBarHealedSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10Yellow"/>
+            <Widget type="Widget" skin="Kenshi_LifeBarSplintSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10White"/>
+            <Widget type="Widget" skin="Kenshi_LifeBarSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10Green"/>
+            <Widget type="Widget" skin="Kenshi_LifeBarRobotSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10Robot"/>
+            <Widget type="Widget" skin="Kenshi_LifeBarCrushedSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10Crushed"/>
+            <Widget type="Widget" skin="PanelEmpty" position_real="0 0.1304347813129425 0.99579828977584839 0.73913043737411499" name="LifeBar10Datapanel"/>
+        </Widget>
+        <Widget type="TextBox" skin="Kenshi_TextboxStandardText" position_real="0.26614582246923574 0.9825162934986142 0.019791665548294965 0.015740741539421045" name="LifeBar10Value">
+            <Property key="Depth" value="1"/>
+            <Property key="Caption" value="100"/>
+            <Property key="TextAlign" value="Center"/>
+        </Widget>
+        <Widget type="Widget" skin="PanelEmpty" position_real="0.13906249786902594 0.9806644488065657 0.14635415632726892 0.01944444549699285" name="LifeBar10Tooltip">
+            <Property key="Depth" value="1"/>
         </Widget>
         <Widget type="Widget" skin="Kenshi_OrdersPanelSkin" position_real="0.74843752384185791 0.82222223281860352 0.25156250596046448 0.17870371043682098" name="OrdersPanel">
             <Widget type="Button" skin="Kenshi_TickButton1" position_real="0.016563147306442261 0.031088082119822502 0.24430641531944275 0.12953367829322815" name="OrdersBlockButton">

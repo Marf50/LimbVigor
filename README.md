@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-v1.32 puts Hemolymph on **LifeBar10 as a last child of MedicalPanel_Front** (on top of the chrome; sibling-after-Front failed because Front Depth=0). MedicalPanel sits one bar pitch lower. LifeBar10Datapanel is **PanelEmpty** like LifeBar9. Write: hide stun skins, Green from LifeBar10 host or **LifeBar9 width** if getW≤14, **Hemolymph on Datapanel**. A Left Leg at 5 stays a stump; **flesh and max climb toward 75**. Settings-close drops **all** stale HUD pointers and skips writes until re-find. **No `_getWidget`.** See [testdoc/HUD.md](testdoc/HUD.md).
+v1.33 nudges MedicalPanel up a few pixels and puts Hemolymph on **LifeBar10 as a Root child after MedicalPanel** (Depth=1, above Front Depth=0). v1.32 last-child-of-Front failed. LifeBar10Datapanel is **PanelEmpty** like LifeBar9. Write: hide stun skins, Green from LifeBar10 host or **LifeBar9 width** if getW≤14 (that fallback is actually used), **Hemolymph on Datapanel**. A Left Leg at 5 stays a stump; **flesh/max add +1..+4 HP per tick** (5→~8→~12), never 5→75. **No ESC/pause/options hooks. No epoch-drop.** **No `_getWidget`.** See [testdoc/HUD.md](testdoc/HUD.md).
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.32: panel down 1 bar + LifeBar10 on top + settings-close safe + stump max + green host. Root-level HemolymphStrip is rejected. Stretching the 9-bar skin is rejected. Widget::setCaption hunt is rejected. Restore-on-stump / Equip GROWN is rejected. TextBox Datapanel is rejected. v1.23 full-layout drift is rejected. `46d810a` LifeBar1 overwrite is rejected.
+v1.33: nudge panel up + Hemolymph visible on top + staged stump + no ESC/pause hooks. Root-level HemolymphStrip is rejected. Stretching the 9-bar skin is rejected. Widget::setCaption hunt is rejected. Restore-on-stump / Equip GROWN is rejected. TextBox Datapanel is rejected. v1.23 full-layout drift is rejected. `46d810a` LifeBar1 overwrite is rejected. v1.32 last-child-of-Front and epoch-drop are rejected.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 

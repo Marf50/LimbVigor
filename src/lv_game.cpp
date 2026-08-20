@@ -632,8 +632,8 @@ static float lvSiblingRealMax(MedicalSystem* med, int skip)
     return best;
 }
 
-/* Flesh + _maxHealth. Never Equip GROWN / setLimb(ORIGINAL) / arm heal.
- * 5/5 must climb toward the real limb max (75), not freeze at current max. */
+/* Incremental flesh only. A few HP per tick (+1..+4). Never 5→75 in one write.
+ * Max follows slowly (with flesh or a few behind). Stay STUMP. No GROWN / restore. */
 int LvGrowStumpNub(MedicalSystem* med, int limbId, float progress, float realMaxHint,
                    float* hpBefore, float* hpAfter, float* maxAfter)
 {
@@ -699,15 +699,36 @@ int LvGrowStumpNub(MedicalSystem* med, int limbId, float progress, float realMax
     if (realMax < 20.f)
         realMax = 75.f;
 
-    const float base = (hp > 0.f) ? hp : 0.f;
-    float target = base + (realMax - base) * (progress / 100.f);
-    if (target < base)
-        target = base;
-    if (target > realMax)
-        target = realMax;
+    if (progress <= 0.f)
+        return 0;
 
-    const int needMax = (mx + 0.05f < realMax) ? 1 : 0;
-    const int needFlesh = (target > hp + 0.05f) ? 1 : 0;
+    /* +3 typical (5→~8→~12). Hard cap +4. Never a full-progress jump. */
+    float add = 3.f;
+    if (add < 1.f) add = 1.f;
+    if (add > 4.f) add = 4.f;
+    float newFlesh = hp + add;
+    if (newFlesh > realMax)
+        newFlesh = realMax;
+    if (newFlesh < hp)
+        newFlesh = hp;
+
+    /* Max with flesh or a few behind. Never write 5→75 in one tick. */
+    float newMax = mx;
+    if (mx + 0.05f < realMax)
+    {
+        newMax = mx + add;
+        if (newMax > newFlesh + 3.f)
+            newMax = newFlesh + 3.f;
+        if (newMax < newFlesh)
+            newMax = newFlesh;
+        if (newMax > realMax)
+            newMax = realMax;
+        if (newMax > mx + 4.f)
+            newMax = mx + 4.f;
+    }
+
+    const int needMax = (newMax > mx + 0.05f) ? 1 : 0;
+    const int needFlesh = (newFlesh > hp + 0.05f) ? 1 : 0;
     if (!needMax && !needFlesh)
     {
         if (hpAfter) *hpAfter = hp;
@@ -718,9 +739,9 @@ int LvGrowStumpNub(MedicalSystem* med, int limbId, float progress, float realMax
     LV_TRY
     {
         if (needMax)
-            part->_maxHealth = realMax;
+            part->_maxHealth = newMax;
         if (needFlesh)
-            part->flesh = target;
+            part->flesh = newFlesh;
     }
     LV_EXCEPT
     {
@@ -739,11 +760,11 @@ int LvGrowStumpNub(MedicalSystem* med, int limbId, float progress, float realMax
     if (hpAfter) *hpAfter = after;
     if (maxAfter) *maxAfter = afterMx;
     static int n = 0;
-    if (n < 16)
+    if (n < 32)
     {
         n++;
-        LvLogf("LimbVigor: stump HP %s %.1f/%.1f -> %.1f/%.1f progress=%.1f (flesh+max, no GROWN)",
-               LvLimbLabel((LimbId)limbId), hp, mx, after, afterMx, progress);
+        LvLogf("LimbVigor: stump HP %s %.1f/%.1f -> %.1f/%.1f progress=%.1f (flesh+max staged +%.1f, no GROWN)",
+               LvLimbLabel((LimbId)limbId), hp, mx, after, afterMx, progress, add);
     }
     return (after > hp + 0.05f || afterMx > mx + 0.05f) ? 1 : 0;
 }
@@ -1021,107 +1042,36 @@ static void* g_wMedicalPanel = nullptr;
 static void* g_wBack = nullptr;
 static void* g_wFront = nullptr;
 static void* g_wLifeBar9 = nullptr; /* width fallback only — never setCaption / setVisible */
-static void* g_seenBar = nullptr;
-static void* g_seenMed = nullptr;
-static int   g_hudTeardown = 0;
+static void* g_wLifeBar10Tooltip = nullptr;
 
 void LvHudCacheDrop(const char* why)
 {
-    if (g_resolveOnce || g_hudTeardown || g_wLifeBar10 || g_wLifeBar10Data
-     || g_wLifeBar10Green || g_wLifeBar10Grey || g_wFront || g_wBack
-     || g_wMedicalPanel || g_wRoot || g_wLifeBar9)
-    {
-        static int n = 0;
-        if (n < 16)
-        {
-            n++;
-            LvLogf("LimbVigor: drop ALL MyGUI pointers (%s) — options/GUI teardown, skip paint/setSize/setCaption/stump",
-                   why ? why : "?");
-        }
-    }
-    g_wLifeBar10 = nullptr;
-    g_wLifeBar10Data = nullptr;
-    g_wLifeBar10Value = nullptr;
-    g_wLifeBar10Green = nullptr;
-    g_wLifeBar10Grey = nullptr;
-    g_wLifeBar10Red = nullptr;
-    g_wLifeBar10Yellow = nullptr;
-    g_wLifeBar10White = nullptr;
-    g_wLifeBar10Robot = nullptr;
-    g_wLifeBar10Crushed = nullptr;
-    g_wRoot = nullptr;
-    g_wMedicalPanel = nullptr;
-    g_wBack = nullptr;
-    g_wFront = nullptr;
-    g_wLifeBar9 = nullptr;
-    g_capWidget = nullptr;
-    g_hookReject = nullptr;
-    g_seenBar = nullptr;
-    g_seenMed = nullptr;
-    g_resolveOnce = 0;
-    g_hudTeardown = 1;
+    /* v1.33: never wipe the LifeBar10 cache. ESC/pause pointer churn is not a drop. */
+    (void)why;
 }
 
 void LvNoteHudProbeSeh()
 {
-    /* Drop every cached HUD widget. Never _getWidget. Never hook settings. */
-    LvHudCacheDrop("HUD SEH");
+    /* SEH already skipped the dead write. Leave the rest of the cache alone. */
 }
 
 int LvHudWritesOk(void)
 {
-    return g_hudTeardown ? 0 : 1;
+    return 1;
 }
 
 void LvHudResumeWrites(void)
 {
-    if (!g_hudTeardown)
-        return;
-    g_hudTeardown = 0;
-    static int n = 0;
-    if (n < 4)
-    {
-        n++;
-        LvLog("LimbVigor: HUD writes resume — live medical panel after options/GUI rebuild");
-    }
 }
 
 void LvHudWatchGui(void)
 {
-    if (!LvWorldInGame())
-        return;
-    void* bar = nullptr;
-    void* med = nullptr;
-    LV_TRY { bar = lvMainBar(); }
-    LV_EXCEPT { bar = nullptr; }
-    LV_TRY { med = lvMedicalPanel(); }
-    LV_EXCEPT { med = nullptr; }
-    if (g_seenBar && (!bar || bar != g_seenBar || (g_seenMed && med && med != g_seenMed)))
-    {
-        LvHudCacheDrop("gui-epoch");
-        return;
-    }
-    if (!bar && g_seenBar)
-    {
-        LvHudCacheDrop("mainbar-null");
-        return;
-    }
-    if (bar)
-        g_seenBar = bar;
-    if (med)
-        g_seenMed = med;
-    if (!LvHudCacheAlive())
-        return;
+    /* v1.33: no epoch-drop. Do not hook ESC / pause / options. */
 }
 
 int LvHudCacheAlive(void)
 {
-    if (g_hudTeardown)
-        return 0;
-    if (!g_wLifeBar10 && !g_wFront && !g_wBack && !g_wMedicalPanel && !g_wRoot
-     && !g_wLifeBar9)
-        return 1;
-    return lvProbeLifeBar10Alive();
+    return 1;
 }
 static char  g_capOrig[96] = {};
 static char  g_origData[96] = {};
@@ -2444,26 +2394,7 @@ static int lvProbeOneHud(void* w)
 
 static int lvProbeLifeBar10Alive(void)
 {
-    if (g_hudTeardown)
-        return 0;
-    void* ws[9];
-    ws[0] = g_wLifeBar10;
-    ws[1] = g_wLifeBar10Data;
-    ws[2] = g_wLifeBar10Value;
-    ws[3] = g_wLifeBar10Green;
-    ws[4] = g_wFront;
-    ws[5] = g_wBack;
-    ws[6] = g_wMedicalPanel;
-    ws[7] = g_wRoot;
-    ws[8] = g_wLifeBar9;
-    for (int i = 0; i < 9; ++i)
-    {
-        if (!lvProbeOneHud(ws[i]))
-        {
-            LvHudCacheDrop("probe");
-            return 0;
-        }
-    }
+    /* Never wipe the cache. A dead widget is SEH-skipped at the write. */
     return 1;
 }
 
@@ -3366,7 +3297,8 @@ static int lvFillGreen(float fill01, float hemo, float maxv)
     }
     int pw = 0, ph = 0;
     const int rawW = lvSehGetInt(g_getWidth, bar);
-    if (!lvReadHostWh(bar, &pw, &ph))
+    /* getW≤14: always read LifeBar9 and USE that width. Do not require lvReadHostWh(10) to fail first. */
+    if (rawW <= 14)
     {
         char n9[96], c9[96];
         int v9 = -1;
@@ -3374,8 +3306,61 @@ static int lvFillGreen(float fill01, float hemo, float maxv)
         c9[0] = 0;
         if (g_wLifeBar9)
             lvReadWidget(g_wLifeBar9, n9, (int)sizeof(n9), c9, (int)sizeof(c9), &v9);
-        if (g_wLifeBar9 && lvNameIsHost9(n9) && lvReadHostWh(g_wLifeBar9, &pw, &ph))
+        int w9 = 0, h9 = 0;
+        if (g_wLifeBar9)
         {
+            if (!lvReadPixelSize(g_wLifeBar9, &w9, &h9))
+                w9 = lvSehGetInt(g_getWidth, g_wLifeBar9);
+        }
+        static int n = 0;
+        if (n < 12)
+        {
+            n++;
+            LvLogf("LimbVigor: Green host fallback LifeBar9 parentW=%d (LifeBar10 getW=%d)",
+                   w9, rawW);
+        }
+        if (g_wLifeBar9 && lvNameIsHost9(n9) && w9 > 14 && w9 <= 400)
+        {
+            pw = w9;
+            ph = h9;
+        }
+        else if (g_wLifeBar9 && lvNameIsHost9(n9) && lvReadHostWh(g_wLifeBar9, &pw, &ph))
+        {
+            /* already logged the LifeBar9 number above */
+        }
+        else
+        {
+            static int w = 0;
+            if (w < 8)
+            {
+                w++;
+                LvLogf("LimbVigor: Green WAIT LifeBar10 host getW=%d (need 50-400 or LifeBar9) fill=%.3f hemo=%.1f max=%.1f",
+                       rawW, fill01, hemo, maxv);
+            }
+            return 0;
+        }
+    }
+    else if (!lvReadHostWh(bar, &pw, &ph))
+    {
+        char n9[96], c9[96];
+        int v9 = -1;
+        n9[0] = 0;
+        c9[0] = 0;
+        if (g_wLifeBar9)
+            lvReadWidget(g_wLifeBar9, n9, (int)sizeof(n9), c9, (int)sizeof(c9), &v9);
+        int w9 = 0, h9 = 0;
+        if (g_wLifeBar9)
+        {
+            if (!lvReadPixelSize(g_wLifeBar9, &w9, &h9))
+                w9 = lvSehGetInt(g_getWidth, g_wLifeBar9);
+        }
+        if (g_wLifeBar9 && lvNameIsHost9(n9) && (lvReadHostWh(g_wLifeBar9, &pw, &ph) || (w9 > 14 && w9 <= 400)))
+        {
+            if (pw < 1)
+            {
+                pw = w9;
+                ph = h9;
+            }
             static int n = 0;
             if (n < 8)
             {
@@ -3487,9 +3472,12 @@ static void lvEnsureDatapanelVisible()
     }
     lvSetVisible10(w, 1);
     int bw = 0, bh = 0;
+    int raw10 = 0;
     if (g_wLifeBar10)
+        raw10 = lvSehGetInt(g_getWidth, g_wLifeBar10);
+    if (g_wLifeBar10 && raw10 > 14)
         lvReadHostWh(g_wLifeBar10, &bw, &bh);
-    if (!lvPixelLooksReal(bw) && g_wLifeBar9)
+    if ((raw10 <= 14 || !lvPixelLooksReal(bw)) && g_wLifeBar9)
     {
         char n9[96], c9[96];
         int v9 = -1;
@@ -3497,7 +3485,13 @@ static void lvEnsureDatapanelVisible()
         c9[0] = 0;
         lvReadWidget(g_wLifeBar9, n9, (int)sizeof(n9), c9, (int)sizeof(c9), &v9);
         if (lvNameIsHost9(n9))
-            lvReadHostWh(g_wLifeBar9, &bw, &bh);
+        {
+            if (!lvReadHostWh(g_wLifeBar9, &bw, &bh))
+            {
+                if (!lvReadPixelSize(g_wLifeBar9, &bw, &bh))
+                    bw = lvSehGetInt(g_getWidth, g_wLifeBar9);
+            }
+        }
     }
     if (lvPixelLooksReal(bw) && (dw < 8 || dh < 4) && (g_setCoordHHHH || g_setSizeHH))
     {
@@ -3517,11 +3511,58 @@ static void lvEnsureDatapanelVisible()
         LvLogf("LimbVigor: Datapanel was %dx%d — sized to bar %dx%d (LifeBar10 %dx%d)",
                dw, dh, nw, nh, bw, bh);
     }
-    if (g_setDepth)
-    {
-        LV_TRY { g_setDepth(w, 100); }
-        LV_EXCEPT {}
-    }
+}
+
+static int lvNameIsDepthOk(const char* name)
+{
+    if (!name || !name[0] || lvIsForbiddenParent(name) || lvNameIsLifeBar1Strict(name))
+        return 0;
+    if (lvEndsWith(name, "LifeBar10Datapanel") || lvEndsWith(name, "LifeBar10Value")
+     || lvEndsWith(name, "LifeBar10Tooltip") || lvEndsWith(name, "LifeBar10Green")
+     || lvEndsWith(name, "LifeBar10"))
+        return 1;
+    return 0;
+}
+
+/* Front Depth=0 covers last-child-of-Front. Raise LifeBar10* above that. */
+static void lvSetDepth10(void* w, int depth)
+{
+    if (!w || !g_setDepth)
+        return;
+    char name[96], cap[96];
+    int vis = -1;
+    name[0] = 0;
+    cap[0] = 0;
+    lvReadWidget(w, name, (int)sizeof(name), cap, (int)sizeof(cap), &vis);
+    if (!lvNameIsDepthOk(name))
+        return;
+    LV_TRY { g_setDepth(w, depth); }
+    LV_EXCEPT {}
+}
+
+static void lvRaiseLifeBar10Z(void)
+{
+    /* Depth > Front's 0. Parent is Root after MedicalPanel (layout). Never last-child-of-Front only. */
+    lvSetDepth10(g_wLifeBar10, 1);
+    lvSetDepth10(g_wLifeBar10Value, 1);
+    lvSetDepth10(g_wLifeBar10Data, 1);
+    lvSetDepth10(g_wLifeBar10Tooltip, 1);
+    lvSetDepth10(g_wLifeBar10Green, 1);
+    static int once = 0;
+    if (once)
+        return;
+    once = 1;
+    void* par = nullptr;
+    LV_TRY { par = g_getParent ? g_getParent(g_wLifeBar10) : nullptr; }
+    LV_EXCEPT { par = nullptr; }
+    char pn[96], pc[96];
+    int pvis = -1;
+    pn[0] = 0;
+    pc[0] = 0;
+    if (par)
+        lvReadWidget(par, pn, (int)sizeof(pn), pc, (int)sizeof(pc), &pvis);
+    LvLogf("LimbVigor: LifeBar10 parent='%s' Depth=1 (above Front Depth=0, Root after MedicalPanel)",
+           pn);
 }
 
 /* Show gate: name ends with one of the four exact tokens. Never parents / 1–9. */
@@ -3634,6 +3675,7 @@ static void lvShowLifeBar10(int on)
         lvHideStunSkin(g_wLifeBar10White);
         lvHideStunSkin(g_wLifeBar10Robot);
         lvHideStunSkin(g_wLifeBar10Crushed);
+        lvRaiseLifeBar10Z();
     }
 }
 
@@ -3765,6 +3807,11 @@ static void lvCacheFound(void* w, const char* name, const char* cap)
         }
         return;
     }
+    if (lvEndsWith(name, "LifeBar10Tooltip") && !g_wLifeBar10Tooltip)
+    {
+        g_wLifeBar10Tooltip = w;
+        return;
+    }
     if (lvEndsWith(name, "LifeBar10Datapanel"))
     {
         if (!g_wLifeBar10Data)
@@ -3888,8 +3935,6 @@ static void lvTryPrefixedFind(const char* shortName, void* root)
 static void lvResolveLifeBar()
 {
     /* Prefixed find only. Never _getWidget (v1.19 death, v1.21 HUD hide). */
-    if (g_hudTeardown)
-        return;
     if (g_resolveOnce)
         return;
     g_resolveOnce = 1;
@@ -3937,6 +3982,7 @@ static void lvResolveLifeBar()
     lvTryPrefixedFind("LifeBar10", root);
     lvTryPrefixedFind("LifeBar10Datapanel", root);
     lvTryPrefixedFind("LifeBar10Value", root);
+    lvTryPrefixedFind("LifeBar10Tooltip", root);
     lvTryPrefixedFind("LifeBar10Green", root);
     lvTryPrefixedFind("LifeBar10Grey", root);
     lvTryPrefixedFind("LifeBar10Red", root);
