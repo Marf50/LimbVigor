@@ -622,7 +622,12 @@ int LvSyncOneLimb(MedicalSystem* med, const CharSnap* snap, int limbId)
 
     Item* cur = Equipped(med, limbId);
     if (cur && !LvIsGrowthPart(cur))
-        return 0; // real prosthetic — leave it. Intact 75-HP arms never reach here.
+        return 0; // real prosthetic — leave it.
+
+    /* 75-HP arms were a false alarm. Intact / injured flesh is not a
+     * growth socket. Do not slot an LV part on a whole limb with HP>=10. */
+    if (snap->limbs[limbId] == LIMB_KIND_WHOLE && snap->limbHp[limbId] >= 10.f)
+        return 0;
 
     int need = 0;
     int empty15 = 0;
@@ -633,11 +638,12 @@ int LvSyncOneLimb(MedicalSystem* med, const CharSnap* snap, int limbId)
             empty15 = 1;
     }
     else if (!cur && snap->limbs[limbId] != LIMB_KIND_PROSTHETIC
+             && snap->limbHp[limbId] < 10.f
              && (snap->progress[limbId] > 0.f || snap->lastStage[limbId] >= 0
                  || snap->progress[limbId] >= 99.5f))
     {
         // Persist knows this socket; game read it as whole with
-        // nothing equipped (the -15 empty-stump case).
+        // nothing equipped (the -15 empty-stump case). Not a 75-HP arm.
         need = 1;
         empty15 = 1;
     }
