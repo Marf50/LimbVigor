@@ -41,12 +41,10 @@
  * those returns. Forget yesterday without calling getName/getVisible/set*.
  * If this tick's find is null, skip writes. Options name-guess is dead.
  *
- * H2: layout must not name anything LifeBar10*. Kenshi assignWidget-s that
- * slot. Dylan's live pack is byte-identical vanilla (LifeBar1-9 only;
- * MedicalPanel y 0.712963) and leaves the slot null — that is the class
- * Kenshi survives on reload. Do not rebase this Dark UI override onto
- * vanilla 1-9 / that MedicalPanel y. HemolymphBar is ours at the current
- * Root-after-MedicalPanel coords. Do not add LifeBar11.
+ * H2-name is falsified: empty LifeBar10 slot still crashed ESC.
+ * HemolymphBar is last child of already-grown MedicalPanel_Back after
+ * LifeBar9 (leftover pad). Value/Tooltip on Front after LifeBar9*.
+ * Do not put Hemolymph* on Root. Do not add LifeBar11. Paint unchanged.
  * Options widgets are Root / OptionsTab / CloseButton / DefaultButton /
  * TooltipPanel. There is no OptionsPanel. Never guess that name again.
  */
@@ -172,7 +170,7 @@ static int   g_wroteCaption = 0;
 static int   g_wroteValue = 0;
 
 #if !defined(LIMBVIGOR_IDE)
-/* Prefixed findWidgetT HemolymphBar* THIS tick. Root child after MedicalPanel.
+/* Prefixed findWidgetT HemolymphBar* THIS tick. Back child after LifeBar9.
  * After orig: setVisible HemolymphBar / Datapanel / Value / Green (name-gated).
  * ISub on HemolymphBarDatapanel ONLY. Value is the NUMBER only.
  * Green uses a real int getWidth / getCoord (50–400px). Pointers are not widths.
@@ -2496,7 +2494,7 @@ static void lvSetDepthHemo(void* w, int depth)
 
 static void lvRaiseHemoZ(void)
 {
-    /* Depth=1 — Root child after MedicalPanel, same as v1.33 look. */
+    /* Depth=1 — paint path unchanged (parent is Back, not Root). */
     lvSetDepthHemo(g_wHemo, 1);
     lvSetDepthHemo(g_wHemoValue, 1);
     lvSetDepthHemo(g_wHemoData, 1);
@@ -3162,7 +3160,7 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: HUD module lv_hud — HemolymphBar, LifeBar10 slot empty, re-find each paint");
+    LvLog("LimbVigor: HUD module lv_hud — HemolymphBar last child of MedicalPanel_Back, re-find each paint");
 }
 
 void LvHudEnsureAfterInGame() {}

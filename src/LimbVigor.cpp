@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: HUD HemolymphBar — LifeBar10 slot empty, re-find each paint");
+        LvLog("LimbVigor: HUD HemolymphBar — last child of MedicalPanel_Back, re-find each paint");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

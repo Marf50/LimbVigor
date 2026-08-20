@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-HUD lives in `lv_hud.cpp`. The extra row is **HemolymphBar** (same look as the old LifeBar10: Root after MedicalPanel, tight under Hunger, current v1.33 coords). We do **not** name it `LifeBar10` — that is Kenshi's assignWidget slot. Dylan's live pack is byte-identical vanilla (LifeBar1–9 only, MedicalPanel y `0.712963`); that unbound slot is the class Kenshi survives. We do **not** rebase this Dark UI override onto that vanilla 1–9 / MedicalPanel. Plugin `findWidgetT`s HemolymphBar* **this tick** only and never getName-s yesterday's pointer. LifeBar11 is not a fix. **No `_getWidget`.** See [testdoc/HUD.md](testdoc/HUD.md).
+HUD lives in `lv_hud.cpp`. The extra row is **HemolymphBar**, last child of already-grown `MedicalPanel_Back` after LifeBar9 (leftover pad). Value and Tooltip sit on Front after LifeBar9*. Not Root. We do **not** name it `LifeBar10`. H2-name (empty LifeBar10 slot) is falsified — v1.39 still crashed ESC with Hemolymph on screen. Plugin `findWidgetT`s HemolymphBar* **this tick** only and never getName-s yesterday's pointer. LifeBar11 is not a fix. **No `_getWidget`.** See [testdoc/HUD.md](testdoc/HUD.md).
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-Occupying Kenshi's LifeBar10 assignWidget slot is rejected. Probing a cached MyGUI pointer is rejected. OptionsPanel / OptionsWindow / odSettingsOpen name-guess is rejected (live Options widgets are Root, OptionsTab, CloseButton, DefaultButton, TooltipPanel). ESC/settings-button hooks are rejected. Epoch-drop is rejected. `LifeBar10Slot` is rejected. LifeBar11 as a crash fix is rejected. Rebasing this override onto vanilla MedicalPanel y `0.712963` / vanilla 1–9 is rejected. PausedPanel vis=1 skip-paint is rejected. EnableHud=0 as the crash fix is rejected.
+Occupying Kenshi's LifeBar10 assignWidget slot is rejected. Hemolymph* as Root siblings is rejected. Probing a cached MyGUI pointer is rejected. OptionsPanel / OptionsWindow / odSettingsOpen name-guess is rejected (live Options widgets are Root, OptionsTab, CloseButton, DefaultButton, TooltipPanel). ESC/settings-button hooks are rejected. Epoch-drop is rejected. `LifeBar10Slot` is rejected. LifeBar11 as a crash fix is rejected. Growing/stretching Back/Front / 1–9 is rejected. Rebasing this override onto vanilla MedicalPanel y `0.712963` / vanilla 1–9 is rejected. PausedPanel vis=1 skip-paint is rejected. EnableHud=0 as the crash fix is rejected. A ready line for the Back-child parent is rejected.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 

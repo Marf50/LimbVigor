@@ -2,15 +2,17 @@
 
 Throwaway save. Tick the box. Write the last I-key tooltip line and anything in `RE_Kenshi_log.txt`.
 
-**Where to look:** select a **character** after In-game. An extra bar **tight under Hunger** (same plate, looks like Blood — internal name `HemolymphBar`, not LifeBar10) at the **current** v1.33 Root-after-MedicalPanel coords, Depth=1 — not `LifeBar10Slot`, not last-child-of-Front. **Hemolymph** / Vigor / Battle-heat centered on the left, **number** on the right, green fill when full. Blood stays Blood. LifeBar1–9 unstretched as in this Dark UI override (do **not** rebase onto vanilla 1–9 / MedicalPanel y `0.712963`). Floor / Speed stay uncovered. Door clears our bar only. Designer look before **and** after ESC. Bar gone after ESC = fail. See testdoc/HUD.md.
+**Where to look:** select a **character** after In-game. Extra bar tight under Hunger, looks like Blood — internal name `HemolymphBar`, last child of already-grown `MedicalPanel_Back` after LifeBar9 (leftover pad). Value + Tooltip on Front after LifeBar9*. Not Root. Not `LifeBar10Slot`. **Hemolymph** centered, **number** right, solid green when full. Blood stays Blood. 1–9 unstretched. Door clears our bar only. See testdoc/HUD.md.
 
-Dylan's live pack is the unbound-slot class Kenshi survives: vanilla MainPanel, LifeBar1–9 only, LifeBar10 slot null. Our extra named LifeBar10 was the ownership bug. HemolymphBar is ours. Hidden LifeBar11 is not required.
+H2-name is falsified. The Back-child parent is **development only** — not a playtest cut. Do not pack a zip for "we moved it off Root."
+
+Known fail looks (do not ship a layout that aims at these): bar gone after ESC; chopped/dashed leftover-pad chrome; an 11th vitals bar or a second Hemolymph.
 
 Every ~15s the log prints `LimbVigor: Boop  Hemolymph 38/100  left leg 4% dormant`.
 
 Send the notes back and the plugin gets patched.
 
-- [ ] **Reaches the menu.** Log `HUD HemolymphBar — LifeBar10 slot empty, re-find each paint` then `Main menu loaded`. Must NOT log `ready v1.39`. Must NOT log `HUD created at title screen`. Must NOT hook MainBarGUI ctor `0x72C1E0`. Must NOT walk the Gui tree. Must NOT `setSize` except HemolymphBarGreen / a 0-size HemolymphBarDatapanel. Must NOT `setVisible` on Root / MedicalPanel / Back / Front / LifeBar1–9. Must NOT call `_getWidget`. Must NOT contain `HemolymphStrip`, `LifeBar10Slot`, or a widget named `LifeBar10` / `LifeBar11`. Must NOT skip paint because PausedPanel vis=1. Must NOT hook ESC or the injected settings button.
+- [ ] **Reaches the menu.** Log `HUD HemolymphBar — last child of MedicalPanel_Back, re-find each paint` then `Main menu loaded`. Must NOT log any `ready` string. Must NOT log `HUD created at title screen`. Must NOT hook MainBarGUI ctor `0x72C1E0`. Must NOT walk the Gui tree. Must NOT `setSize` except HemolymphBarGreen / a 0-size HemolymphBarDatapanel. Must NOT `setVisible` on Root / MedicalPanel / Back / Front / LifeBar1–9. Must NOT call `_getWidget`. Must NOT contain `HemolymphStrip`, `LifeBar10Slot`, or a widget named `LifeBar10` / `LifeBar11`. Must NOT skip paint because PausedPanel vis=1. Must NOT hook ESC or the injected settings button.
 - [ ] **Loads the save.** `LimbVigor: In-game` (or `In-game — ignoring stuck gameResetting`) then `player squad seen`. A −15 empty stump must get an LV part or log `nub attach SEH skip` / why. Must NOT touch Character during title / save load. Must NOT crash after In-game.
 - [ ] **Person-select shows Hemolymph under Hunger.** Select a **person**. LifeBar1–9 stay in their Dark UI slots. Extra bar tight under Hunger (same plate, looks like Blood). **Hemolymph** centered left, **99** right, green fill. After ESC the bar must still be there — gone = fail. Kenshi's LifeBar10* must stay null (no widget named LifeBar10). ESC / settings close must leave Kenshi alive. Must NOT die with zero LimbVigor lines after `Injected settings button`. 75-HP arms stay 75. Send `RE_Kenshi_log.txt`.
 - [ ] **HUD SEH does not kill growth.** If a HUD write excepts, growth / heartbeat keep ticking. Must NOT latch `medical row stopped` forever. Must NOT log 500+ empty panel walks. Must NOT die after one `medical tick SEH`.

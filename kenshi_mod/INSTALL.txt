@@ -24,13 +24,12 @@ https://www.nexusmods.com/kenshi/mods/847
 Where the numbers are
 ---------------------
 HemolymphBar under Hunger
-(same look as the old
-LifeBar10). Kenshi's
-LifeBar10 slot stays
-empty like Dylan's live
-vanilla pack. Dark UI
-override look stays.
-Re-find each paint.
+(last child of
+MedicalPanel_Back after
+LifeBar9). Value/Tooltip
+on Front like 1-9.
+Not Root. Re-find each
+paint. No LifeBar10.
 No LifeBar11. No ESC
 hook. No LifeBar10Slot.
 No epoch-drop.
@@ -46,7 +45,7 @@ gui/layout/Kenshi_MainPanel.layout
 This build does not create widgets.
 
 HemolymphBar paints.
-LifeBar10 slot empty.
+Not on Root.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 
