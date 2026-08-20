@@ -35,6 +35,7 @@
 
 static void (*orig_medUpdate)(MedicalSystem*, float) = nullptr;
 static void (*orig_medGui)(MedicalSystem*, DatapanelGUI*) = nullptr;
+static void (*orig_charGui)(Character*, DatapanelGUI*, int) = nullptr;
 static bool (*orig_doctor)(MedicalSystem*, float, Item*, float, Character*) = nullptr;
 static void (*orig_tip1)(InventoryItemBase*, void*) = nullptr;
 
@@ -42,7 +43,8 @@ static CharSnap g_hudSnap;
 static int      g_hudHave = 0;
 
 static int g_inTick = 0;
-static unsigned g_playerSeenMs = 0;
+static int g_loggedInGame = 0;
+static int g_oncePlayer = 0;
 
 static unsigned NowMs()
 {
@@ -51,13 +53,6 @@ static unsigned NowMs()
 #else
     return 0;
 #endif
-}
-
-static unsigned PlayerAgeMs()
-{
-    if (!g_playerSeenMs) return 0;
-    unsigned now = NowMs();
-    return now >= g_playerSeenMs ? now - g_playerSeenMs : 0;
 }
 
 static int IsDead(MedicalSystem* med)
@@ -81,24 +76,20 @@ static void Heartbeat(CharSnap* live)
     if (live->lastLogMs && now && (now - live->lastLogMs) < 15000u) return;
     live->lastLogMs = now ? now : 1;
 
+    char line[192];
+    LvHeartbeatLine(live, line, (int)sizeof(line));
+    if (line[0])
+        LvLogf("LimbVigor: %s", line);
+
     const int stump = LvFirstStump(live);
-    char why[96];
-    const int ok = LvEligible(live, why, (int)sizeof(why));
     if (stump < 0)
-    {
-        LvLogf("LimbVigor: %s  %s %.0f/%.0f  no stump",
-            live->name, LvResourceName(live->race), live->vigor, LvCfg().maxVigor);
         return;
-    }
-    LvLogf("LimbVigor: %s  %s %.0f/%.0f  %s %.0f%% %s%s",
-        live->name,
-        LvResourceName(live->race),
-        live->vigor, LvCfg().maxVigor,
-        LvLimbLabel((LimbId)stump),
-        live->progress[stump],
-        LvStageName(live->progress[stump]),
-        ok ? "" : "  BLOCKED");
-    if (!ok && why[0]) LvLog(why);
+    /* Persist 100% on a live stump already put the block/retry copy on line 1. */
+    if (live->progress[stump] >= 99.5f || live->lastStage[stump] == LV_PART_GROWN)
+        return;
+    char why[96];
+    if (!LvEligible(live, why, (int)sizeof(why)) && why[0])
+        LvLog(why);
 }
 
 static CharSnap* Bind(MedicalSystem* med)
@@ -132,8 +123,44 @@ static CharSnap* Bind(MedicalSystem* med)
     for (int i = 0; i < LIMB_COUNT; ++i)
     {
         const LimbKind was = live->limbs[i];
-        live->limbs[i] = tmp.limbs[i];
-        if (firstSeen) continue;
+        const float keepMax = live->limbMax[i];
+        live->limbHp[i] = tmp.limbHp[i];
+        live->limbMax[i] = tmp.limbMax[i];
+        /* 5/5 after a bad write still has a real max (75). Keep the higher. */
+        if (keepMax > live->limbMax[i] && keepMax >= 20.f)
+            live->limbMax[i] = keepMax;
+        if (live->limbMax[i] < 20.f)
+        {
+            for (int j = 0; j < LIMB_COUNT; ++j)
+            {
+                if (tmp.limbMax[j] > live->limbMax[i])
+                    live->limbMax[i] = tmp.limbMax[j];
+            }
+        }
+        /* Flesh rising above 10 would read WHOLE and stop growth. Keep the
+         * nub as a stump while persist is mid-growth and HP is still a nub. */
+        if (tmp.limbs[i] == LIMB_KIND_WHOLE
+            && live->progress[i] > 0.f && live->lastStage[i] >= 0
+            && (tmp.limbHp[i] < 10.f || tmp.limbMax[i] < 20.f
+                || was == LIMB_KIND_STUMP || was == LIMB_KIND_CRUSHED)
+            && tmp.limbHp[i] < 50.f)
+            live->limbs[i] = LIMB_KIND_STUMP;
+        else
+            live->limbs[i] = tmp.limbs[i];
+        if (firstSeen)
+        {
+            /* Already-missing limb on load: do not bark. */
+            // Empty -15 socket reads as a stump. If progress already
+            // finished, keep 100% — Sync still starts at STUMP nub,
+            // then BUD/FORM/KNIT. Never Equip GROWN first.
+            if ((tmp.limbs[i] == LIMB_KIND_STUMP || tmp.limbs[i] == LIMB_KIND_CRUSHED)
+                && (live->lastStage[i] == LV_PART_GROWN || live->progress[i] >= 99.5f))
+            {
+                live->progress[i] = 100.f;
+                live->lastStage[i] = LV_PART_GROWN;
+            }
+            continue;
+        }
 
         if ((tmp.limbs[i] == LIMB_KIND_STUMP || tmp.limbs[i] == LIMB_KIND_CRUSHED)
             && was == LIMB_KIND_WHOLE)
@@ -144,13 +171,11 @@ static CharSnap* Bind(MedicalSystem* med)
             live->lastStage[i] = -1;
             LvMarkDirty();
             if (tmp.race == RACE_HIVE)
-                LvSay(speaker, "The stump itches. Hemolymph will try to knit it.");
+                LvSay(speaker, "The stump itches. It will grow.");
             else if (tmp.race == RACE_SHEK)
-                LvSay(speaker, "The bone remembers. Survive. Stay fed.");
-            else if (tmp.race == RACE_SKELETON)
-                LvSay(speaker, "A machine does not grow flesh. Find a replacement.");
-            else
-                LvSay(speaker, "Flesh does not grow back on its own. You need a splint — or to have earned it.");
+                LvSay(speaker, "The stump wants a fight, or a splint.");
+            else if (tmp.race == RACE_HUMAN)
+                LvSay(speaker, "The stump will not grow on its own.");
         }
         if (tmp.limbs[i] == LIMB_KIND_WHOLE && was != LIMB_KIND_WHOLE)
         {
@@ -164,24 +189,60 @@ static CharSnap* Bind(MedicalSystem* med)
     return live;
 }
 
+static void LogSkip(const char* why)
+{
+    static char last[128];
+    static unsigned lastMs = 0;
+    if (!why || !why[0]) return;
+    const unsigned now = NowMs();
+    if (last[0] && std::strcmp(last, why) == 0 && lastMs && now && (now - lastMs) < 15000u)
+        return;
+    std::snprintf(last, sizeof(last), "%s", why);
+    lastMs = now ? now : 1;
+    LvLogf("LimbVigor: skip — %s", why);
+}
+
 static void DriveTick(MedicalSystem* med, float frameTime)
 {
     if (!med || !LvCfg().enableHooks) return;
-    if (IsDead(med)) return;
-    if (g_inTick) return;
-
-    Character* who = LvCharFromMed(med);
-    if (!LvIsPlayerSquad(who)) return;
-
-    if (!g_playerSeenMs)
+    if (!LvWorldInGame()) return;
+    /* Do not reset HUD skip while OptionsTab exists — that ate invalidate. */
+    if (!LvHudBeltPoll())
+        LvHudTickBegin();
+    if (!g_loggedInGame)
     {
-        g_playerSeenMs = NowMs() ? NowMs() : 1;
-        LvLog("LimbVigor: player squad seen — ticks in 45s, parts in 90s");
+        g_loggedInGame = 1;
+        LvLog("LimbVigor: In-game");
+    }
+    if (IsDead(med))
+    {
+        if (!g_oncePlayer) LogSkip("dead");
         return;
     }
+    if (g_inTick)
+    {
+        static int rec = 0;
+        if (!rec)
+        {
+            rec = 1;
+            LvErr("LimbVigor: medical tick latch recovered — growth continues");
+        }
+        g_inTick = 0;
+    }
 
-    const unsigned age = PlayerAgeMs();
-    if (age < 45000u) return;
+    Character* who = nullptr;
+    LV_TRY { who = LvCharFromMed(med); }
+    LV_EXCEPT { who = nullptr; }
+    if (!who)
+    {
+        LogSkip("no character on medical state");
+        return;
+    }
+    if (!LvIsPlayerSquad(who))
+    {
+        if (!g_oncePlayer) LogSkip("no player squad");
+        return;
+    }
 
     float secPerHour = LvCfg().secondsPerGameHour;
     if (secPerHour < 1.f) secPerHour = 53.33f;
@@ -189,91 +250,174 @@ static void DriveTick(MedicalSystem* med, float frameTime)
     if (dtHours <= 0.f) return;
     if (dtHours > 2.f) dtHours = 2.f;
 
-    const int partsOn = age >= 90000u ? 1 : 0;
-
     g_inTick = 1;
-    LV_TRY
-    {
-        CharSnap* live = Bind(med);
-        if (live && live->race != RACE_SKELETON && live->race != RACE_ANIMAL)
-        {
-            static int onceTick = 0;
-            if (!onceTick) { LvLog("LimbVigor: ticks on"); onceTick = 1; }
 
-            TickResult r;
-            LvTick(live, dtHours, &r);
-            LvMarkDirty();
-
-            if (r.speech[0]) LvSay(who, r.speech);
-
-            if (partsOn)
-            {
-                static int onceParts = 0;
-                if (!onceParts) { LvLog("LimbVigor: parts on"); onceParts = 1; }
-                LvSyncGrowthParts(med, live);
-
-                if (r.stageChanged >= 0 && r.stageChanged < LIMB_COUNT)
-                {
-                    const int st = r.stageValue;
-                    if (st >= 0 && st < LV_PART_COUNT)
-                        LvEquipGrowthPart(med, r.stageChanged, st);
-                }
-
-                if (r.restored >= 0 && r.restored < LIMB_COUNT && live->restoreLock <= 0.f)
-                {
-                    const int limb = r.restored;
-                    CharSnap now;
-                    std::memset(&now, 0, sizeof(now));
-                    LvReadSnap(med, &now);
-                    const LimbKind gameLimb = now.limbs[limb];
-                    if (gameLimb == LIMB_KIND_WHOLE || gameLimb == LIMB_KIND_PROSTHETIC)
-                    {
-                        live->limbs[limb] = gameLimb;
-                        live->progress[limb] = 0.f;
-                        live->lastStage[limb] = -1;
-                        LvLogf("LimbVigor: %s %s already attached — clearing 100%%",
-                            live->name, LvLimbLabel((LimbId)limb));
-                    }
-                    else if (LvEquipGrowthPart(med, limb, LV_PART_GROWN))
-                    {
-                        live->limbs[limb] = LIMB_KIND_WHOLE;
-                        live->progress[limb] = 0.f;
-                        live->lastStage[limb] = LV_PART_GROWN;
-                        LvSay(who, "The limb is back. Soft, but mine.");
-                        LvLogf("LimbVigor: slotted grown part on %s %s",
-                            live->name, LvLimbLabel((LimbId)limb));
-                    }
-                    else
-                    {
-                        live->limbs[limb] = LIMB_KIND_STUMP;
-                        live->progress[limb] = 100.f;
-                        live->restoreLock = 20.f / secPerHour;
-                        LvEquipGrowthPart(med, limb, LV_PART_KNITTING);
-                        LvLogf("LimbVigor: grown part deferred on %s %s — knitting stays",
-                            live->name, LvLimbLabel((LimbId)limb));
-                    }
-                }
-            }
-
-            Heartbeat(live);
-
-            int selected = 0;
-            LV_TRY { selected = who->isPlayerCharacter() ? 1 : 0; }
-            LV_EXCEPT { selected = 0; }
-            if (selected || !g_hudHave)
-            {
-                g_hudSnap = *live;
-                g_hudHave = 1;
-                LvHudNote(live);
-            }
-        }
-        LvPersistSave(0);
-    }
+    CharSnap* live = nullptr;
+    LV_TRY { live = Bind(med); }
     LV_EXCEPT
     {
+        live = nullptr;
         static int once = 0;
-        if (!once) { LvErr("LimbVigor: medical tick SEH"); once = 1; }
+        if (!once) { LvErr("LimbVigor: bind SEH"); once = 1; }
     }
+
+    if (!live)
+    {
+        LogSkip("bind failed (no name)");
+    }
+    else
+    {
+        if (!g_oncePlayer)
+        {
+            g_oncePlayer = 1;
+            LvLog("LimbVigor: player squad seen — I-key snap live, ticks on, parts on");
+        }
+
+        /* I-key follows the body the medical panel last drew.
+         * Do not stamp every ticking squad pawn into g_hudSnap. */
+        if (g_hudHave && live->name[0]
+            && std::strcmp(g_hudSnap.name, live->name) == 0)
+        {
+            g_hudSnap = *live;
+            LvHudNote(live);
+        }
+
+        if (live->race == RACE_SKELETON)
+        {
+            LogSkip("skeleton — vigor not applied");
+        }
+        else if (live->race == RACE_ANIMAL)
+        {
+            LogSkip("animal — vigor not applied");
+        }
+        else
+        {
+            TickResult r;
+            LvClearResult(&r);
+            LV_TRY
+            {
+                LvTick(live, dtHours, &r);
+                LvMarkDirty();
+            }
+            LV_EXCEPT
+            {
+                static int once = 0;
+                if (!once) { LvErr("LimbVigor: LvTick SEH — HUD isolated, will retry"); once = 1; }
+            }
+
+            LV_TRY
+            {
+                if (r.speech[0]) LvSay(who, r.speech);
+            }
+            LV_EXCEPT
+            {
+                static int once = 0;
+                if (!once) { LvErr("LimbVigor: say SEH — growth continues"); once = 1; }
+            }
+
+            /* LvTick may mark WHOLE at 100% before Sync. Keep a live nub
+             * as STUMP so mid-growth Equip / flesh write still run. */
+            for (int li = 0; li < LIMB_COUNT; ++li)
+            {
+                /* Keep a growing nub as STUMP. Do not restamp an injured
+                 * 23-HP whole limb (Right Leg) just because hp<50. */
+                if (live->limbs[li] == LIMB_KIND_WHOLE
+                    && live->progress[li] > 0.f && live->lastStage[li] >= 0
+                    && (live->limbHp[li] < 10.f || live->limbMax[li] < 20.f))
+                    live->limbs[li] = LIMB_KIND_STUMP;
+                /* Persist-100% stump: LvTick marks WHOLE and Bind may
+                 * boost max from a 75-HP sibling. Still a missing limb. */
+                if (live->limbs[li] == LIMB_KIND_WHOLE
+                    && live->progress[li] >= 99.5f && live->limbHp[li] < 50.f)
+                    live->limbs[li] = LIMB_KIND_STUMP;
+            }
+
+            /* v1.35: nub = slotted growth part. Equip is SEH-wrapped. */
+
+            /* Per-limb SEH so one AV does not skip the growth tick. */
+            for (int li = 0; li < LIMB_COUNT; ++li)
+            {
+                LV_TRY { LvSyncOneLimb(med, live, li); }
+                LV_EXCEPT
+                {
+                    static int once[LIMB_COUNT] = {};
+                    if (!once[li])
+                    {
+                        once[li] = 1;
+                        LvLogf("LimbVigor: %s nub attach SEH skip — parts SEH site=LvSyncOneLimb hp=%.1f/%.1f kind=%d",
+                            LvLimbLabel((LimbId)li), live->limbHp[li], live->limbMax[li],
+                            (int)live->limbs[li]);
+                    }
+                }
+            }
+
+            if (r.stageChanged >= 0 && r.stageChanged < LIMB_COUNT)
+            {
+                const int st = r.stageValue;
+                const int limb = r.stageChanged;
+                LV_TRY
+                {
+                    /* Incremental type: STUMP nub first, then BUD/FORM/KNIT.
+                     * GROWN only after knitting — never the first write. */
+                    if (st >= 0 && st <= LV_PART_GROWN)
+                        LvSyncOneLimb(med, live, limb);
+                }
+                LV_EXCEPT
+                {
+                    static int once = 0;
+                    if (!once)
+                    {
+                        once = 1;
+                        LvLogf("LimbVigor: %s nub attach SEH skip — parts SEH site=stageEquip hp=%.1f/%.1f",
+                            LvLimbLabel((LimbId)limb), live->limbHp[limb], live->limbMax[limb]);
+                    }
+                }
+            }
+
+            /* v1.34: do NOT restore a stump. LvTick may mark WHOLE at 100%.
+             * A stage write SEH keeps the nub. No Equip GROWN first.
+             * No setLimb(ORIGINAL). */
+            if (r.restored >= 0 && r.restored < LIMB_COUNT)
+            {
+                const int limb = r.restored;
+                CharSnap now;
+                std::memset(&now, 0, sizeof(now));
+                LV_TRY { LvReadSnap(med, &now); }
+                LV_EXCEPT {}
+                const int stillNub = (now.limbs[limb] == LIMB_KIND_STUMP
+                    || now.limbs[limb] == LIMB_KIND_CRUSHED
+                    || now.limbHp[limb] < 50.f) ? 1 : 0;
+                if (stillNub)
+                {
+                    live->limbs[limb] = (now.limbs[limb] == LIMB_KIND_CRUSHED)
+                        ? LIMB_KIND_CRUSHED : LIMB_KIND_STUMP;
+                    live->limbHp[limb] = now.limbHp[limb];
+                    live->limbMax[limb] = now.limbMax[limb];
+                    /* v1.35 logged "no write" here and never reached EquipWriteSeh. */
+                    LV_TRY { LvSyncOneLimb(med, live, limb); }
+                    LV_EXCEPT
+                    {
+                        LvLogf("LimbVigor: %s nub attach SEH skip",
+                            LvLimbLabel((LimbId)limb));
+                    }
+                }
+                else
+                {
+                    live->limbs[limb] = now.limbs[limb];
+                    live->progress[limb] = 0.f;
+                    live->lastStage[limb] = -1;
+                    LvLogf("LimbVigor: %s %s already attached — clearing 100%%",
+                        live->name, LvLimbLabel((LimbId)limb));
+                }
+            }
+
+            LV_TRY { Heartbeat(live); }
+            LV_EXCEPT {}
+        }
+    }
+
+    LV_TRY { LvPersistSave(0); }
+    LV_EXCEPT {}
     g_inTick = 0;
 }
 
@@ -281,32 +425,117 @@ static void hook_medUpdate(MedicalSystem* self, float frameTime)
 {
     if (orig_medUpdate) orig_medUpdate(self, frameTime);
     if (!self) return;
+    LvNoteMedicalPulse();
     DriveTick(self, frameTime);
+}
+
+static void WalkSeh(DatapanelGUI* panel)
+{
+    LV_TRY { LvWalkSelPanel(panel); }
+    LV_EXCEPT
+    {
+        LvNoteHudProbeSeh();
+        static int once = 0;
+        if (!once) { LvErr("LimbVigor: GUI probe SEH — growth continues"); once = 1; }
+    }
+}
+
+static void WalkSafe(DatapanelGUI* panel)
+{
+    try { WalkSeh(panel); }
+    catch (...)
+    {
+        static int once = 0;
+        LvNoteHudProbeSeh();
+        if (!once) { LvErr("LimbVigor: GUI probe C++ throw — growth continues"); once = 1; }
+    }
+}
+
+static void PaintSeh(MedicalSystem* med, Character* who, CharSnap* live)
+{
+    LV_TRY
+    {
+        if (!who || !LvIsSelectedCharacter(who) || (live && live->race == RACE_ANIMAL))
+            LvClearHud(nullptr);
+        else if (live)
+            LvPaintHud(med, nullptr, live);
+    }
+    LV_EXCEPT
+    {
+        LvNoteHudProbeSeh();
+        static int once = 0;
+        if (!once) { LvErr("LimbVigor: HUD paint SEH — growth continues"); once = 1; }
+    }
+}
+
+static void PaintSafe(MedicalSystem* med, Character* who, CharSnap* live)
+{
+    try { PaintSeh(med, who, live); }
+    catch (...)
+    {
+        LvNoteHudProbeSeh();
+        static int once = 0;
+        if (!once) { LvErr("LimbVigor: HUD paint C++ throw — growth continues"); once = 1; }
+    }
+}
+
+static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* who)
+{
+    if (!panel || !LvWorldInGame())
+        return;
+    /* orig already ran. Belt: no Hemolymph find/set while OptionsTab exists. */
+    if (LvHudBeltPoll())
+        return;
+    LvHudTickBegin();
+
+    WalkSafe(panel);
+
+    CharSnap* live = nullptr;
+    if (med)
+        live = Bind(med);
+    if (live && who && LvIsPlayerSquad(who))
+    {
+        g_hudSnap = *live;
+        g_hudHave = 1;
+        LvHudNote(live);
+    }
+
+    /* After orig: find HemolymphBar* this tick + ISub + numeric Value + Green. */
+    PaintSafe(med, who, live);
 }
 
 static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
 {
     if (orig_medGui) orig_medGui(self, panel);
-    if (!self || !panel || !LvCfg().enableHud) return;
-    // Do not write DatapanelGUI / setLineProgress. C is the status
-    // window, not the Blood HUD, and GameStr there has crashed loads.
-    if (!g_playerSeenMs || PlayerAgeMs() < 45000u) return;
+    if (!self || !panel)
+        return;
+    /* Do not touch Character or write DatapanelGUI until In-game. */
+    if (!LvWorldInGame())
+        return;
     Character* who = LvCharFromMed(self);
-    if (!LvIsPlayerSquad(who)) return;
-    LV_TRY
-    {
-        CharSnap* live = Bind(self);
-        if (live)
-        {
-            g_hudSnap = *live;
-            g_hudHave = 1;
-            LvHudNote(live);
-        }
-    }
+    LV_TRY { AfterGuiRebuild(self, panel, who); }
     LV_EXCEPT
     {
+        LvNoteHudProbeSeh();
         static int once = 0;
-        if (!once) { LvErr("LimbVigor: HUD snapshot SEH"); once = 1; }
+        if (!once) { LvErr("LimbVigor: medical GUI SEH"); once = 1; }
+    }
+}
+
+static void hook_charGui(Character* self, DatapanelGUI* panel, int cat)
+{
+    if (orig_charGui) orig_charGui(self, panel, cat);
+    if (!self || !panel)
+        return;
+    if (!LvWorldInGame())
+        return;
+    MedicalSystem* med = LvMedFromChar(self);
+    LV_TRY { AfterGuiRebuild(med, panel, self); }
+    LV_EXCEPT
+    {
+        LvNoteHudProbeSeh();
+        static int once = 0;
+        if (!once) { LvErr("LimbVigor: _NV_getGUIData SEH"); once = 1; }
     }
 }
 
@@ -315,6 +544,7 @@ static bool hook_doctor(MedicalSystem* self, float skill, Item* equipment, float
     bool ok = false;
     if (orig_doctor) ok = orig_doctor(self, skill, equipment, dt, who);
     if (!ok || !self) return ok;
+    if (!LvWorldInGame()) return ok;
     LV_TRY
     {
         CharSnap* live = Bind(self);
@@ -447,6 +677,7 @@ void LvInstallHooks()
 #else
     intptr_t med = KenshiLib::GetRealAddress(&MedicalSystem::medicalUpdate);
     intptr_t gui = KenshiLib::GetRealAddress(&MedicalSystem::getMedicalGUIData);
+    intptr_t cgui = KenshiLib::GetRealAddress(&Character::_NV_getGUIData);
     intptr_t doc = KenshiLib::GetRealAddress(&MedicalSystem::applyDoctoring);
 
     void* base = nullptr;
@@ -458,10 +689,12 @@ void LvInstallHooks()
     }
     if (!med && base) med = (intptr_t)((unsigned char*)base + 0x651880);
     if (!gui && base) gui = (intptr_t)((unsigned char*)base + 0x889140);
+    if (!cgui && base) cgui = (intptr_t)((unsigned char*)base + 0x5D3AE0);
     if (!doc && base) doc = (intptr_t)((unsigned char*)base + 0x649280);
 
     HookOne("LimbVigor: medicalUpdate", med, (void*)hook_medUpdate, (void**)&orig_medUpdate);
     HookOne("LimbVigor: getMedicalGUIData", gui, (void*)hook_medGui, (void**)&orig_medGui);
+    HookOne("LimbVigor: _NV_getGUIData", cgui, (void*)hook_charGui, (void**)&orig_charGui);
     HookOne("LimbVigor: applyDoctoring (splint)", doc, (void*)hook_doctor, (void**)&orig_doctor);
 
     LvHudInstall();
@@ -477,7 +710,7 @@ void LvInstallHooks()
     }
     else
     {
-        LvLog("LimbVigor: no exe base — I-key tooltip skipped, HUD still runs");
+        LvLog("LimbVigor: no exe base — I-key tooltip skipped");
     }
 #endif
 }

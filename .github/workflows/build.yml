@@ -17,7 +17,9 @@ jobs:
         run: |
           cmake -S . -B build-test -DLIMBVIGOR_BUILD_TESTS=ON
           cmake --build build-test --target lv_sim_test -j
+          python3 tools/check_layout.py
           ./build-test/lv_sim_test
+          python3 tools/write_parts_mod.py --out-dir /tmp/lvmod
 
   build-dll:
     name: MSVC x64 Release
@@ -79,6 +81,9 @@ jobs:
           Copy-Item kenshi_mod/RE_Kenshi.json dist_mod/LimbVigor/
           Copy-Item kenshi_mod/INSTALL.txt dist_mod/LimbVigor/
           Copy-Item testdoc/BUGTEST.md dist_mod/LimbVigor/
+          if (Test-Path kenshi_mod/gui) {
+            Copy-Item kenshi_mod/gui dist_mod/LimbVigor/gui -Recurse
+          }
           Get-ChildItem dist_mod/LimbVigor | Format-Table Name, Length
 
       - name: Upload LimbVigor-mod

@@ -100,6 +100,7 @@ public:
     bool applyDoctoring(float, Item*, float, Character*) { return false; }
     LimbState getLimbState(RobotLimbs::Limb) const { return LIMB_ORIGINAL; }
     HealthPartStatus* getPart(RobotLimbs::Limb) { return nullptr; }
+    HealthPartStatus* getPart(HealthPartStatus::PartType, LeftRight) { return nullptr; }
     void setRobotLimbItem(RobotLimbs::Limb, Item*, bool) {}
     void updateStats() {}
     void validateHealthValues() {}
@@ -119,10 +120,22 @@ public:
     bool hasSimilarItem(itemType) { return false; }
     bool isInCombatMode(bool, bool) const { return false; }
     void say_WithARepeatLimiter(const std::string&) {}
+    void _NV_say_WithARepeatLimiter(const std::string&) {}
+    void _NV_say(const std::string&) {}
+    void _NV_getGUIData(DatapanelGUI*, int) {}
+    MedicalSystem* getMedical() { return nullptr; }
     bool isPlayerCharacter() const { return true; }
     bool isWithThePlayer() { return true; }
 };
 
 class Item {};
-class DatapanelGUI {};
+class InventoryItemBase {};
+class DatapanelGUI {
+public:
+    void* setLineProgress(const std::string&, int, float, const std::string&, bool) { return nullptr; }
+    bool lineExists(const std::string&, int) { return false; }
+    int getNumLines(int) { return 0; }
+    void* getLineByNum(int, int) { return nullptr; }
+    void removeLine(const std::string&, int) {}
+};
 class CharacterAnimal {};

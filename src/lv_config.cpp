@@ -108,7 +108,7 @@ void LvLoadConfig(const char* pluginDir)
     }
     if (!f)
     {
-        LvLog("LimbVigor: no config — HUD on, speech off");
+        LvLog("LimbVigor: no config — HUD on, speech on");
         return;
     }
     LvLog("LimbVigor: config loaded");

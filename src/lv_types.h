@@ -51,6 +51,12 @@ struct CharSnap
     unsigned lastLogMs;
     char     lastBlock[96];
     char     name[48];
+    float    limbHp[LIMB_COUNT];   // HealthPartStatus::flesh (can be negative)
+    float    limbMax[LIMB_COUNT];  // HealthPartStatus::_maxHealth
+    /* Session-only. Set after EquipWriteSeh succeeds this load.
+     * Persist file does not store this. Persist 100% + still STUMP is
+     * not attached until the first write lands. */
+    int      nubWrote[LIMB_COUNT];
 };
 
 struct TickResult

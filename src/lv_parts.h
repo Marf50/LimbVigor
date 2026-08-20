@@ -21,7 +21,9 @@ struct LvPartDef
     const char* name;          // I-key slot title, "LV " prefix
     const char* stringId;      // GameData stringID
     const char* desc;
-    const char* vanillaVisual; // Economy limb used if our .mod item is missing
+    const char* vanillaVisual; // Economy limb whose mesh/icon we reference — never createItem this
+    const char* mesh;          // FileValue path (required)
+    const char* icon;          // FileValue path (required)
     int         slot;          // RobotLimbs::Limb / FCS LimbSlot
     float       hp;
     float       athletics;
@@ -49,6 +51,10 @@ class Item;
 
 int  LvIsGrowthPart(Item* item);
 int  LvGrowthPartStage(Item* item); // 0..4 or -1
-int  LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage);
+/* First session write on a still-STUMP socket is always STUMP, even at
+ * persist 100%. After nubWrote, one stage at a time. Never GROWN first. */
+int  LvNubWriteStage(const CharSnap* snap, int limbId, int have);
+int  LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage, int alreadyWrote);
 void LvClearGrowthPart(MedicalSystem* med, int limbId);
-void LvSyncGrowthParts(MedicalSystem* med, const CharSnap* snap);
+void LvSyncGrowthParts(MedicalSystem* med, CharSnap* snap);
+int  LvSyncOneLimb(MedicalSystem* med, CharSnap* snap, int limbId);

@@ -21,31 +21,34 @@ https://www.nexusmods.com/kenshi/mods/847
      LimbVigor
    Put LimbVigor after RE_Kenshi. Launch.
 
-Where the bars and tooltips are
--------------------------------
-Select a squad member. A small **Limb Vigor** window sits on the
-left of the screen (same place as the portrait / Blood stack).
+Where the numbers are
+---------------------
+HemolymphBar stays in the
+override. OptionsTab belt:
+no Hemolymph MyGUI while
+options. Re-find after
+thaw. No LifeBar10.
+No LifeBar11. No ESC
+hook. No createWidget.
+No loadLayout.
+No _getWidget.
 
-  1. Line 1: Hemolymph / Battle-heat / Vigor  82 / 100
-  2. Line 2 (if a stump): left leg  budding  32%
-  3. Line 3: time left + race rule (always visible)
+Spoken lines appear over the character.
+I-key on a stump/bud/knit/grown item is
+the backup.
 
-v1.9.0 died on the title screen in v1.8.9 because hover/click
-events were registered during the title constructor (null AV).
-This build is the v1.8.8 window that reached your save, with
-no MyGUI events, plus delayed ticks (45s) and parts (90s).
+RE_Kenshi loads
+gui/layout/Kenshi_MainPanel.layout
+(Dark UI override + HemolymphBar).
+This build does not create widgets.
 
-The box says "I-key the LV part". Open inventory and hover
-a Limb Vigor stump/bud/knit item for the live numbers.
+HemolymphBar paints.
+Not on Root.
+HUD SEH does not kill growth. No walk spam.
+No ctor / font / _NV_update / _NV_setObject.
 
 Overwrite both LimbVigor.dll and LimbVigor.mod. Keep
 LimbVigor.progress.
-
-Open I: the socket is LV Stump / Budding / Forming / Knitting /
-Grown. Hover that item for Hemolymph / stage / hours left.
-
-C still has a backup list (Hemolymph / Regrowth / Time / How)
-if you want the STATS window.
 
 Hive grows if fed and bandaged.
 Shek need toughness 20 or a used Splint Kit.

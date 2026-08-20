@@ -10,15 +10,24 @@ const char* LvLimbLabel(LimbId id);
 const char* LvStageName(float progress01to100);
 
 int  LvAnyStump(const CharSnap* c);
-int  LvFirstStump(const CharSnap* c); // LimbId or -1
+int  LvFirstStump(const CharSnap* c); // LimbId or -1, legs first
+/* HP fallback after official LimbState. Left Leg 5 / crippled / cut-off
+ * is a stump. Intact 75-HP arms are whole. Injured 23 is not a stump. */
+LimbKind LvClassifyFromHp(float hp, float mx, int haveHp, char* why, int whyN);
+int  LvNextStump(const CharSnap* c, int after); // next waiting stump, or -1
+int  LvHudLimbSlot(const CharSnap* c); // Line 2 socket, or -1
+void LvHeartbeatLine(const CharSnap* c, char* out, int n); // no "100% grown BLOCKED" on a live stump
 int  LvEligible(const CharSnap* c, char* why, int whySize);
+const char* LvHudResourceKey(const CharSnap* c); // Hemolymph/Vigor/Battle-heat/Limb Vigor
 
-// Player-facing copy for the STATS panel / speech.
+// Player-facing copy. Growing: short tag (~4h / ~2h bed / heat / heat bed).
+// Blocked: Line 2 reason.
 const char* LvRaceHint(RaceKind k);
 float       LvHoursToFinish(const CharSnap* c); // <0 if paused / no stump
 void        LvEtaText(const CharSnap* c, char* out, int outsz);
 
-// HUD / I-key tooltip lines. bar2 empty if no stump. tip is always filled.
+// bar1 = Line 1 right. bar2 = Line 2 right (empty if omitted).
+// tip = Line 2 key (lowercase limb) or empty.
 void LvHudLines(const CharSnap* c,
     char* bar1, int n1, float* fill1,
     char* bar2, int n2, float* fill2,

@@ -1,10 +1,12 @@
 # Limb Vigor
 
-A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic characters can grow a lost limb back. The resource sits on the **selected-character HUD, under Blood**.
+A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic characters can grow a lost limb back.
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-This is not a feast-from-hunger hack. Medical tick, HUD, I-key tooltip, same numbers as the field-manual bench.
+HUD lives in `lv_hud.cpp`. While `findWidgetT("OptionsTab")` succeeds, we no-op all Hemolymph MyGUI and drop cached pointers without touching them. `medicalUpdate` does not `LvHudTickBegin` during that belt. Thaw when OptionsTab is gone. Orig still runs. Extra Hemolymph nodes stay in the override — this belt does not claim their destructor is solved. H2-name is falsified. LifeBar11 is not a fix. **No `_getWidget`.** **No `createWidget` / `loadLayout`.** See [testdoc/HUD.md](testdoc/HUD.md).
+
+This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
 | Race | Resource | When it grows | Open air |
 | --- | --- | --- | --- |
@@ -15,7 +17,9 @@ This is not a feast-from-hunger hack. Medical tick, HUD, I-key tooltip, same num
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.9.0: v1.8.9 died at the title screen (AV on null). The only new code vs the working v1.8.8 window was `eventMouseButtonClick` / `eventMouseSetFocus` via `newDelegate` *inside* the TitleScreen constructor. Same class of crash as the v1.8.7 frame callback. v1.9.0 is the v1.8.8 window (static caption, no MyGUI events) plus the v1.8.9 delayed ticks/parts. Hover the I-key slot on an LV part for live numbers.
+Occupying Kenshi's LifeBar10 assignWidget slot is rejected. Hemolymph* as Root siblings is rejected. Probing a cached MyGUI pointer is rejected. OptionsPanel / OptionsWindow / odSettingsOpen name-guess is rejected (live Options widgets are Root, OptionsTab, CloseButton, DefaultButton, TooltipPanel). ESC/settings-button hooks are rejected. Epoch-drop is rejected. `LifeBar10Slot` is rejected. LifeBar11 as a crash fix is rejected. Growing/stretching Back/Front / 1–9 is rejected. Rebasing this override onto vanilla MedicalPanel y `0.712963` / vanilla 1–9 is rejected. PausedPanel vis=1 skip-paint is rejected. EnableHud=0 as the crash fix is rejected. A ready line for the Back-child parent is rejected.
+
+The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 
 ## Get the DLL
 
@@ -31,19 +35,19 @@ See [kenshi_mod/INSTALL.txt](kenshi_mod/INSTALL.txt).
 
 ## What is hooked
 
-Documented KenshiLib methods plus a small MyGUI overlay of Kenshi skins.
+Documented KenshiLib methods. No TitleScreen hook. No widget create.
 
 | Hook | Why |
 | --- | --- |
-| `MedicalSystem::medicalUpdate` | Tick vigor and growth |
-| `MedicalSystem::getMedicalGUIData` | Lines next to Blood on STATS (backup) |
+| `MedicalSystem::medicalUpdate` | Tick vigor and growth; slot LV parts after in-game (snapshot only, no MyGUI) |
+| `MedicalSystem::getMedicalGUIData` | After orig: find HemolymphBar* this tick, then paint Hemolymph. Never LifeBar1. No `_getWidget` |
+| `Character::_NV_getGUIData` | Same after orig. In-game gate before `getMedical()`. `GetRealAddress` on `_NV_` only |
 | `MedicalSystem::applyDoctoring` | Splint Kit / stimulant starts the catalyst |
-| `InventoryItemBase::getTooltipData1` | Live Hemolymph / stage / time on the I-key LV part |
-| MyGUI overlay on layer `Middle` | Left HUD bars under Blood |
+| `InventoryItemBase::getTooltipData1` | I-key tooltip RVA `0x7A8E30` (never `GetRealAddress` on the virtual) |
 
 Addresses come from `KenshiLib::GetRealAddress`. The RVAs printed in the official headers are a fallback only.
 
-Limb restore slots a growth part via `RobotLimbs::setLimb(REPLACED, item)` and `MedicalSystem::setRobotLimbItem`, created from LimbVigor.mod GameData (Economy limb as visual fallback). At 100% a Grown part stays — we do not call `setLimb(ORIGINAL)`. Progress is a sidecar file (`LimbVigor.progress`) next to the DLL — we do not hook `MedicalSystem::load`.
+Limb restore slots a growth part via `RobotLimbs::setLimb(REPLACED, item)` and `MedicalSystem::setRobotLimbItem`, created from LimbVigor.mod GameData. That GameData must have FileValue mesh/icon — a mesh-less hit is skipped and we never createItem an Economy prosthetic. At 100% a Grown part stays — we do not call `setLimb(ORIGINAL)`. Progress is a sidecar file (`LimbVigor.progress`) next to the DLL — we do not hook `MedicalSystem::load`.
 
 ## Layout
 
@@ -55,7 +59,7 @@ src/lv_hooks.cpp      medical + I-key tooltip hooks
 src/lv_config.cpp     LimbVigor.cfg / config.ini
 src/lv_persist.cpp    LimbVigor.progress
 src/lv_parts.cpp      growth-stage LimbReplacement catalog + equip
-src/lv_hud.cpp        selected-character HUD under Blood + hover tooltip
+src/lv_hud.cpp        I-key snapshot only (no layout)
 src/lv_sim_test.cpp   headless checks (also run in CI)
 ```
 
@@ -67,9 +71,9 @@ Windows, VS 2022, [KenshiLib_Examples_deps](https://github.com/BFrizzleFoShizzle
 
 ```bat
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64 ^
-  -DKENSHILIB_DIR=...\KenshiLib ^
-  -DBOOST_INCLUDE_DIR=...\boost_1_60_0 ^
-  -DLIMBVIGOR_FORCE_GAME_BUILD=ON
+    -DKENSHILIB_DIR=...\KenshiLib ^
+    -DBOOST_INCLUDE_DIR=...\boost_1_60_0 ^
+    -DLIMBVIGOR_FORCE_GAME_BUILD=ON
 cmake --build build --config Release
 ```
 

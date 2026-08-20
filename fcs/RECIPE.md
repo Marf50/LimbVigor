@@ -1,8 +1,10 @@
 # FCS companion — Limb Vigor
 
 `LimbVigor.mod` already contains 20 `LimbReplacement` records
-(stump / budding / forming / knitting / grown × four sockets). Do not
-duplicate those by hand — `tools/write_parts_mod.py` is the source.
+(stump / budding / forming / knitting / grown × four sockets), each
+with FileValue mesh/icon. Do not duplicate those by hand —
+`tools/write_parts_mod.py` is the source. Do not ship a mesh-less
+record; C++ will refuse it and will not fall back to Economy.
 
 Optional extra: named drugs on shelves.
 
