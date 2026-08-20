@@ -23,20 +23,21 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-v1.34 Hemolymph label +
-vanilla bar chrome + real
-nub limb stages. LifeBar1-9
-are 3b999b9 fractions of
-Back. LifeBar10 sits in a
-1-row LifeBar10Slot chrome
-(Hunger-height BottomSkin).
-Datapanel sized from
-LifeBar9Datapanel pixels.
-Hide Grey*. Green uses
-LifeBar10 host or LifeBar9
-if getW<=14 (logged). Left
-Leg 5 attaches a growth-part
-nub and stages. No Equip
+v1.35 bar visible like 1.33
++ Hemolymph label + SEH nub
+attach. LifeBar1-9 are
+3b999b9 fractions of Back.
+LifeBar10 is a Root child
+after MedicalPanel (v1.33
+coords, Depth=1). No
+LifeBar10Slot. Datapanel
+setSize host W x Hunger H
+(never copy 0x0). Hide
+Grey*. Green uses a 50-400
+host, or layout Hunger
+pixels if both getW<=14.
+Equip SEH-logs skip and
+does not retry. No Equip
 GROWN first. No
 setLimb(ORIGINAL). No
 epoch-drop. No _getWidget.
@@ -50,9 +51,9 @@ gui/layout/Kenshi_MainPanel.layout
 (Dark UI override + LifeBar10).
 This build does not create widgets.
 
-v1.34: Hemolymph label +
-vanilla bar chrome + real
-nub limb stages.
+v1.35: bar visible like 1.33
++ Hemolymph label + SEH nub
+attach.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 

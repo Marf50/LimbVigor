@@ -30,10 +30,16 @@
 #include <kenshi/Enums.h>
 #endif
 
-// C++ try/catch — this file builds GameStr. Access violations are
-// caught by the medicalUpdate hook SEH around DriveTick.
+// C++ try/catch for GameStr helpers. AVs use LV_SEH_* in POD fns only.
 #define LV_TRY    try
 #define LV_EXCEPT catch (...)
+#if defined(_MSC_VER)
+#define LV_SEH_TRY    __try
+#define LV_SEH_EXCEPT __except (1)
+#else
+#define LV_SEH_TRY    if (true)
+#define LV_SEH_EXCEPT if (false)
+#endif
 
 // FCS LimbSlot / RobotLimbs::Limb numbers.
 static const int kFcsSlot[LIMB_COUNT] = {
@@ -544,10 +550,31 @@ static int SlotPart(MedicalSystem* med, int limbId, Item* item, int midGrowth)
     return ok;
 }
 
+/* POD-only. MSVC will not mix __try with GameStr in one fn.
+ * createItem + SlotPart (setLimb REPLACED + updateStats). */
+static int EquipWriteSeh(MedicalSystem* med, int limbId, GameData* gd)
+{
+    int ok = 0;
+    LV_SEH_TRY
+    {
+        Item* item = MakeItem(gd);
+        if (item)
+            ok = SlotPart(med, limbId, item, 1) ? 1 : 0;
+        else
+            ok = 0;
+    }
+    LV_SEH_EXCEPT { ok = -1; }
+    return ok;
+}
+
 int LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage)
 {
     if (!med || limbId < 0 || limbId >= LIMB_COUNT) return 0;
     if (stage < 0 || stage >= LV_PART_COUNT) return 0;
+
+    static int sehSkip[LIMB_COUNT] = {};
+    if (sehSkip[limbId])
+        return 0;
 
     Item* cur = Equipped(med, limbId);
     const int have = cur ? LvGrowthPartStage(cur) : -1;
@@ -593,18 +620,18 @@ int LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage)
         return 0;
     }
 
-    Item* item = MakeItem(gd);
-    if (!item)
+    const int wrote = EquipWriteSeh(med, limbId, gd);
+    if (wrote < 0)
     {
-        failUntil[limbId] = now + 15000u;
-        LvLogf("LimbVigor: createItem failed for %s", def->name);
+        sehSkip[limbId] = 1;
+        LvLogf("LimbVigor: %s nub attach SEH skip", LvLimbLabel((LimbId)limbId));
         return 0;
     }
-
-    if (!SlotPart(med, limbId, item, 1))
+    if (!wrote)
     {
         failUntil[limbId] = now + 15000u;
-        LvLogf("LimbVigor: setLimb REPLACED failed for %s", def->name);
+        LvLogf("LimbVigor: createItem/SlotPart failed for %s — stump numbers kept",
+            def->name);
         return 0;
     }
 

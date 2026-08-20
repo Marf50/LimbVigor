@@ -2545,7 +2545,6 @@ static int lvIsForbiddenParent(const char* n)
         return 1;
     return (lvHasSub(n, "Root") || lvHasSub(n, "MedicalPanel")
          || lvHasSub(n, "MedicalPanel_Back") || lvHasSub(n, "MedicalPanel_Front")
-         || lvHasSub(n, "LifeBar10Slot")
          || lvHasSub(n, "StatusPanel") || lvHasSub(n, "SquadPanel")
          || lvHasSub(n, "Squad") || lvHasSub(n, "Floor")
          || lvHasSub(n, "NamePanel") || lvEndsWith(n, "Name")
@@ -3257,6 +3256,52 @@ static int lvReadHostWh(void* bar, int* ow, int* oh)
     return 1;
 }
 
+/* Hunger px from layout fractions. Do not use getW=2. */
+static const float kLayBackW = 0.92976588010787964f;
+static const float kLayBar9W = 0.85611510276794434f;
+static const float kLayBackH = 0.7469136118888855f;
+static const float kLayBar9H = 0.095041319727897644f;
+static const float kLayHungerW = 0.12395832622918707f;
+static const float kLayHungerH = 0.02129629746523392f;
+
+static int lvLayoutHungerPx(int* ow, int* oh)
+{
+    int hw = 0, hh = 0;
+    const int mw = g_wMedicalPanel ? lvSehGetInt(g_getWidth, g_wMedicalPanel) : 0;
+    const int mh = g_wMedicalPanel ? lvSehGetInt(g_getHeight, g_wMedicalPanel) : 0;
+    const int bw = g_wBack ? lvSehGetInt(g_getWidth, g_wBack) : 0;
+    const int bh = g_wBack ? lvSehGetInt(g_getHeight, g_wBack) : 0;
+    const int rw = g_wRoot ? lvSehGetInt(g_getWidth, g_wRoot) : 0;
+    const int rh = g_wRoot ? lvSehGetInt(g_getHeight, g_wRoot) : 0;
+    if (mw >= 50 && mw <= 2000)
+    {
+        hw = (int)(mw * kLayBackW * kLayBar9W + 0.5f);
+        if (mh >= 8 && mh <= 2000)
+            hh = (int)(mh * kLayBackH * kLayBar9H + 0.5f);
+    }
+    if ((hw < 50 || hw > 400) && bw >= 50 && bw <= 2000)
+    {
+        hw = (int)(bw * kLayBar9W + 0.5f);
+        if (bh >= 8 && bh <= 2000)
+            hh = (int)(bh * kLayBar9H + 0.5f);
+    }
+    if ((hw < 50 || hw > 400) && rw >= 200 && rw <= 7680)
+    {
+        hw = (int)(rw * kLayHungerW + 0.5f);
+        if (rh >= 200 && rh <= 4320)
+            hh = (int)(rh * kLayHungerH + 0.5f);
+    }
+    if (hw < 50 || hw > 400)
+        hw = 238; /* 1920 × Hunger screen w */
+    if (hh < 8 || hh > 80)
+        hh = (hw * 23) / 238;
+    if (hh < 8)
+        hh = 16;
+    if (ow) *ow = hw;
+    if (oh) *oh = hh;
+    return 1;
+}
+
 /* LifeBar10Green only. Width = (hemo/max)*LifeBar10 HOST pixel width AFTER show.
  * Never Green / Datapanel as parentW. Never 1–9 Green. Wait if host < 50. */
 static int lvFillGreen(float fill01, float hemo, float maxv)
@@ -3299,88 +3344,45 @@ static int lvFillGreen(float fill01, float hemo, float maxv)
     }
     int pw = 0, ph = 0;
     const int rawW = lvSehGetInt(g_getWidth, bar);
-    /* getW≤14: always read LifeBar9 and USE that width. Do not require lvReadHostWh(10) to fail first. */
-    if (rawW <= 14)
+    int w9 = 0, h9 = 0;
+    char n9[96], c9[96];
+    int v9 = -1;
+    n9[0] = 0;
+    c9[0] = 0;
+    if (g_wLifeBar9)
     {
-        char n9[96], c9[96];
-        int v9 = -1;
-        n9[0] = 0;
-        c9[0] = 0;
-        if (g_wLifeBar9)
-            lvReadWidget(g_wLifeBar9, n9, (int)sizeof(n9), c9, (int)sizeof(c9), &v9);
-        int w9 = 0, h9 = 0;
-        if (g_wLifeBar9)
-        {
-            if (!lvReadPixelSize(g_wLifeBar9, &w9, &h9))
-                w9 = lvSehGetInt(g_getWidth, g_wLifeBar9);
-        }
+        lvReadWidget(g_wLifeBar9, n9, (int)sizeof(n9), c9, (int)sizeof(c9), &v9);
+        if (!lvReadPixelSize(g_wLifeBar9, &w9, &h9))
+            w9 = lvSehGetInt(g_getWidth, g_wLifeBar9);
+    }
+    /* Size from a host whose getW is 50–400. Never size from 2. */
+    if (rawW > 14 && rawW <= 400 && lvReadHostWh(bar, &pw, &ph))
+    {
+        /* LifeBar10 host is real */
+    }
+    else if (g_wLifeBar9 && lvNameIsHost9(n9) && w9 > 14 && w9 <= 400)
+    {
+        pw = w9;
+        ph = h9;
+        if (ph < 4)
+            lvReadHostWh(g_wLifeBar9, &pw, &ph);
         static int n = 0;
         if (n < 12)
         {
             n++;
             LvLogf("LimbVigor: Green host fallback LifeBar9 parentW=%d (LifeBar10 getW=%d)",
-                   w9, rawW);
-        }
-        if (g_wLifeBar9 && lvNameIsHost9(n9) && w9 > 14 && w9 <= 400)
-        {
-            pw = w9;
-            ph = h9;
-        }
-        else if (g_wLifeBar9 && lvNameIsHost9(n9) && lvReadHostWh(g_wLifeBar9, &pw, &ph))
-        {
-            /* already logged the LifeBar9 number above */
-        }
-        else
-        {
-            static int w = 0;
-            if (w < 8)
-            {
-                w++;
-                LvLogf("LimbVigor: Green WAIT LifeBar10 host getW=%d (need 50-400 or LifeBar9) fill=%.3f hemo=%.1f max=%.1f",
-                       rawW, fill01, hemo, maxv);
-            }
-            return 0;
+                   pw, rawW);
         }
     }
-    else if (!lvReadHostWh(bar, &pw, &ph))
+    else
     {
-        char n9[96], c9[96];
-        int v9 = -1;
-        n9[0] = 0;
-        c9[0] = 0;
-        if (g_wLifeBar9)
-            lvReadWidget(g_wLifeBar9, n9, (int)sizeof(n9), c9, (int)sizeof(c9), &v9);
-        int w9 = 0, h9 = 0;
-        if (g_wLifeBar9)
+        lvLayoutHungerPx(&pw, &ph);
+        static int n = 0;
+        if (n < 12)
         {
-            if (!lvReadPixelSize(g_wLifeBar9, &w9, &h9))
-                w9 = lvSehGetInt(g_getWidth, g_wLifeBar9);
-        }
-        if (g_wLifeBar9 && lvNameIsHost9(n9) && (lvReadHostWh(g_wLifeBar9, &pw, &ph) || (w9 > 14 && w9 <= 400)))
-        {
-            if (pw < 1)
-            {
-                pw = w9;
-                ph = h9;
-            }
-            static int n = 0;
-            if (n < 8)
-            {
-                n++;
-                LvLogf("LimbVigor: Green host fallback LifeBar9 parentW=%d (LifeBar10 getW=%d)",
-                       pw, rawW);
-            }
-        }
-        else
-        {
-            static int n = 0;
-            if (n < 8)
-            {
-                n++;
-                LvLogf("LimbVigor: Green WAIT LifeBar10 host getW=%d (need 50-400 or LifeBar9) fill=%.3f hemo=%.1f max=%.1f",
-                       rawW, fill01, hemo, maxv);
-            }
-            return 0;
+            n++;
+            LvLogf("LimbVigor: Green host fallback layout Hunger parentW=%d (LifeBar10 getW=%d LifeBar9 getW=%d)",
+                   pw, rawW, w9);
         }
     }
     if (pw > 1000)
@@ -3473,77 +3475,95 @@ static void lvEnsureDatapanelVisible()
                vis, dl, dt, dw, dh, cap);
     }
     lvSetVisible10(w, 1);
-    /* Copy LifeBar9Datapanel laid-out pixels. Do not keep 0x0. */
+    /* Do NOT copy LifeBar9Datapanel if 0x0. Size to real host W × Hunger H. */
     int sw = 0, sh = 0, sl = 0, st = 0;
     if (g_wLifeBar9Data)
     {
         LvIntCoord c9;
-        if (lvSehGetCoord(g_getCoord, g_wLifeBar9Data, &c9) && c9.width >= 8 && c9.height >= 4)
+        if (lvSehGetCoord(g_getCoord, g_wLifeBar9Data, &c9)
+         && c9.width >= 50 && c9.width <= 400 && c9.height >= 4)
         {
             sl = c9.left;
             st = c9.top;
             sw = c9.width;
             sh = c9.height;
         }
-        if (sw < 8)
+        if (sw < 50)
         {
-            if (!lvReadPixelSize(g_wLifeBar9Data, &sw, &sh))
-                sw = lvSehGetInt(g_getWidth, g_wLifeBar9Data);
-        }
-        static int n = 0;
-        if (n < 8)
-        {
-            n++;
-            LvLogf("LimbVigor: Datapanel size from LifeBar9Datapanel %dx%d (LifeBar10Datapanel was %dx%d)",
-                   sw, sh, dw, dh);
-        }
-    }
-    if (sw < 8 || sh < 4)
-    {
-        int bw = 0, bh = 0;
-        int raw10 = 0;
-        if (g_wLifeBar10)
-            raw10 = lvSehGetInt(g_getWidth, g_wLifeBar10);
-        if (g_wLifeBar10 && raw10 > 14)
-            lvReadHostWh(g_wLifeBar10, &bw, &bh);
-        if ((raw10 <= 14 || !lvPixelLooksReal(bw)) && g_wLifeBar9)
-        {
-            char n9[96], c9[96];
-            int v9 = -1;
-            n9[0] = 0;
-            c9[0] = 0;
-            lvReadWidget(g_wLifeBar9, n9, (int)sizeof(n9), c9, (int)sizeof(c9), &v9);
-            if (lvNameIsHost9(n9))
+            int dw9 = 0, dh9 = 0;
+            if (lvReadPixelSize(g_wLifeBar9Data, &dw9, &dh9) && dw9 >= 50 && dw9 <= 400)
             {
-                if (!lvReadHostWh(g_wLifeBar9, &bw, &bh))
-                {
-                    if (!lvReadPixelSize(g_wLifeBar9, &bw, &bh))
-                        bw = lvSehGetInt(g_getWidth, g_wLifeBar9);
-                }
+                sw = dw9;
+                sh = dh9;
             }
         }
-        if (lvPixelLooksReal(bw))
+        if (sw >= 50)
         {
-            sw = (bw * 995) / 1000;
-            sh = (bh * 739) / 1000;
+            static int n = 0;
+            if (n < 8)
+            {
+                n++;
+                LvLogf("LimbVigor: Datapanel size from LifeBar9Datapanel %dx%d (LifeBar10Datapanel was %dx%d)",
+                       sw, sh, dw, dh);
+            }
+        }
+    }
+    if (sw < 50 || sh < 4)
+    {
+        int bw = 0, bh = 0;
+        int raw10 = g_wLifeBar10 ? lvSehGetInt(g_getWidth, g_wLifeBar10) : 0;
+        int raw9 = 0;
+        if (g_wLifeBar10 && raw10 > 14 && raw10 <= 400)
+            lvReadHostWh(g_wLifeBar10, &bw, &bh);
+        if (!lvPixelLooksReal(bw) && g_wLifeBar9)
+        {
+            char hn9[96], hc9[96];
+            int hv9 = -1;
+            hn9[0] = 0;
+            hc9[0] = 0;
+            lvReadWidget(g_wLifeBar9, hn9, (int)sizeof(hn9), hc9, (int)sizeof(hc9), &hv9);
+            if (!lvReadPixelSize(g_wLifeBar9, &raw9, &bh))
+                raw9 = lvSehGetInt(g_getWidth, g_wLifeBar9);
+            if (lvNameIsHost9(hn9) && raw9 > 14 && raw9 <= 400)
+            {
+                bw = raw9;
+                if (bh < 4)
+                    lvReadHostWh(g_wLifeBar9, &bw, &bh);
+            }
+        }
+        if (!lvPixelLooksReal(bw))
+        {
+            lvLayoutHungerPx(&bw, &bh);
+            static int n = 0;
+            if (n < 8)
+            {
+                n++;
+                LvLogf("LimbVigor: Datapanel host fallback layout Hunger %dx%d (LifeBar9Datapanel was 0x0)",
+                       bw, bh);
+            }
+        }
+        if (bw >= 50 && bw <= 400)
+        {
+            sw = bw;
+            sh = (bh >= 8 && bh <= 80) ? bh : (bw * 23) / 238;
             sl = 0;
-            st = (bh * 130) / 1000;
+            st = 0;
         }
     }
     if (sw >= 8 && sh >= 4 && (dw < 8 || dh < 4 || dw != sw || dh != sh)
      && (g_setCoordHHHH || g_setSizeHH))
     {
-        if (g_setCoordHHHH)
-        {
-            LV_TRY { g_setCoordHHHH(w, sl, st, sw, sh); }
-            LV_EXCEPT {}
-        }
-        else if (g_setSizeHH)
+        if (g_setSizeHH)
         {
             LV_TRY { g_setSizeHH(w, sw, sh); }
             LV_EXCEPT {}
         }
-        LvLogf("LimbVigor: Datapanel was %dx%d — copied LifeBar9Datapanel %dx%d",
+        else if (g_setCoordHHHH)
+        {
+            LV_TRY { g_setCoordHHHH(w, sl, st, sw, sh); }
+            LV_EXCEPT {}
+        }
+        LvLogf("LimbVigor: Datapanel was %dx%d — setSize host %dx%d",
                dw, dh, sw, sh);
     }
 }
@@ -3577,12 +3597,12 @@ static void lvSetDepth10(void* w, int depth)
 
 static void lvRaiseLifeBar10Z(void)
 {
-    /* Depth above LifeBar10Slot chrome (1) and Front (0). */
-    lvSetDepth10(g_wLifeBar10, 2);
-    lvSetDepth10(g_wLifeBar10Value, 2);
-    lvSetDepth10(g_wLifeBar10Data, 2);
-    lvSetDepth10(g_wLifeBar10Tooltip, 2);
-    lvSetDepth10(g_wLifeBar10Green, 2);
+    /* Depth=1 above Front (0). LifeBar10 is a Root child again. */
+    lvSetDepth10(g_wLifeBar10, 1);
+    lvSetDepth10(g_wLifeBar10Value, 1);
+    lvSetDepth10(g_wLifeBar10Data, 1);
+    lvSetDepth10(g_wLifeBar10Tooltip, 1);
+    lvSetDepth10(g_wLifeBar10Green, 1);
     static int once = 0;
     if (once)
         return;
@@ -3596,7 +3616,7 @@ static void lvRaiseLifeBar10Z(void)
     pc[0] = 0;
     if (par)
         lvReadWidget(par, pn, (int)sizeof(pn), pc, (int)sizeof(pc), &pvis);
-    LvLogf("LimbVigor: LifeBar10 parent='%s' Depth=2 (on LifeBar10Slot chrome, above Front)",
+    LvLogf("LimbVigor: LifeBar10 parent='%s' Depth=1 (Root after MedicalPanel, above Front)",
            pn);
 }
 

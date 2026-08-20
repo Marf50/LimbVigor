@@ -324,7 +324,7 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                     live->limbs[li] = LIMB_KIND_STUMP;
             }
 
-            /* v1.34: HP-on-stump is not a limb. Nub = slotted growth part. */
+            /* v1.35: nub = slotted growth part. Equip is SEH-wrapped. */
 
             /* Per-limb SEH so one AV does not skip the growth tick. */
             for (int li = 0; li < LIMB_COUNT; ++li)
@@ -336,7 +336,7 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                     if (!once[li])
                     {
                         once[li] = 1;
-                        LvLogf("LimbVigor: parts SEH site=LvSyncOneLimb %s hp=%.1f/%.1f kind=%d — growth tick continues",
+                        LvLogf("LimbVigor: %s nub attach SEH skip — parts SEH site=LvSyncOneLimb hp=%.1f/%.1f kind=%d",
                             LvLimbLabel((LimbId)li), live->limbHp[li], live->limbMax[li],
                             (int)live->limbs[li]);
                     }
@@ -360,7 +360,7 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                     if (!once)
                     {
                         once = 1;
-                        LvLogf("LimbVigor: parts SEH site=stageEquip %s hp=%.1f/%.1f — growth numbers kept",
+                        LvLogf("LimbVigor: %s nub attach SEH skip — parts SEH site=stageEquip hp=%.1f/%.1f",
                             LvLimbLabel((LimbId)limb), live->limbHp[limb], live->limbMax[limb]);
                     }
                 }
