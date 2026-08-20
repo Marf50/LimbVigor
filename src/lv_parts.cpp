@@ -548,15 +548,17 @@ int LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage)
 {
     if (!med || limbId < 0 || limbId >= LIMB_COUNT) return 0;
     if (stage < 0 || stage >= LV_PART_COUNT) return 0;
-    /* v1.30: GROWN is restore-on-stump. Grow the nub without that write. */
-    if (stage == LV_PART_GROWN)
+
+    Item* cur = Equipped(med, limbId);
+    const int have = cur ? LvGrowthPartStage(cur) : -1;
+    /* Never GROWN as the first write. After knitting, GROWN is the next type. */
+    if (stage == LV_PART_GROWN && have < LV_PART_KNITTING)
         return 0;
 
     const LvPartDef* def = LvPartFor(limbId, stage);
     if (!def) return 0;
 
-    Item* cur = Equipped(med, limbId);
-    if (cur && LvGrowthPartStage(cur) == stage)
+    if (cur && have == stage)
         return 1;
 
     static unsigned failUntil[LIMB_COUNT] = {};
@@ -607,6 +609,19 @@ int LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage)
     }
 
     failUntil[limbId] = 0;
+    const char* from = (have < 0 || have == LV_PART_STUMP)
+        ? "STUMP" : LvPartStageName(have);
+    float hp = def->hp, mx = def->hp;
+    MedicalSystem::HealthPartStatus* part = nullptr;
+    LV_TRY { part = med->getPart(kGameLimb[limbId]); }
+    LV_EXCEPT { part = nullptr; }
+    if (part)
+    {
+        LV_TRY { hp = part->flesh; mx = part->_maxHealth; }
+        LV_EXCEPT {}
+    }
+    LvLogf("LimbVigor: %s %s → %s nub attached hp=%.1f/%.1f",
+        LvLimbLabel((LimbId)limbId), from, LvPartStageName(stage), hp, mx);
     LvLogf("LimbVigor: slotted %s (ours) on %s",
         def->name, LvLimbLabel((LimbId)limbId));
     return 1;
@@ -656,9 +671,17 @@ int LvSyncOneLimb(MedicalSystem* med, const CharSnap* snap, int limbId)
     }
     if (!need) return 0;
 
-    int stage = LvPartStageFromProgress(snap->progress[limbId]);
-    /* Never slot GROWN on a live stump — that restore write crashed v1.29. */
-    if (stage >= LV_PART_GROWN)
+    int want = LvPartStageFromProgress(snap->progress[limbId]);
+    int have = cur ? LvGrowthPartStage(cur) : -1;
+    /* First write is always STUMP nub. Then one type at a time. Never GROWN first. */
+    int stage = want;
+    if (have < 0)
+        stage = LV_PART_STUMP;
+    else if (want > have + 1)
+        stage = have + 1;
+    else if (want < have)
+        stage = have;
+    if (stage == LV_PART_GROWN && have < LV_PART_KNITTING)
         stage = LV_PART_KNITTING;
     if (LvEquipGrowthPart(med, limbId, stage) && empty15)
     {

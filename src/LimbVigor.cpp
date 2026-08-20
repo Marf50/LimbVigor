@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.33 — nudge panel up + Hemolymph visible on top + staged stump + no ESC/pause hooks");
+        LvLog("LimbVigor: ready v1.34 — Hemolymph label + vanilla bar chrome + real nub limb stages");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

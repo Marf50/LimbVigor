@@ -23,21 +23,23 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-v1.33 nudge panel up +
-Hemolymph visible on top +
-staged stump + no ESC/pause
-hooks. LifeBar1-9 are 3b999b9
-fractions of Back. LifeBar10
-is a Root child after
-MedicalPanel (Depth=1).
-Datapanel matches LifeBar9
-(PanelEmpty). Hide Grey*.
-Green uses LifeBar10 host or
-LifeBar9 if getW<=14 (logged).
-Left Leg 5 grows a few HP per
-tick, not 5->75. No Equip
-GROWN. No epoch-drop. No
-_getWidget.
+v1.34 Hemolymph label +
+vanilla bar chrome + real
+nub limb stages. LifeBar1-9
+are 3b999b9 fractions of
+Back. LifeBar10 sits in a
+1-row LifeBar10Slot chrome
+(Hunger-height BottomSkin).
+Datapanel sized from
+LifeBar9Datapanel pixels.
+Hide Grey*. Green uses
+LifeBar10 host or LifeBar9
+if getW<=14 (logged). Left
+Leg 5 attaches a growth-part
+nub and stages. No Equip
+GROWN first. No
+setLimb(ORIGINAL). No
+epoch-drop. No _getWidget.
 
 Spoken lines appear over the character.
 I-key on a stump/bud/knit/grown item is
@@ -48,10 +50,9 @@ gui/layout/Kenshi_MainPanel.layout
 (Dark UI override + LifeBar10).
 This build does not create widgets.
 
-v1.33: nudge panel up +
-Hemolymph visible on top +
-staged stump + no ESC/pause
-hooks.
+v1.34: Hemolymph label +
+vanilla bar chrome + real
+nub limb stages.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 

@@ -151,7 +151,8 @@ static CharSnap* Bind(MedicalSystem* med)
         {
             /* Already-missing limb on load: do not bark. */
             // Empty -15 socket reads as a stump. If progress already
-            // finished, keep 100% so Sync slots LV Grown immediately.
+            // finished, keep 100% — Sync still starts at STUMP nub,
+            // then BUD/FORM/KNIT. Never Equip GROWN first.
             if ((tmp.limbs[i] == LIMB_KIND_STUMP || tmp.limbs[i] == LIMB_KIND_CRUSHED)
                 && (live->lastStage[i] == LV_PART_GROWN || live->progress[i] >= 99.5f))
             {
@@ -323,33 +324,7 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                     live->limbs[li] = LIMB_KIND_STUMP;
             }
 
-            for (int li = 0; li < LIMB_COUNT; ++li)
-            {
-                if (live->limbs[li] != LIMB_KIND_STUMP
-                    && live->limbs[li] != LIMB_KIND_CRUSHED)
-                    continue;
-                float before = 0.f, after = 0.f, mxAfter = 0.f;
-                LV_TRY
-                {
-                    if (LvGrowStumpNub(med, li, live->progress[li], live->limbMax[li],
-                                       &before, &after, &mxAfter))
-                    {
-                        live->limbHp[li] = after;
-                        if (mxAfter > live->limbMax[li])
-                            live->limbMax[li] = mxAfter;
-                    }
-                }
-                LV_EXCEPT
-                {
-                    static int once[LIMB_COUNT] = {};
-                    if (!once[li])
-                    {
-                        once[li] = 1;
-                        LvLogf("LimbVigor: stump HP SEH %s — growth tick continues",
-                            LvLimbLabel((LimbId)li));
-                    }
-                }
-            }
+            /* v1.34: HP-on-stump is not a limb. Nub = slotted growth part. */
 
             /* Per-limb SEH so one AV does not skip the growth tick. */
             for (int li = 0; li < LIMB_COUNT; ++li)
@@ -374,9 +349,10 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                 const int limb = r.stageChanged;
                 LV_TRY
                 {
-                    /* Mid-growth visuals only. Never GROWN — that was restore-on-stump. */
-                    if (st >= 0 && st < LV_PART_GROWN)
-                        LvEquipGrowthPart(med, limb, st);
+                    /* Incremental type: STUMP nub first, then BUD/FORM/KNIT.
+                     * GROWN only after knitting — never the first write. */
+                    if (st >= 0 && st <= LV_PART_GROWN)
+                        LvSyncOneLimb(med, live, limb);
                 }
                 LV_EXCEPT
                 {
@@ -390,10 +366,9 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                 }
             }
 
-            /* v1.30: do NOT restore a stump. LvTick may mark WHOLE at 100%.
-             * The v1.29 write (Equip GROWN / setLimb / validateHealth) SEHed,
-             * collapsed 5/75 → 5/5, and flipped the socket to whole. Grow
-             * the nub with numbers only. No Equip GROWN. No setLimb(ORIGINAL). */
+            /* v1.34: do NOT restore a stump. LvTick may mark WHOLE at 100%.
+             * A stage write SEH keeps the nub. No Equip GROWN first.
+             * No setLimb(ORIGINAL). */
             if (r.restored >= 0 && r.restored < LIMB_COUNT)
             {
                 const int limb = r.restored;
