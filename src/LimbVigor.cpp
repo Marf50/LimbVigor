@@ -18,7 +18,8 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.30 — no restore-on-stump + PanelEmpty Datapanel + pixel Green host");
+        LvLog("LimbVigor: ready v1.31 — tight stack + green fill + stump HP + settings-close safe");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
+    LvLog("LimbVigor: Injected settings button is RE_Kenshi; LimbVigor only makes paint/cache teardown-safe");
 }

@@ -123,9 +123,17 @@ static CharSnap* Bind(MedicalSystem* med)
     for (int i = 0; i < LIMB_COUNT; ++i)
     {
         const LimbKind was = live->limbs[i];
-        live->limbs[i] = tmp.limbs[i];
         live->limbHp[i] = tmp.limbHp[i];
         live->limbMax[i] = tmp.limbMax[i];
+        /* Flesh rising above 10 would read WHOLE and stop growth. Keep the
+         * nub as a stump while persist is mid-growth and HP is still a nub. */
+        if (tmp.limbs[i] == LIMB_KIND_WHOLE
+            && live->progress[i] > 0.f && live->lastStage[i] >= 0
+            && tmp.limbHp[i] < 50.f
+            && tmp.limbs[i] != LIMB_KIND_PROSTHETIC)
+            live->limbs[i] = LIMB_KIND_STUMP;
+        else
+            live->limbs[i] = tmp.limbs[i];
         if (firstSeen)
         {
             /* Already-missing limb on load: do not bark. */
@@ -290,6 +298,40 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                 if (!once) { LvErr("LimbVigor: say SEH — growth continues"); once = 1; }
             }
 
+            /* LvTick may mark WHOLE at 100% before Sync. Keep a live nub
+             * as STUMP so mid-growth Equip / flesh write still run. */
+            for (int li = 0; li < LIMB_COUNT; ++li)
+            {
+                if (live->limbs[li] == LIMB_KIND_WHOLE
+                    && live->progress[li] > 0.f && live->lastStage[li] >= 0
+                    && live->limbHp[li] < 50.f
+                    && live->limbs[li] != LIMB_KIND_PROSTHETIC)
+                    live->limbs[li] = LIMB_KIND_STUMP;
+            }
+
+            for (int li = 0; li < LIMB_COUNT; ++li)
+            {
+                if (live->limbs[li] != LIMB_KIND_STUMP
+                    && live->limbs[li] != LIMB_KIND_CRUSHED)
+                    continue;
+                float before = 0.f, after = 0.f;
+                LV_TRY
+                {
+                    if (LvGrowStumpNub(med, li, live->progress[li], &before, &after))
+                        live->limbHp[li] = after;
+                }
+                LV_EXCEPT
+                {
+                    static int once[LIMB_COUNT] = {};
+                    if (!once[li])
+                    {
+                        once[li] = 1;
+                        LvLogf("LimbVigor: stump HP SEH %s — growth tick continues",
+                            LvLimbLabel((LimbId)li));
+                    }
+                }
+            }
+
             /* Per-limb SEH so one AV does not skip the growth tick. */
             for (int li = 0; li < LIMB_COUNT; ++li)
             {
@@ -437,11 +479,11 @@ static void PaintSafe(MedicalSystem* med, Character* who, CharSnap* live)
 
 static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* who)
 {
-    if (!panel)
+    if (!panel || !LvWorldInGame())
+    {
+        LvHudCacheDrop(panel ? "gui-rebuild-title" : "gui-rebuild-null");
         return;
-    /* Load / title: do not touch DatapanelGUI. v1.9.7 ctor/font/update hooks died here. */
-    if (!LvWorldInGame())
-        return;
+    }
 
     WalkSafe(panel);
 
@@ -462,10 +504,17 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
 static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
 {
     if (orig_medGui) orig_medGui(self, panel);
-    if (!self || !panel) return;
+    if (!self || !panel)
+    {
+        LvHudCacheDrop("medGui-null");
+        return;
+    }
     /* Do not touch Character or write DatapanelGUI until In-game. */
     if (!LvWorldInGame())
+    {
+        LvHudCacheDrop("medGui-title");
         return;
+    }
     Character* who = LvCharFromMed(self);
     LV_TRY { AfterGuiRebuild(self, panel, who); }
     LV_EXCEPT
@@ -479,9 +528,16 @@ static void hook_medGui(MedicalSystem* self, DatapanelGUI* panel)
 static void hook_charGui(Character* self, DatapanelGUI* panel, int cat)
 {
     if (orig_charGui) orig_charGui(self, panel, cat);
-    if (!self || !panel) return;
-    if (!LvWorldInGame())
+    if (!self || !panel)
+    {
+        LvHudCacheDrop("charGui-null");
         return;
+    }
+    if (!LvWorldInGame())
+    {
+        LvHudCacheDrop("charGui-title");
+        return;
+    }
     MedicalSystem* med = LvMedFromChar(self);
     LV_TRY { AfterGuiRebuild(med, panel, self); }
     LV_EXCEPT

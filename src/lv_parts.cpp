@@ -514,7 +514,7 @@ static Item* MakeItem(GameData* gd)
     return item;
 }
 
-static int SlotPart(MedicalSystem* med, int limbId, Item* item)
+static int SlotPart(MedicalSystem* med, int limbId, Item* item, int midGrowth)
 {
     if (!med) return 0;
     const RobotLimbs::Limb limb = kGameLimb[limbId];
@@ -533,8 +533,12 @@ static int SlotPart(MedicalSystem* med, int limbId, Item* item)
     }
     LV_TRY { med->setRobotLimbItem(limb, item, false); }
     LV_EXCEPT {}
-    LV_TRY { med->validateHealthValues(); }
-    LV_EXCEPT {}
+    /* validateHealthValues on a mid-growth nub collapsed 5/75 → 5/5 (v1.29). */
+    if (!midGrowth)
+    {
+        LV_TRY { med->validateHealthValues(); }
+        LV_EXCEPT {}
+    }
     LV_TRY { med->updateStats(); }
     LV_EXCEPT {}
     return ok;
@@ -595,7 +599,7 @@ int LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage)
         return 0;
     }
 
-    if (!SlotPart(med, limbId, item))
+    if (!SlotPart(med, limbId, item, 1))
     {
         failUntil[limbId] = now + 15000u;
         LvLogf("LimbVigor: setLimb REPLACED failed for %s", def->name);
@@ -614,7 +618,7 @@ void LvClearGrowthPart(MedicalSystem* med, int limbId)
     Item* cur = Equipped(med, limbId);
     if (cur && !LvIsGrowthPart(cur))
         return;
-    SlotPart(med, limbId, nullptr);
+    SlotPart(med, limbId, nullptr, 1);
 }
 
 int LvSyncOneLimb(MedicalSystem* med, const CharSnap* snap, int limbId)
