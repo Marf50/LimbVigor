@@ -42,7 +42,13 @@
  * If this tick's find is null, skip writes. Options name-guess is dead.
  *
  * H2: layout must not name anything LifeBar10*. Kenshi assignWidget-s that
- * slot; Dark UI leaves it null and ESC lives. HemolymphBar is ours.
+ * slot. Dylan's live pack is byte-identical vanilla (LifeBar1-9 only;
+ * MedicalPanel y 0.712963) and leaves the slot null — that is the class
+ * Kenshi survives on reload. Do not rebase this Dark UI override onto
+ * vanilla 1-9 / that MedicalPanel y. HemolymphBar is ours at the current
+ * Root-after-MedicalPanel coords. Do not add LifeBar11.
+ * Options widgets are Root / OptionsTab / CloseButton / DefaultButton /
+ * TooltipPanel. There is no OptionsPanel. Never guess that name again.
  */
 
 static void* g_hookReject = nullptr; /* Goal/State DatapanelGUI* — never paint */

@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""CI layout lock: HemolymphBar required, LifeBar10/11 names forbidden."""
+"""CI layout lock: HemolymphBar required, LifeBar10/11 names forbidden.
+
+Dylan's live pack (byte-identical vanilla) has LifeBar1-9 only and
+MedicalPanel y=0.712963. That unbound LifeBar10 slot is the class
+Kenshi survives. Our override must keep Dark UI look: HemolymphBar
+at the current Root-after-MedicalPanel coords, MedicalPanel y locked
+to 0.70473849555969238. Do not rebase onto vanilla 1-9 / 0.712963.
+"""
 from pathlib import Path
 import sys
 

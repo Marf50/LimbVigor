@@ -27,7 +27,9 @@ HemolymphBar under Hunger
 (same look as the old
 LifeBar10). Kenshi's
 LifeBar10 slot stays
-empty like Dark UI.
+empty like Dylan's live
+vanilla pack. Dark UI
+override look stays.
 Re-find each paint.
 No LifeBar11. No ESC
 hook. No LifeBar10Slot.

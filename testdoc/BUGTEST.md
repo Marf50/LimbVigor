@@ -2,7 +2,9 @@
 
 Throwaway save. Tick the box. Write the last I-key tooltip line and anything in `RE_Kenshi_log.txt`.
 
-**Where to look:** select a **character** after In-game. An extra bar **tight under Hunger** (same plate, looks like Blood — internal name `HemolymphBar`, not LifeBar10) at v1.33 Root-after-MedicalPanel coords, Depth=1 — not `LifeBar10Slot`, not last-child-of-Front. **Hemolymph** / Vigor / Battle-heat centered on the left, **number** on the right, green fill when full. Blood stays Blood. LifeBar1–9 unstretched. Floor / Speed stay uncovered. Door clears our bar only. Bar gone after ESC = fail. See testdoc/HUD.md.
+**Where to look:** select a **character** after In-game. An extra bar **tight under Hunger** (same plate, looks like Blood — internal name `HemolymphBar`, not LifeBar10) at the **current** v1.33 Root-after-MedicalPanel coords, Depth=1 — not `LifeBar10Slot`, not last-child-of-Front. **Hemolymph** / Vigor / Battle-heat centered on the left, **number** on the right, green fill when full. Blood stays Blood. LifeBar1–9 unstretched as in this Dark UI override (do **not** rebase onto vanilla 1–9 / MedicalPanel y `0.712963`). Floor / Speed stay uncovered. Door clears our bar only. Designer look before **and** after ESC. Bar gone after ESC = fail. See testdoc/HUD.md.
+
+Dylan's live pack is the unbound-slot class Kenshi survives: vanilla MainPanel, LifeBar1–9 only, LifeBar10 slot null. Our extra named LifeBar10 was the ownership bug. HemolymphBar is ours. Hidden LifeBar11 is not required.
 
 Every ~15s the log prints `LimbVigor: Boop  Hemolymph 38/100  left leg 4% dormant`.
 
