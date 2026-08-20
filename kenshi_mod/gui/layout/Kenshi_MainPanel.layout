@@ -235,10 +235,7 @@
                     <Property key="Caption" value="100"/>
                     <Property key="TextAlign" value="Center"/>
                 </Widget>
-                <Widget type="TextBox" skin="Kenshi_TextboxStandardText" position_real="0.84563755989074707 0.92307692766189575 0.12751677632331848 0.052307691425085068" name="HemolymphValue">
-                    <Property key="Caption" value="100"/>
-                    <Property key="TextAlign" value="Center"/>
-                </Widget>
+                <Widget type="Widget" skin="PanelEmpty" position_real="0.84563755989074707 0.92307692766189575 0.12751677632331848 0.052307691425085068" name="HemolymphValue"/>
                 <Widget type="Widget" skin="PanelEmpty" position_real="0.046979866921901703 0.10769230872392654 0.90268456935882568 0.070769228041172028" name="StatusPanel">
                     <Widget type="TextBox" skin="Kenshi_TextboxStandardText" position_real="0 0 1.0111523866653442 1" name="HealthText">
                         <Property key="TextAlign" value="Left VCenter"/>

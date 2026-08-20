@@ -58,9 +58,13 @@ hemo = 'position_real="0.0071942447684705257 0.9008264392614365 0.85611510276794
 if hemo not in text:
     print("FAIL: HemolymphBar locked leftover-pad coords missing", file=sys.stderr)
     sys.exit(1)
-if 'position_real="0.84563755989074707 0.92307692766189575 0.12751677632331848 0.052307691425085068" name="HemolymphValue"' not in text:
-    print("FAIL: HemolymphValue locked Front coords missing", file=sys.stderr)
+if 'type="Widget" skin="PanelEmpty" position_real="0.84563755989074707 0.92307692766189575 0.12751677632331848 0.052307691425085068" name="HemolymphValue"' not in text:
+    print("FAIL: HemolymphValue must be Widget PanelEmpty at locked Front coords", file=sys.stderr)
     sys.exit(1)
+for ln in text.splitlines():
+    if 'name="HemolymphValue"' in ln and ('TextBox' in ln or 'Kenshi_TextboxStandardText' in ln):
+        print("FAIL: HemolymphValue must not be a TextBox / TTF client", file=sys.stderr)
+        sys.exit(1)
 if 'position_real="0.026845637708902359 0.91692310571670532 0.94295299053192139 0.064615383744239807" name="HemolymphTooltip"' not in text:
     print("FAIL: HemolymphTooltip locked Front coords missing", file=sys.stderr)
     sys.exit(1)

@@ -26,6 +26,14 @@ Empty LifeBar10 slot still crashed ESC. Dylan **saw Hemolymph** on v1.39. `paint
 
 Do not write a ready line. Do not pack a zip. Do not ask for a playtest. Do not rename again. Do not add LifeBar11.
 
+## HemolymphValue is not a TTF TextBox
+
+Kenshi `changeFontSize` rebinds LifeBar1–9Value / Money / Time / … only. An extra named **TextBox** (`HemolymphValue` as `Kenshi_TextboxStandardText`) is a TTF client that rebuild does **not** rebind. EditText keeps raw `mFont` after TTF rebuild → UAF with zero LimbVigor lines (`Injected settings button` → TTF → destructor).
+
+**Locked:** `HemolymphValue` is `type="Widget" skin="PanelEmpty"` at the same Front-after-LifeBar9Value `position_real`. Name stays `HemolymphValue`. Number is `ISubWidgetText::setCaption` on `getSubWidgetText(HemolymphValue)` — same path as `HemolymphBarDatapanel`. Do **not** `TextBox::setCaption` it. Same look: number on the right. No extra named TextBox / TTF client in our MainPanel nodes.
+
+This is **development only** — a dying-line theory until proven. Do not zip it as the ESC fix. Do not invent a third seatbelt. With the extra TextBox gone, `Injected → TTF → destructor` can still be the expected kill path: the extra-node class (HemolymphBar / skins / Value / Tooltip in the override) cannot close without `createWidget` or dropping the bar.
+
 ## Designer parent visual lock
 
 On screen (the look this parent is cut for — not a ship/playtest claim): extra bar tight under Hunger, looks like Blood: centered Hemolymph, number right, solid green when full. Blood stays Blood. 1–9 unstretched. Person only. Door clears our bar only.
@@ -127,10 +135,11 @@ H1 is the seatbelt. OptionsTab belt is the teardown wall. H2-name is **falsified
 - v1.39 playtest FAIL: H2-name **falsified**. Empty LifeBar10 slot still crashed ESC. Dylan saw Hemolymph. `painted=0` was a bad read. Keep painting the same way.
 - v1.39 parent (dev): HemolymphBar last child of MedicalPanel_Back after LifeBar9. WALL ACCEPTED — parent is not the product.
 - v1.39 belt: while findWidgetT(OptionsTab) succeeds, no-op all our Hemolymph MyGUI; drop cache without calling in; medicalUpdate must not LvHudTickBegin. Thaw when OptionsTab is gone. Orig still runs. Extra-node dtor not claimed solved. No ready line.
+- v1.39 dying-line (dev only): HemolymphValue is Widget/PanelEmpty. Number via ISub getSubWidgetText. Not a TTF TextBox. Extra-node class still cannot close without createWidget or dropping the bar. No ready line.
 
 ## Landmines
 
-No runtime `createWidget` / `createWidgetT` / `createWidgetReal`. No `loadLayout`. No HemolymphStrip. No `LifeBar10Slot`. No widget named `LifeBar10` / `LifeBar10*` / `LifeBar11` / `LifeBar11*`. No Hemolymph* as Root siblings. No grow/stretch of Back/Front / LifeBar1–9. No MainBar ctor `0x72C1E0`. No `eventFrameStart`. No TitleScreen MyGUI. No `ForgottenGUI::changeFontSize` from us. No DatapanelGUI `_NV_update` / `_NV_setObject`. No `GetRealAddress` on virtuals. No Gui tree walk. No Goal/State paint. No WindowCX. No `setSize` except HemolymphBarGreen / a 0-size HemolymphBarDatapanel. No `_getWidget`. No `setVisible` on Root / MedicalPanel / Back / Front / LifeBar1–9. No Datapanel / `setLineProgress` HUD path. No unlogged Equip throw. No ESC/pause/injected-button hooks. No epoch-drop. No `restore-on-stump skipped … no write`. No PausedPanel/Options vis=1 skip-paint. No OptionsPanel / OptionsWindow / odSettingsOpen / Kenshi_Options name-guess. OptionsTab find is the belt only. No getName/getVisible on yesterday's pointer. No rebase of this override onto vanilla MedicalPanel y `0.712963` / vanilla 1–9. No per-tick HUD log spam (once-per-resolve / 15s / on-change / belt/thaw/invalidate once). Do not grow HUD state back into `lv_game.cpp`. Do not write a ready line.
+No HemolymphValue TextBox / `Kenshi_TextboxStandardText`. No `TextBox::setCaption` on HemolymphValue. No runtime `createWidget` / `createWidgetT` / `createWidgetReal`. No `loadLayout`. No HemolymphStrip. No `LifeBar10Slot`. No widget named `LifeBar10` / `LifeBar10*` / `LifeBar11` / `LifeBar11*`. No Hemolymph* as Root siblings. No grow/stretch of Back/Front / LifeBar1–9. No MainBar ctor `0x72C1E0`. No `eventFrameStart`. No TitleScreen MyGUI. No `ForgottenGUI::changeFontSize` from us. No DatapanelGUI `_NV_update` / `_NV_setObject`. No `GetRealAddress` on virtuals. No Gui tree walk. No Goal/State paint. No WindowCX. No `setSize` except HemolymphBarGreen / a 0-size HemolymphBarDatapanel. No `_getWidget`. No `setVisible` on Root / MedicalPanel / Back / Front / LifeBar1–9. No Datapanel / `setLineProgress` HUD path. No unlogged Equip throw. No ESC/pause/injected-button hooks. No epoch-drop. No `restore-on-stump skipped … no write`. No PausedPanel/Options vis=1 skip-paint. No OptionsPanel / OptionsWindow / odSettingsOpen / Kenshi_Options name-guess. OptionsTab find is the belt only. No getName/getVisible on yesterday's pointer. No rebase of this override onto vanilla MedicalPanel y `0.712963` / vanilla 1–9. No per-tick HUD log spam (once-per-resolve / 15s / on-change / belt/thaw/invalidate once). Do not grow HUD state back into `lv_game.cpp`. Do not write a ready line.
 
 ## Version trail
 
@@ -168,3 +177,4 @@ No runtime `createWidget` / `createWidgetT` / `createWidgetReal`. No `loadLayout
 - v1.39 work: HUD split + re-find HemolymphBar each paint + LifeBar10 slot left empty (H2-name). LifeBar11 rejected.
 - v1.39 FAIL: H2-name falsified (empty LifeBar10 slot still crashed). Parent move (dev): HemolymphBar last child of MedicalPanel_Back after LifeBar9. WALL ACCEPTED.
 - v1.39 belt: OptionsTab no-op of our Hemolymph MyGUI; medicalUpdate must not TickBegin; thaw when OptionsTab gone. Orig still runs. No ready line.
+- v1.39 dying-line (dev only): HemolymphValue Widget/PanelEmpty; number ISub not TextBox. Extra-node class cannot close without createWidget or dropping the bar. No ready line.

@@ -15,6 +15,7 @@
 //
 // Do not ship a widget named LifeBar10*. Do not add LifeBar11. Do not
 // loadLayout / createWidget. Hemolymph nodes stay in the override file.
+// HemolymphValue is Widget/PanelEmpty. Number is ISub, not TextBox TTF.
 
 #if defined(LIMBVIGOR_IDE)
 struct MedicalSystem;

@@ -49,6 +49,7 @@
  * Orig still runs. Extra Hemolymph-node dtor is not claimed solved.
  *
  * Do not add LifeBar11. Do not loadLayout / createWidget. Override stays.
+ * HemolymphValue is Widget/PanelEmpty. Number is ISub, not TextBox TTF.
  */
 
 static void* g_hookReject = nullptr; /* Goal/State DatapanelGUI* — never paint */
@@ -226,7 +227,7 @@ static FnWFind2   g_wFind2   = nullptr;
 static FnGetName  g_wName    = nullptr;
 static FnVisible  g_wVis     = nullptr;
 static FnCaption  g_wCaption = nullptr;
-static FnSetCaption g_setCapTextBox = nullptr;    /* TextBox::setCaption — HemolymphValue NUMBER only */
+static FnSetCaption g_setCapTextBox = nullptr;    /* unused — HemolymphValue is ISub, not TextBox */
 static FnSetCaption g_setCapISub = nullptr;       /* ISubWidgetText::setCaption — Datapanel label */
 static FnSetCaption g_setCapEdit = nullptr;       /* EditText::setCaption — text child */
 static FnGetSubText g_getSubText = nullptr;       /* Widget::getSubWidgetText — Datapanel text child */
@@ -605,7 +606,7 @@ static void lvTryBindExport(const char* n, void* addr)
         else if (isText && !g_setCapTextBox)
         {
             g_setCapTextBox = (FnSetCaption)addr;
-            LvLogf("LimbVigor: mygui bind TextBox::setCaption (HemolymphValue only) '%s'", n);
+            LvLogf("LimbVigor: mygui bind TextBox::setCaption (unused — HemolymphValue is ISub) '%s'", n);
         }
     }
     if (!g_ustrCtorC && std::strncmp(n, "??0UString@MyGUI", 16) == 0
@@ -1629,8 +1630,9 @@ static int lvIsForbiddenParent(const char* n)
          || lvHasSub(n, "Day") || (lvHasSub(n, "Time") && !lvHasSub(n, "LifeBar"))) ? 1 : 0;
 }
 
-/* Write: name ends with HemolymphBarDatapanel only (the label-on-the-bar).
- * Never LifeBar10 itself. Never LifeBar1 / Blood. Never Root / fills. */
+/* Write: HemolymphBarDatapanel (label) or HemolymphValue (number via ISub).
+ * Never LifeBar10 itself. Never LifeBar1 / Blood. Never Root / fills.
+ * HemolymphValue is Widget/PanelEmpty — not a TextBox. */
 static int lvNameIsLifeBar1Strict(const char* name)
 {
     if (!name || !name[0])
@@ -1648,7 +1650,8 @@ static int lvNameIsHemoWrite(const char* name)
         return 0;
     if (lvNameIsLifeBar1Strict(name) || lvIsForbiddenParent(name) || lvIsFillBarName(name))
         return 0;
-    if (lvEndsWith(name, "HemolymphBarDatapanel"))
+    if (lvEndsWith(name, "HemolymphBarDatapanel")
+     || lvEndsWith(name, "HemolymphValue"))
         return 1;
     return 0;
 }
@@ -1851,11 +1854,9 @@ static int lvSehSetCapFakeFn(FnSetCaption fn, void* w, void* fake)
     return 0;
 }
 
-/* textBox=1 → TextBox (HemolymphValue only, not painted=1).
- * textBox=2 → ISubWidgetText (Value fallback).
- * textBox=0 → ISub / EditText key write. Never TextBox on LifeBar10 / Datapanel.
- * Never setCaption LifeBar1. Never setCaption Green/fill skins.
- * Widget::setCaption is not exported — do not pick it. */
+/* textBox path is dead for HemolymphValue. Number is ISub on
+ * getSubWidgetText(HemolymphValue), same as Datapanel. Never TextBox::setCaption
+ * on HemolymphValue (that was the extra TTF client). Never LifeBar1. */
 static FnSetCaption lvPickSetCap(int textBox)
 {
     if (textBox == 2)
@@ -2124,8 +2125,8 @@ static int lvTryWriteISubRaw(void* obj, const char* text)
     return 1;
 }
 
-/* ISub on Datapanel and/or getSubWidgetText(LifeBar10). Not Widget::setCaption.
- * TextBox-on-Value is a different path and is not painted=1. */
+/* ISub on Datapanel and HemolymphValue via getSubWidgetText.
+ * Not Widget::setCaption. Not TextBox::setCaption. */
 static int lvWriteKeyISub(void* w, const char* text, const char* tag)
 {
     char nm[96];
@@ -2780,7 +2781,7 @@ static void lvRestoreCaption()
     if (g_wHemoData && lvDestNameGated(g_wHemoData))
         lvWriteKeyISub(g_wHemoData, "", "clear-data");
     if (g_wHemoValue)
-        lvTryWriteCaptionOn(g_wHemoValue, "", 1);
+        lvWriteKeyISub(g_wHemoValue, "", "clear-value");
     if (g_wHemoGreen)
         lvFillGreen(0.f, 0.f, 100.f);
     g_wroteCaption = 0;
@@ -3211,9 +3212,8 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     int vok = 0;
     if (g_wHemoValue && num[0])
     {
-        vok = lvWriteAndReadBack(g_wHemoValue, num, 1, "HemolymphValue");
-        if (!vok)
-            vok = lvWriteAndReadBack(g_wHemoValue, num, 2, "HemolymphValue");
+        /* Number via ISub on getSubWidgetText(HemolymphValue). Not TextBox. */
+        vok = lvWriteKeyISub(g_wHemoValue, num, "HemolymphValue");
         if (vok)
             g_wroteValue = 1;
     }
