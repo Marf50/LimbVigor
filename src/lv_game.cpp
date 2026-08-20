@@ -1009,28 +1009,59 @@ static void* g_wLifeBar9Data = nullptr; /* pixel size source for LifeBar10Datapa
 static void* g_wLifeBar10Tooltip = nullptr;
 static int   g_hudSkipTick = 0;
 static int   g_hudSehLogged = 0;
+static int   g_hudFrozen = 0;
+static int   g_hudThawing = 0;
+static int   g_hudDetect = 0;
+static int   g_hudFreezeLogged = 0;
+static int   g_hudThawLogged = 0;
+
+static void lvHudNullAll(void)
+{
+    g_wLifeBar10 = nullptr;
+    g_wLifeBar10Data = nullptr;
+    g_wLifeBar10Value = nullptr;
+    g_wLifeBar10Green = nullptr;
+    g_wLifeBar10Grey = nullptr;
+    g_wLifeBar10Red = nullptr;
+    g_wLifeBar10Yellow = nullptr;
+    g_wLifeBar10White = nullptr;
+    g_wLifeBar10Robot = nullptr;
+    g_wLifeBar10Crushed = nullptr;
+    g_wLifeBar10Tooltip = nullptr;
+    g_wLifeBar9 = nullptr;
+    g_wLifeBar9Data = nullptr;
+    g_wRoot = nullptr;
+    g_wMedicalPanel = nullptr;
+    g_wFront = nullptr;
+    g_wBack = nullptr;
+    g_capWidget = nullptr;
+    g_resolveOnce = 0;
+    g_hudSkipTick = 1;
+}
+
+static void lvHudFreezeEnter(void)
+{
+    lvHudNullAll();
+    g_hudFrozen = 1;
+    if (!g_hudFreezeLogged)
+    {
+        g_hudFreezeLogged = 1;
+        LvLog("LimbVigor: HUD freeze (MainPanel reload)");
+    }
+}
+
+static int lvHudMyGuiOk(void)
+{
+    if (!g_hudFrozen)
+        return 1;
+    return (g_hudThawing || g_hudDetect) ? 1 : 0;
+}
 
 static void lvHudSehHit(void* w)
 {
-    if (w)
-    {
-        if (w == g_wLifeBar10) g_wLifeBar10 = nullptr;
-        if (w == g_wLifeBar10Data) g_wLifeBar10Data = nullptr;
-        if (w == g_wLifeBar10Value) g_wLifeBar10Value = nullptr;
-        if (w == g_wLifeBar10Green) g_wLifeBar10Green = nullptr;
-        if (w == g_wLifeBar10Grey) g_wLifeBar10Grey = nullptr;
-        if (w == g_wLifeBar10Red) g_wLifeBar10Red = nullptr;
-        if (w == g_wLifeBar10Yellow) g_wLifeBar10Yellow = nullptr;
-        if (w == g_wLifeBar10White) g_wLifeBar10White = nullptr;
-        if (w == g_wLifeBar10Robot) g_wLifeBar10Robot = nullptr;
-        if (w == g_wLifeBar10Crushed) g_wLifeBar10Crushed = nullptr;
-        if (w == g_wLifeBar10Tooltip) g_wLifeBar10Tooltip = nullptr;
-        if (w == g_wLifeBar9) g_wLifeBar9 = nullptr;
-        if (w == g_wLifeBar9Data) g_wLifeBar9Data = nullptr;
-        if (w == g_capWidget) g_capWidget = nullptr;
-    }
-    g_resolveOnce = 0;
-    g_hudSkipTick = 1;
+    (void)w;
+    /* Options reload frees the whole tree — not one widget. */
+    lvHudFreezeEnter();
     if (!g_hudSehLogged)
     {
         g_hudSehLogged = 1;
@@ -1051,7 +1082,7 @@ void LvNoteHudProbeSeh()
 
 int LvHudWritesOk(void)
 {
-    return 1;
+    return g_hudFrozen ? 0 : 1;
 }
 
 void LvHudResumeWrites(void)
@@ -1065,7 +1096,7 @@ void LvHudWatchGui(void)
 
 int LvHudCacheAlive(void)
 {
-    return 1;
+    return g_hudFrozen ? 0 : 1;
 }
 static char  g_capOrig[96] = {};
 static char  g_origData[96] = {};
@@ -2186,6 +2217,7 @@ static void* lvSehGuiInst(FnGuiInst fn)
 static void* lvSehFind2(FnFindW fn, void* self, const GameStr* name)
 {
     void* w = nullptr;
+    if (!lvHudMyGuiOk()) return nullptr;
     if (!fn || !self || !name) return nullptr;
     const unsigned char noThrow = 0;
     LV_TRY { w = fn(self, name, noThrow); }
@@ -2196,6 +2228,7 @@ static void* lvSehFind2(FnFindW fn, void* self, const GameStr* name)
 static void* lvSehFind3(FnFindW3 fn, void* self, const GameStr* name, const GameStr* prefix)
 {
     void* w = nullptr;
+    if (!lvHudMyGuiOk()) return nullptr;
     if (!fn || !self || !name || !prefix) return nullptr;
     const unsigned char noThrow = 0;
     LV_TRY { w = fn(self, name, prefix, noThrow); }
@@ -2206,6 +2239,7 @@ static void* lvSehFind3(FnFindW3 fn, void* self, const GameStr* name, const Game
 static void* lvSehWFind1(void* self, const GameStr* name)
 {
     void* w = nullptr;
+    if (!lvHudMyGuiOk()) return nullptr;
     if (!g_wFind1 || !self || !name) return nullptr;
     LV_TRY { w = g_wFind1(self, name); }
     LV_EXCEPT { w = nullptr; g_lastFindSeh = 1; lvHudSehHit(nullptr); }
@@ -2215,6 +2249,7 @@ static void* lvSehWFind1(void* self, const GameStr* name)
 static void* lvSehWFind2(void* self, const GameStr* name)
 {
     void* w = nullptr;
+    if (!lvHudMyGuiOk()) return nullptr;
     if (!g_wFind2 || !self || !name) return nullptr;
     const unsigned char noThrow = 0;
     LV_TRY { w = g_wFind2(self, name, noThrow); }
@@ -2225,6 +2260,7 @@ static void* lvSehWFind2(void* self, const GameStr* name)
 static int lvSehVisible(void* w)
 {
     int vis = -1;
+    if (!lvHudMyGuiOk()) return -1;
     if (!g_wVis || !w) return -1;
     LV_TRY { vis = g_wVis(w) ? 1 : 0; }
     LV_EXCEPT { vis = -1; lvHudSehHit(w); }
@@ -2234,6 +2270,7 @@ static int lvSehVisible(void* w)
 static const void* lvSehGetName(void* w)
 {
     const void* s = nullptr;
+    if (!lvHudMyGuiOk()) return nullptr;
     if (!g_wName || !w) return nullptr;
     LV_TRY { s = g_wName(w); }
     LV_EXCEPT { s = nullptr; lvHudSehHit(w); }
@@ -2264,6 +2301,7 @@ static void* lvSehGetSubText(void* w);
 static const void* lvSehCaption(void* w)
 {
     const void* s = nullptr;
+    if (!lvHudMyGuiOk()) return nullptr;
     if (!w) return nullptr;
     if (g_getCapISub)
     {
@@ -2581,6 +2619,7 @@ static void lvWhyOnce(const char* why)
 
 static int lvSehSetCapFn(FnSetCaption fn, void* w, const void* u)
 {
+    if (!lvHudMyGuiOk()) return 1;
     if (!fn || !w || !u)
         return 1;
     LV_TRY { fn(w, u); }
@@ -2590,6 +2629,7 @@ static int lvSehSetCapFn(FnSetCaption fn, void* w, const void* u)
 
 static int lvSehSetCapStr(void* w, const GameStr* s)
 {
+    if (!lvHudMyGuiOk()) return 1;
     if (!g_setCapStr || !w || !s)
         return 1;
     LV_TRY { g_setCapStr(w, s); }
@@ -2625,6 +2665,7 @@ static void lvSehUDtor(void* u)
 
 static int lvSehSetCapFakeFn(FnSetCaption fn, void* w, void* fake)
 {
+    if (!lvHudMyGuiOk()) return 1;
     if (!fn || !w || !fake)
         return 1;
     LV_TRY { fn(w, fake); }
@@ -2831,6 +2872,7 @@ static int lvTryWriteCaption(void* w, const char* text)
 
 static void* lvSehGetSubText(void* w)
 {
+    if (!lvHudMyGuiOk()) return nullptr;
     if (!g_getSubText || !w)
         return nullptr;
     void* t = nullptr;
@@ -2948,6 +2990,7 @@ static int lvNameIsGreen10(const char* name)
 
 static int lvSehGetInt(FnGetInt fn, void* w)
 {
+    if (!lvHudMyGuiOk()) return 0;
     if (!fn || !w)
         return 0;
     int v = 0;
@@ -2958,6 +3001,7 @@ static int lvSehGetInt(FnGetInt fn, void* w)
 
 static void* lvSehGetParent(void* w)
 {
+    if (!lvHudMyGuiOk()) return nullptr;
     if (!g_getParent || !w)
         return nullptr;
     void* p = nullptr;
@@ -2968,6 +3012,7 @@ static void* lvSehGetParent(void* w)
 
 static int lvSehGetCoord(FnGetCoordSret fn, void* w, LvIntCoord* out)
 {
+    if (!lvHudMyGuiOk()) return 0;
     if (!fn || !w || !out)
         return 0;
     std::memset(out, 0, sizeof(*out));
@@ -2997,7 +3042,7 @@ static int lvReadPixelSize(void* w, int* ow, int* oh)
 {
     if (ow) *ow = 0;
     if (oh) *oh = 0;
-    if (!w)
+    if (!lvHudMyGuiOk() || !w)
         return 0;
     int ww = lvSehGetInt(g_getWidth, w);
     int hh = lvSehGetInt(g_getHeight, w);
@@ -3158,6 +3203,7 @@ static int lvLayoutHungerPx(int* ow, int* oh)
  * Never Green / Datapanel as parentW. Never 1–9 Green. Wait if host < 50. */
 static int lvFillGreen(float fill01, float hemo, float maxv)
 {
+    if (!lvHudMyGuiOk()) return 0;
     void* w = g_wLifeBar10Green;
     if (!w || (!g_setSizeHH && !g_setCoordHHHH))
         return 0;
@@ -3259,6 +3305,8 @@ static int lvNameIsData10(const char* name)
  * Datapanel XML is 0 0.13 0.996 0.739 — not 0-size. Runtime show/size/depth only. */
 static void lvEnsureDatapanelVisible()
 {
+    if (!lvHudMyGuiOk())
+        return;
     void* w = g_wLifeBar10Data;
     if (!w)
         return;
@@ -3365,6 +3413,7 @@ static int lvNameIsDepthOk(const char* name)
 /* Front Depth=0 covers last-child-of-Front. Raise LifeBar10* above that. */
 static void lvSetDepth10(void* w, int depth)
 {
+    if (!lvHudMyGuiOk()) return;
     if (!w || !g_setDepth)
         return;
     char name[96], cap[96];
@@ -3418,6 +3467,7 @@ static int lvNameIsStunSkin(const char* name)
 
 static void lvSetVisible10(void* w, int on)
 {
+    if (!lvHudMyGuiOk()) return;
     if (!w || !g_setVis)
         return;
     char name[96], cap[96];
@@ -3442,6 +3492,7 @@ static void lvSetVisible10(void* w, int on)
 
 static void lvHideStunSkin(void* w)
 {
+    if (!lvHudMyGuiOk()) return;
     if (!w || !g_setVis)
         return;
     char name[96], cap[96];
@@ -3732,9 +3783,107 @@ static void lvTryPrefixedFind(const char* shortName, void* root)
     }
 }
 
+static void lvResolveLifeBar();
+
+static int lvNameIsOptionsLayout(const char* n)
+{
+    if (!n || !n[0])
+        return 0;
+    /* Options layout only. Not MainPanel Settings / Paused (v1.36 hid the bar). */
+    if (lvHasSub(n, "OptionsPanel") || lvHasSub(n, "OptionsWindow")
+     || lvHasSub(n, "Kenshi_Options") || lvHasSub(n, "odSettingsOpen"))
+        return 1;
+    return 0;
+}
+
+/* Gui findWidgetT only — not Root cache, not ESC / settings-button hook. */
+static int lvHudOptionsLayoutUp(void)
+{
+    static const char* kNames[] = {
+        "OptionsPanel", "OptionsWindow", "odSettingsOpen", 0
+    };
+    if (!g_findW && !g_findW3)
+        lvDumpMyGuiExports();
+    for (int i = 0; kNames[i]; ++i)
+    {
+        void* w = nullptr;
+        g_lastFindSeh = 0;
+        w = lvFind2Full(kNames[i]);
+        if (!w && g_prefix[0])
+            w = lvFind3(kNames[i]);
+        if (g_lastFindSeh)
+            return 1;
+        if (!w)
+            continue;
+        char name[96], cap[96];
+        int vis = -1;
+        name[0] = 0;
+        cap[0] = 0;
+        lvReadWidget(w, name, (int)sizeof(name), cap, (int)sizeof(cap), &vis);
+        if (lvNameIsOptionsLayout(name) || lvNameIsOptionsLayout(kNames[i]))
+            return 1;
+    }
+    return 0;
+}
+
+static void lvHudTryThaw(void)
+{
+    g_hudDetect = 1;
+    const int opt = lvHudOptionsLayoutUp();
+    g_hudDetect = 0;
+    if (opt)
+    {
+        lvHudNullAll();
+        g_prefixLogged = 0;
+        g_prefix[0] = 0;
+        return;
+    }
+    g_hudThawing = 1;
+    lvResolveLifeBar();
+    g_hudThawing = 0;
+    if (g_wLifeBar10 && g_wLifeBar10Data && g_wLifeBar10Value && g_wLifeBar10Green)
+    {
+        g_hudFrozen = 0;
+        g_hudSkipTick = 0;
+        if (!g_hudThawLogged)
+        {
+            g_hudThawLogged = 1;
+            LvLog("LimbVigor: HUD thaw");
+        }
+    }
+    else
+    {
+        lvHudNullAll();
+        g_prefixLogged = 0;
+        g_prefix[0] = 0;
+    }
+}
+
+void LvHudFreezeTick(void)
+{
+    if (!LvWorldInGame())
+        return;
+    if (g_hudFrozen)
+    {
+        lvHudTryThaw();
+        return;
+    }
+    g_hudDetect = 1;
+    const int opt = lvHudOptionsLayoutUp();
+    g_hudDetect = 0;
+    if (opt)
+    {
+        g_prefixLogged = 0;
+        g_prefix[0] = 0;
+        lvHudFreezeEnter();
+    }
+}
+
 static void lvResolveLifeBar()
 {
     /* Prefixed find only. Never _getWidget (v1.19 death, v1.21 HUD hide). */
+    if (g_hudFrozen && !g_hudThawing)
+        return;
     if (g_resolveOnce && g_wLifeBar10 && g_wLifeBar10Data
      && g_wLifeBar10Value && g_wLifeBar10Green)
         return;
@@ -3793,13 +3942,14 @@ static void lvResolveLifeBar()
 
 static void lvDumpMyGuiOnce()
 {
-    if (!LvWorldInGame())
+    if (!LvWorldInGame() || (g_hudFrozen && !g_hudThawing))
         return;
     lvResolveLifeBar();
 }
 #else
 static int  lvProbeLifeBar10Alive(void) { return 1; }
 static void lvDumpMyGuiOnce() {}
+void LvHudFreezeTick(void) {}
 static void lvResolveLifeBar() {}
 static void lvWhyOnce(const char* why) { (void)why; }
 static int  lvTryWriteCaption(void* w, const char* t) { (void)w; (void)t; return 1; }
@@ -3869,6 +4019,7 @@ static int IsBannedHudKey(const char* key)
 
 void LvWalkSelPanel(DatapanelGUI* panel)
 {
+    LvHudFreezeTick();
     if (!panel || !LvWorldInGame() || !LvHudWritesOk())
         return;
     try
@@ -3906,6 +4057,7 @@ void LvClearHud(DatapanelGUI* panel)
     (void)panel;
     /* Door / box / chair: clear LifeBar10 only. Never touch LifeBar1.
      * Settings-close / MyGUI teardown: skip all writes. */
+    LvHudFreezeTick();
     if (!LvHudWritesOk() || !LvHudCacheAlive())
         return;
     if (!g_resolveOnce)
@@ -3918,6 +4070,7 @@ void LvClearHud(DatapanelGUI* panel)
 void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
 {
     (void)panel;
+    LvHudFreezeTick();
     if (!snap || !LvCfg().enableHud || !LvWorldInGame() || !LvHudWritesOk())
         return;
     if (!LvHudCacheAlive())

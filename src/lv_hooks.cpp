@@ -206,6 +206,7 @@ static void DriveTick(MedicalSystem* med, float frameTime)
 {
     if (!med || !LvCfg().enableHooks) return;
     if (!LvWorldInGame()) return;
+    LvHudFreezeTick();
     if (!g_loggedInGame)
     {
         g_loggedInGame = 1;
@@ -479,6 +480,9 @@ static void PaintSafe(MedicalSystem* med, Character* who, CharSnap* live)
 static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* who)
 {
     if (!panel || !LvWorldInGame())
+        return;
+    LvHudFreezeTick();
+    if (!LvHudWritesOk())
         return;
 
     WalkSafe(panel);
