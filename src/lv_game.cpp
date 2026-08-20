@@ -704,8 +704,8 @@ void LvReadSnap(MedicalSystem* med, CharSnap* io)
 
 int LvRestoreLimb(MedicalSystem* med, int limbId)
 {
-    // Unused. DriveTick slots LV Grown via LvEquipGrowthPart.
-    // Do NOT call setLimb(ORIGINAL) at 100%. Do not re-hook this.
+    // Unused. v1.30: never restore-on-stump. Grow the nub with numbers.
+    // Do NOT call setLimb(ORIGINAL). Do not re-hook this.
     (void)med;
     (void)limbId;
     static int once = 0;
@@ -2867,9 +2867,7 @@ static int lvWriteKeyISub(void* w, const char* text, const char* tag)
         lvTryWriteISubRaw(sub, text);
     }
     lvTryWriteISubRaw(w, text);
-    /* Datapanel is a TextBox in v1.29 — TextBox::setCaption is allowed here. */
-    if (g_setCapTextBox)
-        lvCallSetCaption(g_setCapTextBox, w, text);
+    /* Datapanel is PanelEmpty like LifeBar9. ISub only. Never TextBox here. */
     if (sub && lvReadBackOk(sub, text, tag))
         return 1;
     return lvReadBackOk(w, text, tag);
@@ -3004,8 +3002,20 @@ static int lvGreenBarOk(int parentW, int greenW, float fill01)
     return 1;
 }
 
-/* LifeBar10Green only. Width = (hemo/max)*LifeBar10 PIXEL width. Never 1–9 Green.
- * getWidth=0 or a fraction-as-int is a FAIL — do not clamp to 1px. */
+static int lvNameIsHost10(const char* name)
+{
+    if (!name || !name[0] || lvIsForbiddenParent(name) || lvNameIsLifeBar1Strict(name))
+        return 0;
+    if (lvIsFillBarName(name))
+        return 0;
+    if (lvEndsWith(name, "LifeBar10Datapanel") || lvEndsWith(name, "LifeBar10Value")
+     || lvEndsWith(name, "LifeBar10Tooltip") || lvEndsWith(name, "LifeBar10Green"))
+        return 0;
+    return lvEndsWith(name, "LifeBar10") ? 1 : 0;
+}
+
+/* LifeBar10Green only. Width = (hemo/max)*LifeBar10 HOST pixel width AFTER show.
+ * Never Green / Datapanel as parentW. Never 1–9 Green. Wait if host < 50. */
 static int lvFillGreen(float fill01, float hemo, float maxv)
 {
     void* w = g_wLifeBar10Green;
@@ -3027,15 +3037,44 @@ static int lvFillGreen(float fill01, float hemo, float maxv)
         return 0;
     }
     void* bar = g_wLifeBar10;
-    int pw = 0, ph = 0;
-    if (!bar || !lvReadPixelSize(bar, &pw, &ph))
+    char hname[96], hcap[96];
+    int hvis = -1;
+    hname[0] = 0;
+    hcap[0] = 0;
+    if (bar)
+        lvReadWidget(bar, hname, (int)sizeof(hname), hcap, (int)sizeof(hcap), &hvis);
+    if (!bar || !lvNameIsHost10(hname))
     {
         static int n = 0;
         if (n < 8)
         {
             n++;
-            LvLogf("LimbVigor: Green FAIL no pixel parentW getW=%d (not clamping to 1px) fill=%.3f hemo=%.1f max=%.1f",
-                   lvSehGetInt(g_getWidth, bar), fill01, hemo, maxv);
+            LvLogf("LimbVigor: Green FAIL host name='%s' — need LifeBar10 after show, not Green/Datapanel",
+                   hname);
+        }
+        return 0;
+    }
+    int pw = 0, ph = 0;
+    const int rawW = lvSehGetInt(g_getWidth, bar);
+    if (!lvReadPixelSize(bar, &pw, &ph))
+    {
+        static int n = 0;
+        if (n < 8)
+        {
+            n++;
+            LvLogf("LimbVigor: Green WAIT LifeBar10 host getW=%d (need 50-400 after show) fill=%.3f hemo=%.1f max=%.1f",
+                   rawW, fill01, hemo, maxv);
+        }
+        return 0;
+    }
+    if (pw < 50)
+    {
+        static int n = 0;
+        if (n < 8)
+        {
+            n++;
+            LvLogf("LimbVigor: Green WAIT LifeBar10 host parentW=%d getW=%d — tiny first tick, will retry",
+                   pw, rawW);
         }
         return 0;
     }
@@ -3667,6 +3706,31 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
 
     lvEnsureDatapanelVisible();
 
+    int dataW = 0, dataH = 0, dataL = 0, dataT = 0;
+    {
+        LvIntCoord dc;
+        if (lvSehGetCoord(g_getCoord, dest, &dc))
+        {
+            dataL = dc.left;
+            dataT = dc.top;
+            dataW = dc.width;
+            dataH = dc.height;
+        }
+        if (dataW <= 0 || dataH <= 0)
+            lvReadPixelSize(dest, &dataW, &dataH);
+    }
+    const int dataOk = (dataW >= 8 && dataH >= 4) ? 1 : 0;
+    if (!dataOk)
+    {
+        static int n = 0;
+        if (n < 8)
+        {
+            n++;
+            LvLogf("LimbVigor: Datapanel %dx%d at %d,%d — 0x0, painted=0",
+                   dataW, dataH, dataL, dataT);
+        }
+    }
+
     const float maxv = LvCfg().maxVigor > 0.f ? LvCfg().maxVigor : 100.f;
     const int greenOk = lvFillGreen(fill1, snap->vigor, maxv);
 
@@ -3680,7 +3744,7 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
 
     const int visOk = lvLifeBar10VisOk();
     const int capOk = okData || lvLifeBar10CapOk(dest);
-    if (!visOk || !capOk || !valOk || !greenOk)
+    if (!visOk || !capOk || !valOk || !greenOk || !dataOk)
     {
         static int once = 0;
         if (!once)

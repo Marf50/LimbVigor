@@ -313,7 +313,8 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                 const int limb = r.stageChanged;
                 LV_TRY
                 {
-                    if (st >= 0 && st < LV_PART_COUNT)
+                    /* Mid-growth visuals only. Never GROWN — that was restore-on-stump. */
+                    if (st >= 0 && st < LV_PART_GROWN)
                         LvEquipGrowthPart(med, limb, st);
                 }
                 LV_EXCEPT
@@ -328,93 +329,43 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                 }
             }
 
-            if (r.restored >= 0 && r.restored < LIMB_COUNT && live->restoreLock <= 0.f)
+            /* v1.30: do NOT restore a stump. LvTick may mark WHOLE at 100%.
+             * The v1.29 write (Equip GROWN / setLimb / validateHealth) SEHed,
+             * collapsed 5/75 → 5/5, and flipped the socket to whole. Grow
+             * the nub with numbers only. No Equip GROWN. No setLimb(ORIGINAL). */
+            if (r.restored >= 0 && r.restored < LIMB_COUNT)
             {
                 const int limb = r.restored;
-                LV_TRY
+                CharSnap now;
+                std::memset(&now, 0, sizeof(now));
+                LV_TRY { LvReadSnap(med, &now); }
+                LV_EXCEPT {}
+                const int stillNub = (now.limbs[limb] == LIMB_KIND_STUMP
+                    || now.limbs[limb] == LIMB_KIND_CRUSHED
+                    || (now.limbHp[limb] > 0.f && now.limbHp[limb] < 10.f)) ? 1 : 0;
+                if (stillNub)
                 {
-                    CharSnap now;
-                    std::memset(&now, 0, sizeof(now));
-                    LvReadSnap(med, &now);
-                    const LimbKind gameLimb = now.limbs[limb];
-                    if (gameLimb == LIMB_KIND_WHOLE || gameLimb == LIMB_KIND_PROSTHETIC)
-                    {
-                        live->limbs[limb] = gameLimb;
-                        live->progress[limb] = 0.f;
-                        live->lastStage[limb] = -1;
-                        LvLogf("LimbVigor: %s %s already attached — clearing 100%%",
-                            live->name, LvLimbLabel((LimbId)limb));
-                    }
-                    else if (LvEquipGrowthPart(med, limb, LV_PART_GROWN))
-                    {
-                        live->limbs[limb] = LIMB_KIND_WHOLE;
-                        live->progress[limb] = 0.f;
-                        live->lastStage[limb] = LV_PART_GROWN;
-                        if (!r.speech[0])
-                        {
-                            char grown[96];
-                            std::snprintf(grown, sizeof(grown), "The %s has grown back.",
-                                LvLimbLabel((LimbId)limb));
-                            LvSay(who, grown);
-                        }
-                        LvLogf("LimbVigor: slotted grown part on %s %s",
-                            live->name, LvLimbLabel((LimbId)limb));
-                    }
-                    else
-                    {
-                        live->limbs[limb] = LIMB_KIND_STUMP;
-                        live->progress[limb] = 100.f;
-                        live->restoreLock = 20.f / secPerHour;
-                        LvEquipGrowthPart(med, limb, LV_PART_KNITTING);
-                        LvLogf("LimbVigor: grown part deferred on %s %s — knitting stays",
-                            live->name, LvLimbLabel((LimbId)limb));
-                    }
-                }
-                LV_EXCEPT
-                {
+                    live->limbs[limb] = (now.limbs[limb] == LIMB_KIND_CRUSHED)
+                        ? LIMB_KIND_CRUSHED : LIMB_KIND_STUMP;
+                    live->limbHp[limb] = now.limbHp[limb];
+                    live->limbMax[limb] = now.limbMax[limb];
                     static int once = 0;
                     if (!once)
                     {
                         once = 1;
-                        LvLogf("LimbVigor: parts SEH site=restore %s hp=%.1f/%.1f — growth numbers kept",
+                        LvLogf("LimbVigor: restore-on-stump skipped %s hp=%.1f/%.1f — nub keeps ticking, no write",
                             LvLimbLabel((LimbId)limb), live->limbHp[limb], live->limbMax[limb]);
                     }
                 }
-            }
-
-            /* Persist 100% / Grown but the socket is still a stump: retry LV Grown.
-             * Re-read the socket the player sees. Do not call setLimb(ORIGINAL). */
-            LV_TRY
-            {
-                CharSnap now;
-                std::memset(&now, 0, sizeof(now));
-                LvReadSnap(med, &now);
-                for (int i = 0; i < LIMB_COUNT; ++i)
+                else
                 {
-                    if (live->progress[i] < 99.5f && live->lastStage[i] != LV_PART_GROWN)
-                        continue;
-                    if (now.limbs[i] != LIMB_KIND_STUMP && now.limbs[i] != LIMB_KIND_CRUSHED)
-                        continue;
-                    const int slotted = LvEquipGrowthPart(med, i, LV_PART_GROWN);
-                    CharSnap again;
-                    std::memset(&again, 0, sizeof(again));
-                    LvReadSnap(med, &again);
-                    if (again.limbs[i] != LIMB_KIND_STUMP && again.limbs[i] != LIMB_KIND_CRUSHED)
-                        continue;
-                    static unsigned lastWhyMs[LIMB_COUNT] = {};
-                    const unsigned t = NowMs();
-                    if (lastWhyMs[i] && t && (t - lastWhyMs[i]) < 15000u)
-                        continue;
-                    lastWhyMs[i] = t ? t : 1;
-                    if (slotted)
-                        LvLogf("LimbVigor: %s %s persist 100%% still a stump — LV Grown on, game still reads stump",
-                            live->name, LvLimbLabel((LimbId)i));
-                    else
-                        LvLogf("LimbVigor: %s %s persist 100%% still a stump — LV Grown retry failed",
-                            live->name, LvLimbLabel((LimbId)i));
+                    live->limbs[limb] = now.limbs[limb];
+                    live->progress[limb] = 0.f;
+                    live->lastStage[limb] = -1;
+                    LvLogf("LimbVigor: %s %s already attached — clearing 100%%",
+                        live->name, LvLimbLabel((LimbId)limb));
                 }
             }
-            LV_EXCEPT {}
 
             LV_TRY { Heartbeat(live); }
             LV_EXCEPT {}

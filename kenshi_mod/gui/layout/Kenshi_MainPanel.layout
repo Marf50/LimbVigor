@@ -195,9 +195,7 @@
                 <Widget type="Widget" skin="Kenshi_LifeBarSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10Green"/>
 		    <Widget type="Widget" skin="Kenshi_LifeBarRobotSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10Robot"/>
                 <Widget type="Widget" skin="Kenshi_LifeBarCrushedSkin" position_real="0 0 1 1" align="Stretch" name="LifeBar10Crushed"/>
-                <Widget type="TextBox" skin="Kenshi_TextboxStandardText" position_real="0 0.1304347813129425 0.99579828977584839 0.73913043737411499" name="LifeBar10Datapanel">
-                    <Property key="TextAlign" value="Left VCenter"/>
-                </Widget>
+                <Widget type="Widget" skin="PanelEmpty" position_real="0 0.1304347813129425 0.99579828977584839 0.73913043737411499" name="LifeBar10Datapanel"/>
             </Widget>
             <Widget type="TextBox" skin="Kenshi_TextboxStandardText" position_real="0.84563755989074707 0.94387941891755245 0.12751677632331848 0.04884061096457028" name="LifeBar10Value">
                 <Property key="Caption" value="100"/>

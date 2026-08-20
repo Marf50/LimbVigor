@@ -83,7 +83,8 @@ LimbKind LvClassifyFromHp(float hp, float mx, int haveHp, char* why, int whyN)
         if (why && whyN > 0) std::snprintf(why, (size_t)whyN, "%s", "cut-off flesh<=-max");
         return LIMB_KIND_STUMP;
     }
-    if (hp > 0.f && hp < 10.f && (mx <= 1.f || hp <= mx * 0.12f))
+    /* Left Leg 5 is a stump even if a restore write collapsed max to 5. */
+    if (hp > 0.f && hp < 10.f)
     {
         if (why && whyN > 0) std::snprintf(why, (size_t)whyN, "%s", "cut-off nub hp<10");
         return LIMB_KIND_STUMP;
@@ -174,7 +175,7 @@ void LvHeartbeatLine(const CharSnap* c, char* out, int n)
             return;
         }
         std::snprintf(out, (size_t)n,
-            "%s  %s %.0f/%.0f  %s still a stump (persist 100%%, retrying LV Grown)",
+            "%s  %s %.0f/%.0f  %s still a stump (numbers kept, no restore write)",
             c->name, res, c->vigor, maxv, LvLimbLabel((LimbId)stump));
         return;
     }

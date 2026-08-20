@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-v1.29 puts Hemolymph on **LifeBar10 inside MedicalPanel** (sibling of Back, under the unstretched 9-bar plate). Write: **pixel** Green fill (50–400px parent width, not a pointer) and **Hemolymph on Datapanel**. Value stays the number. A Left Leg at 5 / crippled / cut-off is a stump; intact 75-HP arms are not healed. Widget::setCaption is not exported. **No `_getWidget`.** See [testdoc/HUD.md](testdoc/HUD.md).
+v1.30 puts Hemolymph on **LifeBar10 inside MedicalPanel** (sibling of Back, under the unstretched 9-bar plate). LifeBar10Datapanel is **PanelEmpty** like LifeBar9. Write: **pixel** Green fill from the LifeBar10 **host** after show (50–400px) and **Hemolymph on Datapanel**. Value stays the number. A Left Leg at 5 stays a stump — **no restore-on-stump**. Widget::setCaption is not exported. **No `_getWidget`.** See [testdoc/HUD.md](testdoc/HUD.md).
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.29: LifeBar10 in MedicalPanel + pixel Green + stump growth. Root-level HemolymphStrip is rejected. Stretching the 9-bar skin is rejected. Widget::setCaption hunt is rejected. v1.23 full-layout drift is rejected. `46d810a` LifeBar1 overwrite is rejected.
+v1.30: no restore-on-stump + PanelEmpty Datapanel + pixel Green host. Root-level HemolymphStrip is rejected. Stretching the 9-bar skin is rejected. Widget::setCaption hunt is rejected. Restore-on-stump is rejected. TextBox Datapanel is rejected. v1.23 full-layout drift is rejected. `46d810a` LifeBar1 overwrite is rejected.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 

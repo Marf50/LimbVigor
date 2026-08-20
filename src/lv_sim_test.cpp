@@ -523,6 +523,8 @@ int main()
             "flesh 0 is crippled stump");
         Expect(LvClassifyFromHp(-100.f, 100.f, 1, why, 64) == LIMB_KIND_STUMP,
             "flesh -max is cut-off stump");
+        Expect(LvClassifyFromHp(5.f, 5.f, 1, why, 64) == LIMB_KIND_STUMP,
+            "5/5 after a bad restore is still a stump");
         Expect(LvClassifyFromHp(0.f, 0.f, 0, why, 64) == LIMB_KIND_WHOLE,
             "no hp stays whole (do not guess a heal-all)");
 

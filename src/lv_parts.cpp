@@ -544,6 +544,9 @@ int LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage)
 {
     if (!med || limbId < 0 || limbId >= LIMB_COUNT) return 0;
     if (stage < 0 || stage >= LV_PART_COUNT) return 0;
+    /* v1.30: GROWN is restore-on-stump. Grow the nub without that write. */
+    if (stage == LV_PART_GROWN)
+        return 0;
 
     const LvPartDef* def = LvPartFor(limbId, stage);
     if (!def) return 0;
@@ -650,12 +653,13 @@ int LvSyncOneLimb(MedicalSystem* med, const CharSnap* snap, int limbId)
     if (!need) return 0;
 
     int stage = LvPartStageFromProgress(snap->progress[limbId]);
-    if (snap->lastStage[limbId] == LV_PART_GROWN || snap->progress[limbId] >= 99.5f)
-        stage = LV_PART_GROWN;
+    /* Never slot GROWN on a live stump — that restore write crashed v1.29. */
+    if (stage >= LV_PART_GROWN)
+        stage = LV_PART_KNITTING;
     if (LvEquipGrowthPart(med, limbId, stage) && empty15)
     {
         LvLogf("LimbVigor: slotted %s %s (-15 empty socket)",
-            stage == LV_PART_GROWN ? "LV Grown" : "LV Stump",
+            "LV part",
             LvLimbLabel((LimbId)limbId));
     }
     return 1;

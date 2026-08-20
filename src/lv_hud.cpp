@@ -2,11 +2,11 @@
 
 #include "lv_config.h"
 
-// I-key tooltip snapshot only. v1.29: LifeBar10 in MedicalPanel + stump growth.
+// I-key tooltip snapshot only. v1.30: PanelEmpty Datapanel + host Green.
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: HUD is LifeBar10 in MedicalPanel + pixel Green — setCapW=0 expected");
+    LvLog("LimbVigor: HUD is LifeBar10 in MedicalPanel + pixel Green host — setCapW=0 expected");
 }
 
 void LvHudEnsureAfterInGame() {}
