@@ -51,7 +51,10 @@ class Item;
 
 int  LvIsGrowthPart(Item* item);
 int  LvGrowthPartStage(Item* item); // 0..4 or -1
-int  LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage);
+/* First session write on a still-STUMP socket is always STUMP, even at
+ * persist 100%. After nubWrote, one stage at a time. Never GROWN first. */
+int  LvNubWriteStage(const CharSnap* snap, int limbId, int have);
+int  LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage, int alreadyWrote);
 void LvClearGrowthPart(MedicalSystem* med, int limbId);
-void LvSyncGrowthParts(MedicalSystem* med, const CharSnap* snap);
-int  LvSyncOneLimb(MedicalSystem* med, const CharSnap* snap, int limbId);
+void LvSyncGrowthParts(MedicalSystem* med, CharSnap* snap);
+int  LvSyncOneLimb(MedicalSystem* med, CharSnap* snap, int limbId);

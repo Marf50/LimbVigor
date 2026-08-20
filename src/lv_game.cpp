@@ -624,8 +624,8 @@ static float lvSiblingRealMax(MedicalSystem* med, int skip)
     return best;
 }
 
-/* Incremental flesh only. A few HP per tick (+1..+4). Never 5→75 in one write.
- * Max follows slowly (with flesh or a few behind). Stay STUMP. No GROWN / restore. */
+/* Unused. Not the player-visible product. A missing stump with rising HP
+ * is the fail. Do not call from the tick — attach a STUMP nub, then swap. */
 int LvGrowStumpNub(MedicalSystem* med, int limbId, float progress, float realMaxHint,
                    float* hpBefore, float* hpAfter, float* maxAfter)
 {

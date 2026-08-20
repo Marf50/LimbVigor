@@ -32,8 +32,9 @@ Send the notes back and the plugin gets patched.
 - [ ] **Legs first.** Missing a leg and an arm. Leg finishes first.
 - [ ] **I-key growth part.** Select the stump character, open inventory (I). The missing limb slot should show `LV Stump …` / `LV Budding …` / `LV Forming …` / `LV Knitting …` / `LV Grown …`, not empty and not a bought Economy limb. If LimbVigor.mod missed or a record has no mesh/icon, the log says `skip (not using Economy)` and we leave the socket alone.
 - [ ] **Not a real prosthetic.** Fitting a growth part must NOT stop Hemolymph. Buying a real robot limb still blocks.
-- [ ] **Grown is the limb.** Stages increment: STUMP nub first, then Budding → Forming → Knitting → Grown. At 100% the I-key slot should say `LV Grown …`, not −15 and not original flesh. We do not call `setLimb(ORIGINAL)`. Never Equip GROWN as the first write. Send the log either way.
-- [ ] **Save / load.** Grow to ~40%, save, quit, load. Numbers persist (LimbVigor.progress). No MyGUI create after In-game.
+- [ ] **Grown is the limb.** Stages increment: STUMP nub first, then Budding → Forming → Knitting → Grown. Persist 100% + still STUMP is not done — first write is the STUMP nub (`nub attached` or `skip why=`). After attach, stages are part-type swaps. At I-key the slot should say `LV Stump/Budding/Forming/Knitting/Grown …`, not −15 and not original flesh. We do not call `setLimb(ORIGINAL)`. Never Equip GROWN as the first write. Must NOT grow a missing stump with flesh/max ticks. Send the log either way.
+- [ ] **Persist-100% STUMP still writes.** First Boop line can already be Hemolymph 100/100 with `left leg hp=11/5 state=STUMP`. That is not attached. Log must show `nub attached` or `skip why=` (`have` / `prosthetic` / `sehSkip` / `no-gd` / `failUntil` / `create-failed`). SEH logs `nub attach SEH skip`. Must NOT stay silent on `have==stage` while the socket is still STUMP.
+- [ ] **Save / load.** Grow to ~40%, save, quit, load. Numbers persist (LimbVigor.progress). A persist-100% stump still attempts the first STUMP write this session. No MyGUI create after In-game.
 - [ ] **Squad.** Player + hired hive + hired shek, each selected I-key shows their own numbers.
 - [ ] **No MyGUI crash.** No TitleScreen widget create. No in-game widget create. No MyGUI mouse delegates. No eventFrameStart. Dark UI must reach the menu and survive save load.
 

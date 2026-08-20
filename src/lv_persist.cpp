@@ -83,8 +83,9 @@ void LvPersistLoad()
         {
             if (pr < 0.f) pr = 0.f;
             if (pr > 100.f) pr = 100.f;
-            // Keep 100% / Grown so a -15 empty socket slots LV Grown
-            // on load. Do not cap to 99.5 (that left Boop as knitting).
+            // Keep 100% / lastStage Grown in the file. Sync still
+            // writes a STUMP nub first this session (nubWrote is not
+            // persisted). Do not cap to 99.5 (that left Boop as knitting).
             if (st == LV_PART_GROWN || pr >= 99.5f)
             {
                 pr = 100.f;

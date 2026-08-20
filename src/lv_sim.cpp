@@ -175,8 +175,10 @@ void LvHeartbeatLine(const CharSnap* c, char* out, int n)
             return;
         }
         std::snprintf(out, (size_t)n,
-            "%s  %s %.0f/%.0f  %s still a stump (numbers kept, no restore write)",
-            c->name, res, c->vigor, maxv, LvLimbLabel((LimbId)stump));
+            "%s  %s %.0f/%.0f  %s still a stump (%s)",
+            c->name, res, c->vigor, maxv, LvLimbLabel((LimbId)stump),
+            c->nubWrote[stump] ? "nub attached this session"
+                               : "nub not attached this session");
         return;
     }
 
@@ -618,8 +620,9 @@ void LvTick(CharSnap* c, float dtHours, TickResult* out)
 
     if (c->progress[target] >= 100.f && c->restoreLock <= 0.f)
     {
-        // Simulator marks the socket whole. The game hook slots the
-        // Grown part — that is the limb. Progress stays 100 until then.
+        // Simulator marks the socket whole. The game hook still treats
+        // persist-100% + STUMP as missing until EquipWriteSeh lands a
+        // STUMP nub this session, then swaps BUD → FORM → KNIT → GROWN.
         c->limbs[target] = LIMB_KIND_WHOLE;
         c->progress[target] = 100.f;
         if (out)

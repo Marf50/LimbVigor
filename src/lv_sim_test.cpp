@@ -281,11 +281,38 @@ int main()
         c.starving = 0;
         c.fed = 1;
         LvHeartbeatLine(&c, beat, 192);
-        Expect(std::strstr(beat, "still a stump") != nullptr, "heartbeat retries LV Grown on a persist-100% stump");
+        Expect(std::strstr(beat, "still a stump") != nullptr, "heartbeat retries STUMP nub on a persist-100% stump");
+        Expect(std::strstr(beat, "nub not attached this session") != nullptr,
+            "persist-100% STUMP is not attached until EquipWriteSeh");
+        Expect(std::strstr(beat, "no restore write") == nullptr, "do not treat HP-keep as the product");
         Expect(std::strstr(beat, "grown  BLOCKED") == nullptr, "heartbeat does not say 100% grown BLOCKED");
+        c.nubWrote[LIMB_LEFT_LEG] = 1;
+        LvHeartbeatLine(&c, beat, 192);
+        Expect(std::strstr(beat, "nub attached this session") != nullptr,
+            "heartbeat names a session attach without calling it grown");
+        c.nubWrote[LIMB_LEFT_LEG] = 0;
         LvHudLines(&c, bar1, 96, &f1, bar2, 96, &f2, tip, 64);
         Expect(std::strstr(bar2, "grown") == nullptr, "eligible persist-100% stump is not grown 100%");
         Expect(std::strstr(bar2, "knitting") == bar2, "eligible persist-100% stump shows knitting");
+
+        /* Persist 100% + leftover GROWN part is still a first STUMP write. */
+        c.limbHp[LIMB_LEFT_LEG] = 11.f;
+        c.limbMax[LIMB_LEFT_LEG] = 5.f;
+        Expect(LvNubWriteStage(&c, LIMB_LEFT_LEG, LV_PART_GROWN) == LV_PART_STUMP,
+            "persist-100% STUMP first write is STUMP, not leftover GROWN");
+        Expect(LvNubWriteStage(&c, LIMB_LEFT_LEG, LV_PART_STUMP) == LV_PART_STUMP,
+            "persist-100% leftover STUMP part still rewrites STUMP this session");
+        c.nubWrote[LIMB_LEFT_LEG] = 1;
+        Expect(LvNubWriteStage(&c, LIMB_LEFT_LEG, LV_PART_STUMP) == LV_PART_BUDDING,
+            "after session attach, persist-100% advances STUMP → BUDDING");
+        Expect(LvNubWriteStage(&c, LIMB_LEFT_LEG, LV_PART_BUDDING) == LV_PART_FORMING,
+            "after attach, BUDDING → FORMING");
+        Expect(LvNubWriteStage(&c, LIMB_LEFT_LEG, LV_PART_FORMING) == LV_PART_KNITTING,
+            "after attach, FORMING → KNITTING");
+        Expect(LvNubWriteStage(&c, LIMB_LEFT_LEG, LV_PART_KNITTING) == LV_PART_GROWN,
+            "GROWN only after KNITTING");
+        Expect(LvNubWriteStage(&c, LIMB_LEFT_LEG, -1) == LV_PART_STUMP,
+            "part fell off after attach — write STUMP again, not GROWN first");
     }
 
     {

@@ -35,6 +35,8 @@ int       LvPanelHasGoalKeys(DatapanelGUI* panel); // Goal/State/Encumbrance —
 void*     LvMainBar(); // ForgottenGUI gui+0x10 — no ctor 0x72C1E0
 void*     LvMedicalPanel(); // MainBarGUI::getMedicalPanel / +0x188
 int       LvMainBarProven(void* bar, void* med); // *(bar+0x188) == med
+/* Old product: flesh/+max ticks on a missing stump. Do not call from the
+ * tick. Player-visible growth is createItem + SlotPart, then type swaps. */
 int       LvGrowStumpNub(MedicalSystem* med, int limbId, float progress, float realMaxHint,
                          float* hpBefore, float* hpAfter, float* maxAfter);
 int       LvReadMsvcString(const void* strObj, char* out, int outsz);

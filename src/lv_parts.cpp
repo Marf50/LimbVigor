@@ -130,14 +130,41 @@ int LvPartSlotForLimb(int limbId)
     return kFcsSlot[limbId];
 }
 
+int LvNubWriteStage(const CharSnap* snap, int limbId, int have)
+{
+    if (!snap || limbId < 0 || limbId >= LIMB_COUNT)
+        return LV_PART_STUMP;
+    const int socketStump = (snap->limbs[limbId] == LIMB_KIND_STUMP
+        || snap->limbs[limbId] == LIMB_KIND_CRUSHED) ? 1 : 0;
+    const int persistFullMissing = (snap->progress[limbId] >= 99.5f
+        && snap->limbHp[limbId] < 50.f) ? 1 : 0;
+    /* Persist 100% + still missing is not attached. First write is STUMP. */
+    if ((socketStump || persistFullMissing) && !snap->nubWrote[limbId])
+        return LV_PART_STUMP;
+
+    int want = LvPartStageFromProgress(snap->progress[limbId]);
+    int stage = want;
+    if (have < 0)
+        stage = LV_PART_STUMP;
+    else if (want > have + 1)
+        stage = have + 1;
+    else if (want < have)
+        stage = have;
+    if (stage == LV_PART_GROWN && have < LV_PART_KNITTING)
+        stage = (have < 0) ? LV_PART_STUMP : have + 1;
+    if (stage < LV_PART_STUMP) stage = LV_PART_STUMP;
+    if (stage > LV_PART_GROWN) stage = LV_PART_GROWN;
+    return stage;
+}
+
 #if defined(LIMBVIGOR_IDE)
 
 int  LvIsGrowthPart(Item*) { return 0; }
 int  LvGrowthPartStage(Item*) { return -1; }
-int  LvEquipGrowthPart(MedicalSystem*, int, int) { return 0; }
+int  LvEquipGrowthPart(MedicalSystem*, int, int, int) { return 0; }
 void LvClearGrowthPart(MedicalSystem*, int) {}
-void LvSyncGrowthParts(MedicalSystem*, const CharSnap*) {}
-int  LvSyncOneLimb(MedicalSystem*, const CharSnap*, int) { return 0; }
+void LvSyncGrowthParts(MedicalSystem*, CharSnap*) {}
+int  LvSyncOneLimb(MedicalSystem*, CharSnap*, int) { return 0; }
 
 #else
 
@@ -567,32 +594,73 @@ static int EquipWriteSeh(MedicalSystem* med, int limbId, GameData* gd)
     return ok;
 }
 
-int LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage)
+static void SkipWhy(int limbId, const char* why)
 {
-    if (!med || limbId < 0 || limbId >= LIMB_COUNT) return 0;
-    if (stage < 0 || stage >= LV_PART_COUNT) return 0;
+    if (!why || !why[0] || limbId < 0 || limbId >= LIMB_COUNT) return;
+    static char last[LIMB_COUNT][24];
+    static unsigned lastAt[LIMB_COUNT];
+#if defined(_WIN32)
+    unsigned now = GetTickCount();
+#else
+    unsigned now = 0;
+#endif
+    if (last[limbId][0] && std::strcmp(last[limbId], why) == 0
+        && lastAt[limbId] && now && (now - lastAt[limbId]) < 15000u)
+        return;
+    std::snprintf(last[limbId], sizeof last[limbId], "%s", why);
+    lastAt[limbId] = now;
+    LvLogf("LimbVigor: %s skip why=%s", LvLimbLabel((LimbId)limbId), why);
+}
+
+int LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage, int alreadyWrote)
+{
+    if (!med || limbId < 0 || limbId >= LIMB_COUNT)
+    {
+        if (limbId >= 0 && limbId < LIMB_COUNT) SkipWhy(limbId, "have");
+        return 0;
+    }
+    if (stage < 0 || stage >= LV_PART_COUNT)
+    {
+        SkipWhy(limbId, "have");
+        return 0;
+    }
 
     static int sehSkip[LIMB_COUNT] = {};
     if (sehSkip[limbId])
+    {
+        SkipWhy(limbId, "sehSkip");
         return 0;
+    }
 
     Item* cur = Equipped(med, limbId);
     const int have = cur ? LvGrowthPartStage(cur) : -1;
     /* Never GROWN as the first write. After knitting, GROWN is the next type. */
     if (stage == LV_PART_GROWN && have < LV_PART_KNITTING)
+    {
+        SkipWhy(limbId, "have");
         return 0;
+    }
 
     const LvPartDef* def = LvPartFor(limbId, stage);
-    if (!def) return 0;
+    if (!def)
+    {
+        SkipWhy(limbId, "have");
+        return 0;
+    }
 
-    if (cur && have == stage)
+    /* have==stage is success only after EquipWriteSeh this session.
+     * Persist-100% leftover part + still STUMP must fall through and write. */
+    if (cur && have == stage && alreadyWrote)
         return 1;
 
     static unsigned failUntil[LIMB_COUNT] = {};
 #if defined(_WIN32)
     unsigned now = GetTickCount();
     if (failUntil[limbId] && now < failUntil[limbId])
+    {
+        SkipWhy(limbId, "failUntil");
         return 0;
+    }
 #else
     unsigned now = 0;
 #endif
@@ -601,6 +669,7 @@ int LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage)
     {
         static int once = 0;
         if (!once) { LvErr("LimbVigor: no GameWorld (ou) — cannot create growth parts"); once = 1; }
+        SkipWhy(limbId, "no-gd");
         return 0;
     }
 
@@ -610,6 +679,7 @@ int LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage)
         failUntil[limbId] = now + 15000u;
         LvLogf("LimbVigor: no LimbVigor.mod GameData for %s — skip (not using Economy)",
             def->name);
+        SkipWhy(limbId, "no-gd");
         return 0;
     }
     if (!RecordCanEquip(gd, def))
@@ -617,6 +687,7 @@ int LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage)
         failUntil[limbId] = now + 15000u;
         LvLogf("LimbVigor: mesh-less GameData for %s — skip (not using Economy)",
             def->name);
+        SkipWhy(limbId, "no-gd");
         return 0;
     }
 
@@ -625,6 +696,7 @@ int LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage)
     {
         sehSkip[limbId] = 1;
         LvLogf("LimbVigor: %s nub attach SEH skip", LvLimbLabel((LimbId)limbId));
+        SkipWhy(limbId, "sehSkip");
         return 0;
     }
     if (!wrote)
@@ -632,6 +704,7 @@ int LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage)
         failUntil[limbId] = now + 15000u;
         LvLogf("LimbVigor: createItem/SlotPart failed for %s — stump numbers kept",
             def->name);
+        SkipWhy(limbId, "create-failed");
         return 0;
     }
 
@@ -647,9 +720,9 @@ int LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage)
         LV_TRY { hp = part->flesh; mx = part->_maxHealth; }
         LV_EXCEPT {}
     }
-    if (have < 0 && stage == LV_PART_STUMP)
-        LvLogf("LimbVigor: %s STUMP → budding nub attached",
-            LvLimbLabel((LimbId)limbId));
+    if (stage == LV_PART_STUMP && !alreadyWrote)
+        LvLogf("LimbVigor: %s STUMP → budding nub attached hp=%.1f/%.1f",
+            LvLimbLabel((LimbId)limbId), hp, mx);
     else
         LvLogf("LimbVigor: %s %s → %s nub attached hp=%.1f/%.1f",
             LvLimbLabel((LimbId)limbId), from, LvPartStageName(stage), hp, mx);
@@ -667,7 +740,7 @@ void LvClearGrowthPart(MedicalSystem* med, int limbId)
     SlotPart(med, limbId, nullptr, 1);
 }
 
-int LvSyncOneLimb(MedicalSystem* med, const CharSnap* snap, int limbId)
+int LvSyncOneLimb(MedicalSystem* med, CharSnap* snap, int limbId)
 {
     if (!med || !snap) return 0;
     if (limbId < 0 || limbId >= LIMB_COUNT) return 0;
@@ -675,7 +748,10 @@ int LvSyncOneLimb(MedicalSystem* med, const CharSnap* snap, int limbId)
 
     Item* cur = Equipped(med, limbId);
     if (cur && !LvIsGrowthPart(cur))
+    {
+        SkipWhy(limbId, "prosthetic");
         return 0; // real prosthetic — leave it.
+    }
 
     /* 75-HP arms were a false alarm. Intact flesh with no persist is
      * not a growth socket. A persist-100% stump may read WHOLE hp=11. */
@@ -703,28 +779,22 @@ int LvSyncOneLimb(MedicalSystem* med, const CharSnap* snap, int limbId)
     }
     if (!need) return 0;
 
-    int want = LvPartStageFromProgress(snap->progress[limbId]);
-    int have = cur ? LvGrowthPartStage(cur) : -1;
-    /* First write is always STUMP nub. Then one type at a time. Never GROWN first. */
-    int stage = want;
-    if (have < 0)
-        stage = LV_PART_STUMP;
-    else if (want > have + 1)
-        stage = have + 1;
-    else if (want < have)
-        stage = have;
-    if (stage == LV_PART_GROWN && have < LV_PART_KNITTING)
-        stage = LV_PART_KNITTING;
-    if (LvEquipGrowthPart(med, limbId, stage) && empty15)
+    const int have = cur ? LvGrowthPartStage(cur) : -1;
+    const int stage = LvNubWriteStage(snap, limbId, have);
+    if (LvEquipGrowthPart(med, limbId, stage, snap->nubWrote[limbId]))
     {
-        LvLogf("LimbVigor: slotted %s %s (-15 empty socket)",
-            "LV part",
-            LvLimbLabel((LimbId)limbId));
+        snap->nubWrote[limbId] = 1;
+        if (empty15)
+        {
+            LvLogf("LimbVigor: slotted %s %s (-15 empty socket)",
+                "LV part",
+                LvLimbLabel((LimbId)limbId));
+        }
     }
     return 1;
 }
 
-void LvSyncGrowthParts(MedicalSystem* med, const CharSnap* snap)
+void LvSyncGrowthParts(MedicalSystem* med, CharSnap* snap)
 {
     if (!med || !snap) return;
     if (snap->race == RACE_SKELETON || snap->race == RACE_ANIMAL) return;
