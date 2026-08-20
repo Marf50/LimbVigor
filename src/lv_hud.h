@@ -4,11 +4,17 @@
 
 // HUD module. Resolve, paint, and lifetime live here — not in lv_game.cpp.
 //
-// H1: findWidgetT HemolymphBar* THIS tick only. Never getName/getVisible/set*
-// on yesterday's pointer. Forget the cache without touching it, then find.
+// OptionsTab belt: while findWidgetT("OptionsTab") succeeds, no Hemolymph*
+// find / getName / getVisible / setCaption / setSize / setVisible / setDepth.
+// Drop cached pointers without calling into them. medicalUpdate must not
+// LvHudTickBegin while the belt is on (that reset is why invalidate died).
+// Orig getMedicalGUIData / _NV_getGUIData still run first.
 //
-// H2: do not ship a widget named LifeBar10*. Kenshi assignWidget-s that slot;
-// Dark UI leaves it null and ESC lives. HemolymphBar is our row.
+// H1: findWidgetT HemolymphBar* THIS tick only, and only when the belt is off.
+// Never getName/getVisible/set* on yesterday's pointer.
+//
+// Do not ship a widget named LifeBar10*. Do not add LifeBar11. Do not
+// loadLayout / createWidget. Hemolymph nodes stay in the override file.
 
 #if defined(LIMBVIGOR_IDE)
 struct MedicalSystem;
@@ -26,7 +32,9 @@ void LvHudPaint(const CharSnap* snap);
 void LvHudHide();
 void LvHudNote(const CharSnap* snap);
 
-void LvHudTickBegin(); // new tick — allow writes after a prior skip
+void LvHudTickBegin(); // new tick — no-op while OptionsTab belt is on
+int  LvHudBeltPoll(); // find OptionsTab (proven); 1 = belted, no Hemolymph MyGUI
+int  LvHudBeltOn();   // flag only — no MyGUI
 void LvWalkSelPanel(DatapanelGUI* panel); // hunt MainBar widgets (no tree walk)
 void LvNoteHudProbeSeh(); // find/write SEH — do not probe a stale pointer
 void LvHudCacheDrop(const char* why); // no-op — no epoch-drop

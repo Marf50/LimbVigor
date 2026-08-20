@@ -6,19 +6,25 @@ Proven facts. Update when a playtest proves a new one.
 
 Resolve, paint, and lifetime live in `src/lv_hud.cpp` + `src/lv_hud.h`. The MyGUI export bind/dump lives there too. `src/lv_game.cpp` is world / medical / stump / MainBar helpers only. Do not grow another 4k-line HUD wall inside `lv_game.cpp`.
 
+## OptionsTab belt — why OUR teardown cannot UAF
+
+While `findWidgetT("OptionsTab")` succeeds, LimbVigor does **no** Hemolymph* find, no getName/getVisible, no setCaption/setSize/setVisible/setDepth. That is the window `ForgottenGUI::changeFontSize` / options teardown tears MainPanel. On enter: drop every cached MyGUI pointer **without calling into it**. Log once `HUD belt (OptionsTab)`. `medicalUpdate` must **not** call `LvHudTickBegin` while OptionsTab exists — that reset is why invalidate never lasted. Thaw when OptionsTab find fails. Log once `HUD thaw`. CloseButton / DefaultButton may hold the belt if OptionsTab is flaky. Do **not** guess OptionsPanel / odSettingsOpen.
+
+**Honest limits:** orig `getMedicalGUIData` / `_NV_getGUIData` still run first. If this still dies, next is wrap orig during OptionsTab only. MyGUI destructor of the extra Hemolymph nodes in the override is **not** claimed solved by this belt. We do not `loadLayout` / `createWidget` / `createWidgetT` / `createWidgetReal`. We do not call `changeFontSize`. Hemolymph nodes stay in `Kenshi_MainPanel.layout`. After In-game only for HUD writes.
+
 ## H2-name FALSIFIED (v1.39)
 
-Empty LifeBar10 slot still crashed ESC. Dylan **saw Hemolymph** on v1.39. `painted=0` was a bad read — keep painting the same way. The job is **parent**, not paint. Do not treat "we renamed off LifeBar10" as why ESC can live.
+Empty LifeBar10 slot still crashed ESC. Dylan **saw Hemolymph** on v1.39. `painted=0` was a bad read — keep painting the same way. Do not treat "we renamed off LifeBar10" as why ESC can live. Parent is not the product. WALL ACCEPTED — do not treat the Back-child parent as another ESC try.
 
 **Unbound-slot baseline (Dylan live pack, confirmed on disk):** his live `Kenshi_MainPanel.layout` is **byte-identical to vanilla**. LifeBar1–9 only. No LifeBar10, no LifeBar11, no Hemolymph. MedicalPanel `position_real=0.126042 0.712963 0.182292 0.3` (y=`0.712963`). That tree leaves Kenshi's LifeBar10 assignWidget slot **null**. Hidden LifeBar11 is not required. Do **not** rebase our Dark UI override onto that vanilla 1–9 / MedicalPanel y.
 
-**Next hypothesis (development only, not a playtest cut):** extra Root subtree. `HemolymphBar` is now **last child of already-grown `MedicalPanel_Back` AFTER LifeBar9** (leftover pad of the 9-slot skin). Not Root. Do not grow/stretch Back/Front. `HemolymphValue` and `HemolymphTooltip` on Front after LifeBar9Value / LifeBar9Tooltip, same pattern as 1–9. Locked coords — do not restart the numbers:
+**Override tree (kept, not the product):** `HemolymphBar` is last child of already-grown `MedicalPanel_Back` AFTER LifeBar9 (leftover pad). Not Root. Do not grow/stretch Back/Front. `HemolymphValue` and `HemolymphTooltip` on Front after LifeBar9Value / LifeBar9Tooltip. Locked coords — do not restart the numbers:
 
 - HemolymphBar `0.0071942447684705257 0.9008264392614365 0.85611510276794434 0.095041319727897644` (same x/w/h as LifeBar9)
 - HemolymphValue `0.84563755989074707 0.92307692766189575 0.12751677632331848 0.052307691425085068`
 - HemolymphTooltip `0.026845637708902359 0.91692310571670532 0.94295299053192139 0.064615383744239807`
 
-CoS will **not** pack a zip for this parent as another ESC try. Do not write a ready line. Do not ask for a playtest on "we moved it off Root."
+Do not write a ready line. Do not pack a zip. Do not ask for a playtest. Do not rename again. Do not add LifeBar11.
 
 ## Designer parent visual lock
 
@@ -38,9 +44,9 @@ CI: fail if `name="HemolymphBar"` is missing. Fail if `name="LifeBar10"` exists.
 
 **v1.38 FAIL:** `findWidgetT(OptionsPanel / odSettingsOpen)` never entered freeze. Live Options layout has **no** widget named `OptionsPanel` (widgets are Root, OptionsTab, CloseButton, DefaultButton, TooltipPanel). `odSettingsOpen` is a dump string. Probing a cached LifeBar10* with getName/getVisible is still a UAF — the crash is on the settings-button / MainPanel-reload / TTF / destructor stack with zero LimbVigor lines.
 
-**Required:** do **not** keep MyGUI pointers across ticks. Each `getMedicalGUIData` after-orig: `findWidgetT` `HemolymphBar` / `HemolymphBarDatapanel` / `HemolymphValue` / `HemolymphBarGreen` **this tick** (throw=false, prefixed). Write only those returns. If find fails (reload in flight), skip writes. Null the old cache **without calling into it** when this tick's find is null or a different address. Never getName / getVisible / setCaption / setSize / setVisible / setDepth on yesterday's pointer. Log once when a prior host is gone: `HUD invalidate (widget died)`. Options name-guess is **deleted**.
+**Required:** while OptionsTab exists, no Hemolymph* find/set/getName at all. Else: do **not** keep MyGUI pointers across ticks. Each `getMedicalGUIData` after-orig: `findWidgetT` `HemolymphBar` / `HemolymphBarDatapanel` / `HemolymphValue` / `HemolymphBarGreen` **this tick** (throw=false, prefixed). Write only those returns. If find fails (reload in flight), skip writes. Null the old cache **without calling into it**. Never getName / getVisible / setCaption / setSize / setVisible / setDepth on yesterday's pointer. Log once when a prior host is gone: `HUD invalidate (widget died)`. Options name-guess is **deleted**.
 
-H1 is the seatbelt. H2-name (empty LifeBar10 slot) is **falsified**. Parent is now Back-after-LifeBar9.
+H1 is the seatbelt. OptionsTab belt is the teardown wall. H2-name is **falsified**. Parent is not the product.
 
 ## Layout names (Dark UI workshop 1200632417 + LimbVigor override)
 
@@ -119,11 +125,12 @@ H1 is the seatbelt. H2-name (empty LifeBar10 slot) is **falsified**. Parent is n
 - v1.38 playtest FAIL (Dylan): OptionsPanel / odSettingsOpen find never entered freeze. Live Options widgets are Root / OptionsTab / CloseButton / DefaultButton / TooltipPanel — **no** `OptionsPanel`. Options layout loaded, MainPanel reloaded, `LifeBar11 not found`, TTF rebuilt, crash. `odSettingsOpen` is a dump string, not a widget. Cached LifeBar10* UAF across reload.
 - v1.39 work: HUD module split. Options name-guess deleted. **Do not probe a cached MyGUI pointer**. Re-find HemolymphBar* every after-orig tick. LifeBar11 is **rejected**.
 - v1.39 playtest FAIL: H2-name **falsified**. Empty LifeBar10 slot still crashed ESC. Dylan saw Hemolymph. `painted=0` was a bad read. Keep painting the same way.
-- v1.39 parent (dev only, not a playtest cut): HemolymphBar last child of already-grown MedicalPanel_Back after LifeBar9 at locked leftover-pad coords. Value/Tooltip on Front after LifeBar9*. Root Hemolymph* deleted. No ready line. CoS will not pack a zip for this parent as another ESC try.
+- v1.39 parent (dev): HemolymphBar last child of MedicalPanel_Back after LifeBar9. WALL ACCEPTED — parent is not the product.
+- v1.39 belt: while findWidgetT(OptionsTab) succeeds, no-op all our Hemolymph MyGUI; drop cache without calling in; medicalUpdate must not LvHudTickBegin. Thaw when OptionsTab is gone. Orig still runs. Extra-node dtor not claimed solved. No ready line.
 
 ## Landmines
 
-No runtime `createWidget`. No HemolymphStrip. No `LifeBar10Slot`. No widget named `LifeBar10` / `LifeBar10*` / `LifeBar11` / `LifeBar11*`. No Hemolymph* as Root siblings. No grow/stretch of Back/Front / LifeBar1–9. No MainBar ctor `0x72C1E0`. No `eventFrameStart`. No TitleScreen MyGUI. No `ForgottenGUI::changeFontSize`. No DatapanelGUI `_NV_update` / `_NV_setObject`. No `GetRealAddress` on virtuals. No Gui tree walk. No Goal/State paint. No WindowCX. No `setSize` except HemolymphBarGreen / a 0-size HemolymphBarDatapanel. No `_getWidget`. No `setVisible` on Root / MedicalPanel / Back / Front / LifeBar1–9. No Datapanel / `setLineProgress` HUD path. No unlogged Equip throw. No ESC/pause/options hooks. No epoch-drop. No `restore-on-stump skipped … no write`. No PausedPanel/Options vis=1 skip-paint. No OptionsPanel / OptionsWindow / odSettingsOpen / Kenshi_Options name-guess. No getName/getVisible on yesterday's pointer. No rebase of this override onto vanilla MedicalPanel y `0.712963` / vanilla 1–9. No per-tick HUD log spam (once-per-resolve / 15s / on-change / invalidate once per death). Do not grow HUD state back into `lv_game.cpp`. Do not write a ready line for this parent.
+No runtime `createWidget` / `createWidgetT` / `createWidgetReal`. No `loadLayout`. No HemolymphStrip. No `LifeBar10Slot`. No widget named `LifeBar10` / `LifeBar10*` / `LifeBar11` / `LifeBar11*`. No Hemolymph* as Root siblings. No grow/stretch of Back/Front / LifeBar1–9. No MainBar ctor `0x72C1E0`. No `eventFrameStart`. No TitleScreen MyGUI. No `ForgottenGUI::changeFontSize` from us. No DatapanelGUI `_NV_update` / `_NV_setObject`. No `GetRealAddress` on virtuals. No Gui tree walk. No Goal/State paint. No WindowCX. No `setSize` except HemolymphBarGreen / a 0-size HemolymphBarDatapanel. No `_getWidget`. No `setVisible` on Root / MedicalPanel / Back / Front / LifeBar1–9. No Datapanel / `setLineProgress` HUD path. No unlogged Equip throw. No ESC/pause/injected-button hooks. No epoch-drop. No `restore-on-stump skipped … no write`. No PausedPanel/Options vis=1 skip-paint. No OptionsPanel / OptionsWindow / odSettingsOpen / Kenshi_Options name-guess. OptionsTab find is the belt only. No getName/getVisible on yesterday's pointer. No rebase of this override onto vanilla MedicalPanel y `0.712963` / vanilla 1–9. No per-tick HUD log spam (once-per-resolve / 15s / on-change / belt/thaw/invalidate once). Do not grow HUD state back into `lv_game.cpp`. Do not write a ready line.
 
 ## Version trail
 
@@ -159,4 +166,5 @@ No runtime `createWidget`. No HemolymphStrip. No `LifeBar10Slot`. No widget name
 - v1.38: options close reloads Kenshi_MainPanel.layout; cached LifeBar10* UAF. Freeze + null all pointers until re-resolve. LifeBar11 not found on reload. Ready: `ready v1.38 — HUD freeze across Options reload, ESC close must live`.
 - v1.38 playtest FAIL: OptionsPanel detect never fired (live Options widgets are Root / OptionsTab / CloseButton / DefaultButton / TooltipPanel; `odSettingsOpen` is not a widget). Crash on MainPanel reload.
 - v1.39 work: HUD split + re-find HemolymphBar each paint + LifeBar10 slot left empty (H2-name). LifeBar11 rejected.
-- v1.39 FAIL: H2-name falsified (empty LifeBar10 slot still crashed). Parent move (dev): HemolymphBar last child of MedicalPanel_Back after LifeBar9. No ready line.
+- v1.39 FAIL: H2-name falsified (empty LifeBar10 slot still crashed). Parent move (dev): HemolymphBar last child of MedicalPanel_Back after LifeBar9. WALL ACCEPTED.
+- v1.39 belt: OptionsTab no-op of our Hemolymph MyGUI; medicalUpdate must not TickBegin; thaw when OptionsTab gone. Orig still runs. No ready line.

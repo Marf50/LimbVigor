@@ -41,12 +41,14 @@
  * those returns. Forget yesterday without calling getName/getVisible/set*.
  * If this tick's find is null, skip writes. Options name-guess is dead.
  *
- * H2-name is falsified: empty LifeBar10 slot still crashed ESC.
- * HemolymphBar is last child of already-grown MedicalPanel_Back after
- * LifeBar9 (leftover pad). Value/Tooltip on Front after LifeBar9*.
- * Do not put Hemolymph* on Root. Do not add LifeBar11. Paint unchanged.
- * Options widgets are Root / OptionsTab / CloseButton / DefaultButton /
- * TooltipPanel. There is no OptionsPanel. Never guess that name again.
+ * OptionsTab belt: while that proven Options widget exists, no-op all our
+ * MyGUI (no Hemolymph* find/set/getName). Drop cache without calling in.
+ * medicalUpdate must not LvHudTickBegin while belted. Thaw when OptionsTab
+ * is gone. CloseButton/DefaultButton may hold the belt if OptionsTab is
+ * flaky. Never guess OptionsPanel / odSettingsOpen.
+ * Orig still runs. Extra Hemolymph-node dtor is not claimed solved.
+ *
+ * Do not add LifeBar11. Do not loadLayout / createWidget. Override stays.
  */
 
 static void* g_hookReject = nullptr; /* Goal/State DatapanelGUI* — never paint */
@@ -71,6 +73,9 @@ static void* g_wHemoTip = nullptr;
 static char  g_prefix[96] = {};
 static int   g_prefixLogged = 0;
 static int   g_hudSkipTick = 0;   /* skip MyGUI writes this tick after invalidate */
+static int   g_hudBelt = 0;       /* OptionsTab present — no Hemolymph MyGUI */
+static int   g_beltLogged = 0;
+static int   g_thawLogged = 0;
 static int   g_hudInvLogged = 0;  /* once per death; reset on successful resolve */
 static int   g_paintLogged = 0;
 static int   g_paintedOnce = 0;
@@ -117,7 +122,7 @@ static void lvHudInvalidate(void)
 
 static int lvHudMyGuiOk(void)
 {
-    return g_hudSkipTick ? 0 : 1;
+    return (g_hudSkipTick || g_hudBelt) ? 0 : 1;
 }
 
 static void lvHudSehHit(void* w)
@@ -139,7 +144,12 @@ void LvNoteHudProbeSeh()
 
 int LvHudWritesOk(void)
 {
-    return g_hudSkipTick ? 0 : 1;
+    return (g_hudSkipTick || g_hudBelt) ? 0 : 1;
+}
+
+int LvHudBeltOn(void)
+{
+    return g_hudBelt;
 }
 
 void LvHudResumeWrites(void)
@@ -153,11 +163,14 @@ void LvHudWatchGui(void)
 
 int LvHudCacheAlive(void)
 {
-    return (g_hudSkipTick || !g_wHemo) ? 0 : 1;
+    return (g_hudSkipTick || g_hudBelt || !g_wHemo) ? 0 : 1;
 }
 
 void LvHudTickBegin(void)
 {
+    /* medicalUpdate used to clear skip every tick — belt never lasted. */
+    if (g_hudBelt)
+        return;
     g_hudSkipTick = 0;
 }
 
@@ -1348,7 +1361,7 @@ static void lvResolveLifeBar(void);
 static int lvHudBeginWrites(void)
 {
     const int had = g_wHemo ? 1 : 0;
-    if (g_hudSkipTick)
+    if (g_hudBelt || g_hudSkipTick)
         return 0;
     lvHudNullAll();
     lvResolveLifeBar();
@@ -1468,6 +1481,106 @@ static void* lvRootFind(void* root, const char* name)
     GameStr gn;
     GameStrSet(&gn, name);
     return lvCppWFind(root, &gn);
+}
+
+/* OptionsTab / CloseButton / DefaultButton only. throw=false. Never
+ * getName/getVisible. Never Hemolymph*. Bypasses the write skip gate so
+ * we can still see OptionsTab (and thaw) while belted. */
+static void* lvSehFind2Bare(FnFindW fn, void* self, const GameStr* name)
+{
+    void* w = nullptr;
+    if (!fn || !self || !name)
+        return nullptr;
+    const unsigned char noThrow = 0;
+    LV_TRY { w = fn(self, name, noThrow); }
+    LV_EXCEPT { w = nullptr; g_lastFindSeh = 1; }
+    return w;
+}
+
+static int lvHudFindOptionsName(const char* name)
+{
+    /* 1 = found, 0 = missing, -1 = SEH. Pointer is discarded — no getName. */
+    if (!name || !name[0])
+        return 0;
+    if (!g_findW || !g_guiInst)
+        lvDumpMyGuiExports();
+    if (!g_findW || !g_guiInst)
+        return 0;
+    GameStr gn;
+    GameStrSet(&gn, name);
+    void* gui = nullptr;
+    g_lastFindSeh = 0;
+    try { gui = lvSehGuiInst(g_guiInst); }
+    catch (...) { gui = nullptr; g_lastFindSeh = 1; }
+    if (g_lastFindSeh)
+        return -1;
+    if (!gui)
+        return 0;
+    g_lastFindSeh = 0;
+    void* w = nullptr;
+    try { w = lvSehFind2Bare(g_findW, gui, &gn); }
+    catch (...) { w = nullptr; g_lastFindSeh = 1; }
+    if (g_lastFindSeh)
+        return -1;
+    return w ? 1 : 0;
+}
+
+static void lvHudEnterBelt(void)
+{
+    lvHudNullAll();
+    g_hudBelt = 1;
+    g_hudSkipTick = 1;
+    g_thawLogged = 0;
+    if (!g_beltLogged)
+    {
+        g_beltLogged = 1;
+        LvLog("LimbVigor: HUD belt (OptionsTab)");
+    }
+}
+
+static void lvHudLeaveBelt(void)
+{
+    g_hudBelt = 0;
+    g_hudSkipTick = 0;
+    g_beltLogged = 0;
+    if (!g_thawLogged)
+    {
+        g_thawLogged = 1;
+        LvLog("LimbVigor: HUD thaw");
+    }
+}
+
+int LvHudBeltPoll(void)
+{
+    if (!LvWorldInGame())
+        return g_hudBelt;
+    /* Proven Kenshi_OptionsPanel.layout names only. No OptionsPanel. */
+    const int tab = lvHudFindOptionsName("OptionsTab");
+    if (tab == 1)
+    {
+        if (!g_hudBelt)
+            lvHudEnterBelt();
+        return 1;
+    }
+    int hold = 0;
+    int seh = (tab < 0) ? 1 : 0;
+    if (g_hudBelt || tab < 0)
+    {
+        const int cls = lvHudFindOptionsName("CloseButton");
+        const int def = lvHudFindOptionsName("DefaultButton");
+        if (cls == 1 || def == 1)
+            hold = 1;
+        if (cls < 0 || def < 0)
+            seh = 1;
+    }
+    if (g_hudBelt)
+    {
+        if (hold || seh)
+            return 1;
+        lvHudLeaveBelt();
+        return 0;
+    }
+    return 0;
 }
 
 static int lvHasSub(const char* h, const char* n)
@@ -2851,7 +2964,7 @@ static void lvTryPrefixedFind(const char* shortName, void* root)
 static void lvResolveLifeBar()
 {
     /* Prefixed find THIS tick only. Never _getWidget. Never reuse yesterday. */
-    if (g_hudSkipTick)
+    if (g_hudSkipTick || g_hudBelt)
         return;
 
     lvDumpMyGuiExports();
@@ -2902,7 +3015,7 @@ static void lvResolveLifeBar()
 
 static void lvDumpMyGuiOnce()
 {
-    if (!LvWorldInGame() || g_hudSkipTick)
+    if (!LvWorldInGame() || g_hudSkipTick || g_hudBelt)
         return;
     lvResolveLifeBar();
 }
@@ -2910,8 +3023,9 @@ static void lvDumpMyGuiOnce()
 static int  lvHudBeginWrites(void)
 {
     lvHudNullAll();
-    return g_hudSkipTick ? 0 : 0;
+    return 0;
 }
+int LvHudBeltPoll(void) { return 0; }
 static void lvDumpMyGuiOnce() {}
 static void lvResolveLifeBar() {}
 static void lvWhyOnce(const char* why) { (void)why; }
@@ -3028,7 +3142,7 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     (void)panel;
     if (!snap || !LvCfg().enableHud || !LvWorldInGame())
         return;
-    /* Find HemolymphBar* this tick. Do NOT skip because Paused/Options vis=1. */
+    /* Find HemolymphBar* this tick. OptionsTab belt already returned above. */
     if (!lvHudBeginWrites())
         return;
     if (snap->race == RACE_ANIMAL)
@@ -3160,7 +3274,7 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: HUD module lv_hud — HemolymphBar last child of MedicalPanel_Back, re-find each paint");
+    LvLog("LimbVigor: HUD module lv_hud — OptionsTab belt, re-find Hemolymph* after thaw");
 }
 
 void LvHudEnsureAfterInGame() {}

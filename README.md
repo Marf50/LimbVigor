@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-HUD lives in `lv_hud.cpp`. The extra row is **HemolymphBar**, last child of already-grown `MedicalPanel_Back` after LifeBar9 (leftover pad). Value and Tooltip sit on Front after LifeBar9*. Not Root. We do **not** name it `LifeBar10`. H2-name (empty LifeBar10 slot) is falsified — v1.39 still crashed ESC with Hemolymph on screen. Plugin `findWidgetT`s HemolymphBar* **this tick** only and never getName-s yesterday's pointer. LifeBar11 is not a fix. **No `_getWidget`.** See [testdoc/HUD.md](testdoc/HUD.md).
+HUD lives in `lv_hud.cpp`. While `findWidgetT("OptionsTab")` succeeds, we no-op all Hemolymph MyGUI and drop cached pointers without touching them. `medicalUpdate` does not `LvHudTickBegin` during that belt. Thaw when OptionsTab is gone. Orig still runs. Extra Hemolymph nodes stay in the override — this belt does not claim their destructor is solved. H2-name is falsified. LifeBar11 is not a fix. **No `_getWidget`.** **No `createWidget` / `loadLayout`.** See [testdoc/HUD.md](testdoc/HUD.md).
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 

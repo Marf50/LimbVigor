@@ -23,16 +23,14 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-HemolymphBar under Hunger
-(last child of
-MedicalPanel_Back after
-LifeBar9). Value/Tooltip
-on Front like 1-9.
-Not Root. Re-find each
-paint. No LifeBar10.
+HemolymphBar stays in the
+override. OptionsTab belt:
+no Hemolymph MyGUI while
+options. Re-find after
+thaw. No LifeBar10.
 No LifeBar11. No ESC
-hook. No LifeBar10Slot.
-No epoch-drop.
+hook. No createWidget.
+No loadLayout.
 No _getWidget.
 
 Spoken lines appear over the character.

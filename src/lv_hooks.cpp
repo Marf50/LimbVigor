@@ -206,7 +206,9 @@ static void DriveTick(MedicalSystem* med, float frameTime)
 {
     if (!med || !LvCfg().enableHooks) return;
     if (!LvWorldInGame()) return;
-    LvHudTickBegin();
+    /* Do not reset HUD skip while OptionsTab exists — that ate invalidate. */
+    if (!LvHudBeltPoll())
+        LvHudTickBegin();
     if (!g_loggedInGame)
     {
         g_loggedInGame = 1;
@@ -480,6 +482,9 @@ static void PaintSafe(MedicalSystem* med, Character* who, CharSnap* live)
 static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* who)
 {
     if (!panel || !LvWorldInGame())
+        return;
+    /* orig already ran. Belt: no Hemolymph find/set while OptionsTab exists. */
+    if (LvHudBeltPoll())
         return;
     LvHudTickBegin();
 
