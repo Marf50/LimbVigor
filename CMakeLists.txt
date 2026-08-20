@@ -123,6 +123,7 @@ if(LIMBVIGOR_BUILD_TESTS)
   target_compile_definitions(lv_sim_test PRIVATE LIMBVIGOR_IDE=1)
   add_custom_command(TARGET lv_sim_test POST_BUILD
     COMMAND python3 "${CMAKE_SOURCE_DIR}/tools/check_layout.py"
+    COMMAND python3 "${CMAKE_SOURCE_DIR}/tools/check_parts_mod.py"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    COMMENT "Check HemolymphBar layout / empty LifeBar10 slot")
+    COMMENT "Check HemolymphBar layout / LimbVigor.mod FileValues")
 endif()

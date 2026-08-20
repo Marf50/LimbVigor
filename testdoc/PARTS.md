@@ -21,3 +21,12 @@ No write: `skip why=` one of `have` / `prosthetic` / `sehSkip` / `no-gd` /
 
 `nubWrote` is session-only. The persist file may already say 100% / Grown;
 that does not skip the first STUMP write.
+
+## LimbVigor.mod FileValues
+
+Every LV record (`lv-stump-l-leg` and the other 19) must have FileValue
+mesh + icon. Paths are the vanilla Economy visuals already in
+`src/lv_parts.cpp` (`LV_MESH_*` / `LV_ICON_*`). Still our item — never
+`createItem(Economy)`. A leftover `nfile=0` record fail-closes
+`RecordCanEquip` (`skip why=no-gd`). `tools/check_parts_mod.py` walks
+the committed file the same way C++ does.
