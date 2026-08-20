@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.39 — HUD lifetime + LifeBar11 bind, bar stays, ESC close must live");
+        LvLog("LimbVigor: HUD HemolymphBar — LifeBar10 slot empty, re-find each paint");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

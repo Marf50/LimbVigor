@@ -121,4 +121,8 @@ if(LIMBVIGOR_BUILD_TESTS)
   add_executable(lv_sim_test src/lv_sim_test.cpp src/lv_config.cpp src/lv_sim.cpp src/lv_parts.cpp)
   target_include_directories(lv_sim_test PRIVATE "${CMAKE_SOURCE_DIR}/src" "${CMAKE_SOURCE_DIR}/src/stubs")
   target_compile_definitions(lv_sim_test PRIVATE LIMBVIGOR_IDE=1)
+  add_custom_command(TARGET lv_sim_test POST_BUILD
+    COMMAND python3 "${CMAKE_SOURCE_DIR}/tools/check_layout.py"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "Check HemolymphBar layout / empty LifeBar10 slot")
 endif()

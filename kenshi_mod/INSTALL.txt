@@ -23,18 +23,15 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-v1.39 HUD lifetime +
-LifeBar11 bind, bar stays,
-ESC close must live.
-Dead LifeBar10* invalidates
-the whole MyGUI cache.
-No OptionsPanel guess.
-No ESC hook. No
-LifeBar10Slot. Layout
-is the 1.37 Root-after-
-MedicalPanel bar plus a
-hidden 0-size LifeBar11
-bind stub. No epoch-drop.
+HemolymphBar under Hunger
+(same look as the old
+LifeBar10). Kenshi's
+LifeBar10 slot stays
+empty like Dark UI.
+Re-find each paint.
+No LifeBar11. No ESC
+hook. No LifeBar10Slot.
+No epoch-drop.
 No _getWidget.
 
 Spoken lines appear over the character.
@@ -43,12 +40,11 @@ the backup.
 
 RE_Kenshi loads
 gui/layout/Kenshi_MainPanel.layout
-(Dark UI override + LifeBar10).
+(Dark UI override + HemolymphBar).
 This build does not create widgets.
 
-v1.39: HUD lifetime +
-LifeBar11 bind, bar stays,
-ESC close must live.
+HemolymphBar paints.
+LifeBar10 slot empty.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 

@@ -495,7 +495,7 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
         LvHudNote(live);
     }
 
-    /* After orig: show LifeBar10* + ISub on Datapanel + numeric Value + Green fill. */
+    /* After orig: find HemolymphBar* this tick + ISub + numeric Value + Green. */
     PaintSafe(med, who, live);
 }
 

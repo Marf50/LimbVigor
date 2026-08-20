@@ -33,35 +33,37 @@
 #define LV_EXCEPT if (false)
 #endif
 
-/* HUD module (v1.39). Owns resolve, paint, lifetime/invalidate, and the
- * MyGUI export bind/dump. lv_game.cpp is world / medical / stump only.
+/* HUD module. Owns resolve, paint, lifetime, and the MyGUI export bind/dump.
+ * lv_game.cpp is world / medical / stump only.
  *
- * Lifetime: we cache LifeBar10* across ticks. A cached pointer is live only
- * if getName and getVisible succeed and the name still ends with LifeBar10.
- * On death we null every MyGUI pointer, drop the prefix, skip writes this
- * tick, and re-resolve next tick after MainPanel exists again.
- * We do not guess OptionsPanel / odSettingsOpen / Kenshi_Options names.
+ * H1: never keep MyGUI pointers across ticks. Each after-orig paint
+ * findWidgetT HemolymphBar* THIS tick (throw=false, prefixed). Write only
+ * those returns. Forget yesterday without calling getName/getVisible/set*.
+ * If this tick's find is null, skip writes. Options name-guess is dead.
+ *
+ * H2: layout must not name anything LifeBar10*. Kenshi assignWidget-s that
+ * slot; Dark UI leaves it null and ESC lives. HemolymphBar is ours.
  */
 
 static void* g_hookReject = nullptr; /* Goal/State DatapanelGUI* — never paint */
-static void* g_capWidget = nullptr;  /* LifeBar10 cache alias */
-static void* g_wLifeBar10 = nullptr;
-static void* g_wLifeBar10Data = nullptr;
-static void* g_wLifeBar10Value = nullptr;
-static void* g_wLifeBar10Green = nullptr;
-static void* g_wLifeBar10Grey = nullptr;
-static void* g_wLifeBar10Red = nullptr;
-static void* g_wLifeBar10Yellow = nullptr;
-static void* g_wLifeBar10White = nullptr;
-static void* g_wLifeBar10Robot = nullptr;
-static void* g_wLifeBar10Crushed = nullptr;
+static void* g_capWidget = nullptr;  /* HemolymphBarDatapanel this tick */
+static void* g_wHemo = nullptr;
+static void* g_wHemoData = nullptr;
+static void* g_wHemoValue = nullptr;
+static void* g_wHemoGreen = nullptr;
+static void* g_wHemoGrey = nullptr;
+static void* g_wHemoRed = nullptr;
+static void* g_wHemoYellow = nullptr;
+static void* g_wHemoWhite = nullptr;
+static void* g_wHemoRobot = nullptr;
+static void* g_wHemoCrushed = nullptr;
 static void* g_wRoot = nullptr;
 static void* g_wMedicalPanel = nullptr;
 static void* g_wBack = nullptr;
 static void* g_wFront = nullptr;
 static void* g_wLifeBar9 = nullptr; /* width fallback only — never setCaption / setVisible */
-static void* g_wLifeBar9Data = nullptr; /* pixel size source for LifeBar10Datapanel */
-static void* g_wLifeBar10Tooltip = nullptr;
+static void* g_wLifeBar9Data = nullptr; /* pixel size source for HemolymphBarDatapanel */
+static void* g_wHemoTip = nullptr;
 static char  g_prefix[96] = {};
 static int   g_prefixLogged = 0;
 static int   g_hudSkipTick = 0;   /* skip MyGUI writes this tick after invalidate */
@@ -73,17 +75,17 @@ static int   g_barProven = 0;
 
 static void lvHudNullAll(void)
 {
-    g_wLifeBar10 = nullptr;
-    g_wLifeBar10Data = nullptr;
-    g_wLifeBar10Value = nullptr;
-    g_wLifeBar10Green = nullptr;
-    g_wLifeBar10Grey = nullptr;
-    g_wLifeBar10Red = nullptr;
-    g_wLifeBar10Yellow = nullptr;
-    g_wLifeBar10White = nullptr;
-    g_wLifeBar10Robot = nullptr;
-    g_wLifeBar10Crushed = nullptr;
-    g_wLifeBar10Tooltip = nullptr;
+    g_wHemo = nullptr;
+    g_wHemoData = nullptr;
+    g_wHemoValue = nullptr;
+    g_wHemoGreen = nullptr;
+    g_wHemoGrey = nullptr;
+    g_wHemoRed = nullptr;
+    g_wHemoYellow = nullptr;
+    g_wHemoWhite = nullptr;
+    g_wHemoRobot = nullptr;
+    g_wHemoCrushed = nullptr;
+    g_wHemoTip = nullptr;
     g_wLifeBar9 = nullptr;
     g_wLifeBar9Data = nullptr;
     g_wRoot = nullptr;
@@ -96,8 +98,8 @@ static void lvHudNullAll(void)
     g_prefixLogged = 0;
 }
 
-/* Real lifetime signal: cached LifeBar10* failed getName / getVisible, or
- * the name no longer ends with LifeBar10. OptionsPanel name-guess is dead. */
+/* Forget without touching. Log once when a prior tick had a host and this
+ * tick's find did not. Never getName a stale pointer. */
 static void lvHudInvalidate(void)
 {
     lvHudNullAll();
@@ -122,13 +124,13 @@ static void lvHudSehHit(void* w)
 
 void LvHudCacheDrop(const char* why)
 {
-    /* v1.33: never wipe the LifeBar10 cache on ESC/pause pointer churn. */
+    /* No epoch-drop. Pointers are forgotten at the start of each paint. */
     (void)why;
 }
 
 void LvNoteHudProbeSeh()
 {
-    /* Probe SEH already skipped. Invalidate happens on a dead LifeBar10*. */
+    /* Find/write SEH already skipped. Do not probe yesterday's pointer. */
 }
 
 int LvHudWritesOk(void)
@@ -147,7 +149,7 @@ void LvHudWatchGui(void)
 
 int LvHudCacheAlive(void)
 {
-    return (g_hudSkipTick || !g_wLifeBar10) ? 0 : 1;
+    return (g_hudSkipTick || !g_wHemo) ? 0 : 1;
 }
 
 void LvHudTickBegin(void)
@@ -164,9 +166,9 @@ static int   g_wroteCaption = 0;
 static int   g_wroteValue = 0;
 
 #if !defined(LIMBVIGOR_IDE)
-/* v1.29: cache prefixed findWidgetT LifeBar10* (child of MedicalPanel).
- * After orig: setVisible LifeBar10 / Datapanel / Value / Green (name-gated).
- * ISub on LifeBar10Datapanel ONLY. Value is the NUMBER only.
+/* Prefixed findWidgetT HemolymphBar* THIS tick. Root child after MedicalPanel.
+ * After orig: setVisible HemolymphBar / Datapanel / Value / Green (name-gated).
+ * ISub on HemolymphBarDatapanel ONLY. Value is the NUMBER only.
  * Green uses a real int getWidth / getCoord (50–400px). Pointers are not widths.
  * Never 1–9 Green. No HemolymphStrip. No Widget::setCaption hunt. */
 
@@ -207,13 +209,13 @@ static FnWFind2   g_wFind2   = nullptr;
 static FnGetName  g_wName    = nullptr;
 static FnVisible  g_wVis     = nullptr;
 static FnCaption  g_wCaption = nullptr;
-static FnSetCaption g_setCapTextBox = nullptr;    /* TextBox::setCaption — LifeBar10Value NUMBER only */
+static FnSetCaption g_setCapTextBox = nullptr;    /* TextBox::setCaption — HemolymphValue NUMBER only */
 static FnSetCaption g_setCapISub = nullptr;       /* ISubWidgetText::setCaption — Datapanel label */
 static FnSetCaption g_setCapEdit = nullptr;       /* EditText::setCaption — text child */
 static FnGetSubText g_getSubText = nullptr;       /* Widget::getSubWidgetText — Datapanel text child */
-static FnSetVisible g_setVis = nullptr;           /* Widget::setVisible — four LifeBar10* only */
-static FnSetSizeHH     g_setSizeHH = nullptr;     /* Widget::setSize — LifeBar10Green only */
-static FnSetCoordHHHH  g_setCoordHHHH = nullptr;  /* Widget::setCoord — LifeBar10Green only */
+static FnSetVisible g_setVis = nullptr;           /* Widget::setVisible — four HemolymphBar* only */
+static FnSetSizeHH     g_setSizeHH = nullptr;     /* Widget::setSize — HemolymphBarGreen only */
+static FnSetCoordHHHH  g_setCoordHHHH = nullptr;  /* Widget::setCoord — HemolymphBarGreen only */
 static FnGetInt        g_getWidth = nullptr;
 static FnGetInt        g_getHeight = nullptr;
 static FnGetInt        g_getLeft = nullptr;
@@ -586,7 +588,7 @@ static void lvTryBindExport(const char* n, void* addr)
         else if (isText && !g_setCapTextBox)
         {
             g_setCapTextBox = (FnSetCaption)addr;
-            LvLogf("LimbVigor: mygui bind TextBox::setCaption (LifeBar10Value only) '%s'", n);
+            LvLogf("LimbVigor: mygui bind TextBox::setCaption (HemolymphValue only) '%s'", n);
         }
     }
     if (!g_ustrCtorC && std::strncmp(n, "??0UString@MyGUI", 16) == 0
@@ -1335,55 +1337,24 @@ static int lvProbeOneHud(void* w)
     return (vis >= 0 && n) ? 1 : 0;
 }
 
-static int lvNameEndsLifeBar10(const char* name)
-{
-    int n;
-    if (!name || !name[0])
-        return 0;
-    n = 0;
-    while (name[n])
-        n++;
-    if (n < 9)
-        return 0;
-    return std::strcmp(name + (n - 9), "LifeBar10") == 0 ? 1 : 0;
-}
+static void lvResolveLifeBar(void);
 
-/* Probe the cached host only. Do not use lvHudMyGuiOk — that blocks after
- * invalidate and would hide a dead pointer. getName / getVisible SEH or a
- * name that is not *LifeBar10 means the tree was freed (MainPanel reload). */
-static int lvProbeLifeBar10Alive(void)
-{
-    const void* s;
-    char name[96];
-    unsigned char vis;
-    if (!g_wLifeBar10)
-        return 1; /* empty cache — resolve later, not a death */
-    if (!g_wName || !g_wVis)
-        return 1; /* binds not ready; do not invent death */
-    s = nullptr;
-    LV_TRY { s = g_wName(g_wLifeBar10); }
-    LV_EXCEPT { return 0; }
-    name[0] = 0;
-    if (!s || !GameStrRead(s, name, (int)sizeof(name)) || !lvNameEndsLifeBar10(name))
-        return 0;
-    vis = 0;
-    LV_TRY { vis = g_wVis(g_wLifeBar10); }
-    LV_EXCEPT { return 0; }
-    (void)vis;
-    return 1;
-}
-
-/* Call at the start of walk / clear / paint. On death: null all, skip writes. */
+/* Forget yesterday (no MyGUI calls), find HemolymphBar* THIS tick, write
+ * only those returns. A null find during reload skips writes. */
 static int lvHudBeginWrites(void)
 {
+    const int had = g_wHemo ? 1 : 0;
     if (g_hudSkipTick)
         return 0;
-    if (!lvProbeLifeBar10Alive())
-    {
+    lvHudNullAll();
+    lvResolveLifeBar();
+    if (g_wHemo)
+        return 1;
+    if (had)
         lvHudInvalidate();
-        return 0;
-    }
-    return 1;
+    else
+        g_hudSkipTick = 1;
+    return 0;
 }
 
 static void* lvSehGetSubText(void* w);
@@ -1510,10 +1481,10 @@ static int lvCapIsBlood(const char* c)
 
 static int lvIsFillBarName(const char* n)
 {
-    return (lvHasSub(n, "LifeBar10Grey") || lvHasSub(n, "LifeBar10Red")
-         || lvHasSub(n, "LifeBar10Yellow") || lvHasSub(n, "LifeBar10White")
-         || lvHasSub(n, "LifeBar10Green") || lvHasSub(n, "LifeBar10Robot")
-         || lvHasSub(n, "LifeBar10Crushed")) ? 1 : 0;
+    return (lvHasSub(n, "HemolymphBarGrey") || lvHasSub(n, "HemolymphBarRed")
+         || lvHasSub(n, "HemolymphBarYellow") || lvHasSub(n, "HemolymphBarWhite")
+         || lvHasSub(n, "HemolymphBarGreen") || lvHasSub(n, "HemolymphBarRobot")
+         || lvHasSub(n, "HemolymphBarCrushed")) ? 1 : 0;
 }
 
 static int lvEndsWith(const char* s, const char* suf)
@@ -1541,26 +1512,26 @@ static int lvIsForbiddenParent(const char* n)
          || lvHasSub(n, "Day") || (lvHasSub(n, "Time") && !lvHasSub(n, "LifeBar"))) ? 1 : 0;
 }
 
-/* Write: name ends with LifeBar10Datapanel only (the label-on-the-bar).
+/* Write: name ends with HemolymphBarDatapanel only (the label-on-the-bar).
  * Never LifeBar10 itself. Never LifeBar1 / Blood. Never Root / fills. */
 static int lvNameIsLifeBar1Strict(const char* name)
 {
     if (!name || !name[0])
         return 0;
-    if (lvEndsWith(name, "LifeBar10") || lvEndsWith(name, "LifeBar10Datapanel")
-     || lvEndsWith(name, "LifeBar10Value") || lvHasSub(name, "LifeBar10"))
+    if (lvEndsWith(name, "HemolymphBar") || lvEndsWith(name, "HemolymphBarDatapanel")
+     || lvEndsWith(name, "HemolymphValue") || lvHasSub(name, "HemolymphBar"))
         return 0;
     return (lvEndsWith(name, "LifeBar1") || lvEndsWith(name, "LifeBar1Datapanel")
          || lvEndsWith(name, "LifeBar1Value")) ? 1 : 0;
 }
 
-static int lvNameIsLifeBar10Write(const char* name)
+static int lvNameIsHemoWrite(const char* name)
 {
     if (!name || !name[0])
         return 0;
     if (lvNameIsLifeBar1Strict(name) || lvIsForbiddenParent(name) || lvIsFillBarName(name))
         return 0;
-    if (lvEndsWith(name, "LifeBar10Datapanel"))
+    if (lvEndsWith(name, "HemolymphBarDatapanel"))
         return 1;
     return 0;
 }
@@ -1570,8 +1541,8 @@ static int lvRankWidget(const char* name, const char* cap)
     (void)cap;
     if (lvIsFillBarName(name) || lvIsForbiddenParent(name) || lvNameIsLifeBar1Strict(name))
         return 0;
-    if (lvNameIsLifeBar10Write(name))
-        return lvEndsWith(name, "LifeBar10Datapanel") ? 2 : 3;
+    if (lvNameIsHemoWrite(name))
+        return lvEndsWith(name, "HemolymphBarDatapanel") ? 2 : 3;
     return 0;
 }
 
@@ -1625,7 +1596,7 @@ static int lvWriteDestOk(void* w, char* nameOut, int nsz)
         std::snprintf(nameOut, (size_t)nsz, "%s", name);
     if (lvNameIsLifeBar1Strict(name))
         return 0;
-    if (lvNameIsLifeBar10Write(name))
+    if (lvNameIsHemoWrite(name))
         return 1;
     return 0;
 }
@@ -1671,7 +1642,7 @@ static int lvVtInMyGui(void* p)
     return (vt >= g_myguiLo && vt < g_myguiHi) ? 1 : 0;
 }
 
-/* Member pointers only. Not a Gui tree walk. setSize is LifeBar10Green only. */
+/* Member pointers only. Not a Gui tree walk. setSize is HemolymphBarGreen only. */
 static void lvScanBarMembers(void* bar)
 {
     if (!bar)
@@ -1763,7 +1734,7 @@ static int lvSehSetCapFakeFn(FnSetCaption fn, void* w, void* fake)
     return 0;
 }
 
-/* textBox=1 → TextBox (LifeBar10Value only, not painted=1).
+/* textBox=1 → TextBox (HemolymphValue only, not painted=1).
  * textBox=2 → ISubWidgetText (Value fallback).
  * textBox=0 → ISub / EditText key write. Never TextBox on LifeBar10 / Datapanel.
  * Never setCaption LifeBar1. Never setCaption Green/fill skins.
@@ -1789,7 +1760,7 @@ static int lvNameIsValueWrite(const char* name)
         return 0;
     if (lvNameIsLifeBar1Strict(name) || lvEndsWith(name, "LifeBar1Value"))
         return 0;
-    return lvEndsWith(name, "LifeBar10Value") ? 1 : 0;
+    return lvEndsWith(name, "HemolymphValue") ? 1 : 0;
 }
 
 static int lvWriteDestOkFor(void* w, int textBox, char* nameOut, int nsz)
@@ -2071,11 +2042,11 @@ static int lvWriteKeyISub(void* w, const char* text, const char* tag)
     return lvReadBackOk(w, text, tag);
 }
 
-static int lvNameIsGreen10(const char* name)
+static int lvNameIsHemoGreen(const char* name)
 {
     if (!name || !name[0] || lvIsForbiddenParent(name) || lvNameIsLifeBar1Strict(name))
         return 0;
-    return lvEndsWith(name, "LifeBar10Green") ? 1 : 0;
+    return lvEndsWith(name, "HemolymphBarGreen") ? 1 : 0;
 }
 
 static int lvSehGetInt(FnGetInt fn, void* w)
@@ -2203,23 +2174,23 @@ static int lvGreenBarOk(int parentW, int greenW, float fill01)
     return 1;
 }
 
-static int lvNameIsHost10(const char* name)
+static int lvNameIsHemoHost(const char* name)
 {
     if (!name || !name[0] || lvIsForbiddenParent(name) || lvNameIsLifeBar1Strict(name))
         return 0;
     if (lvIsFillBarName(name))
         return 0;
-    if (lvEndsWith(name, "LifeBar10Datapanel") || lvEndsWith(name, "LifeBar10Value")
-     || lvEndsWith(name, "LifeBar10Tooltip") || lvEndsWith(name, "LifeBar10Green"))
+    if (lvEndsWith(name, "HemolymphBarDatapanel") || lvEndsWith(name, "HemolymphValue")
+     || lvEndsWith(name, "HemolymphTooltip") || lvEndsWith(name, "HemolymphBarGreen"))
         return 0;
-    return lvEndsWith(name, "LifeBar10") ? 1 : 0;
+    return lvEndsWith(name, "HemolymphBar") ? 1 : 0;
 }
 
 static int lvNameIsHost9(const char* name)
 {
     if (!name || !name[0] || lvIsForbiddenParent(name) || lvNameIsLifeBar1Strict(name))
         return 0;
-    if (lvHasSub(name, "LifeBar10") || lvIsFillBarName(name))
+    if (lvHasSub(name, "HemolymphBar") || lvIsFillBarName(name))
         return 0;
     if (lvEndsWith(name, "LifeBar9Datapanel") || lvEndsWith(name, "LifeBar9Value")
      || lvEndsWith(name, "LifeBar9Tooltip") || lvEndsWith(name, "LifeBar9Green"))
@@ -2289,12 +2260,12 @@ static int lvLayoutHungerPx(int* ow, int* oh)
     return 1;
 }
 
-/* LifeBar10Green only. Width = (hemo/max)*LifeBar10 HOST pixel width AFTER show.
+/* HemolymphBarGreen only. Width = (hemo/max)*LifeBar10 HOST pixel width AFTER show.
  * Never Green / Datapanel as parentW. Never 1–9 Green. Wait if host < 50. */
 static int lvFillGreen(float fill01, float hemo, float maxv)
 {
     if (!lvHudMyGuiOk()) return 0;
-    void* w = g_wLifeBar10Green;
+    void* w = g_wHemoGreen;
     if (!w || (!g_setSizeHH && !g_setCoordHHHH))
         return 0;
     char name[96], cap[96];
@@ -2302,24 +2273,24 @@ static int lvFillGreen(float fill01, float hemo, float maxv)
     name[0] = 0;
     cap[0] = 0;
     lvReadWidget(w, name, (int)sizeof(name), cap, (int)sizeof(cap), &vis);
-    if (!lvNameIsGreen10(name))
+    if (!lvNameIsHemoGreen(name))
     {
         static int once = 0;
         if (!once)
         {
             once = 1;
-            LvLogf("LimbVigor: refuse setSize dest name='%s' — LifeBar10Green only", name);
+            LvLogf("LimbVigor: refuse setSize dest name='%s' — HemolymphBarGreen only", name);
         }
         return 0;
     }
-    void* bar = g_wLifeBar10;
+    void* bar = g_wHemo;
     char hname[96], hcap[96];
     int hvis = -1;
     hname[0] = 0;
     hcap[0] = 0;
     if (bar)
         lvReadWidget(bar, hname, (int)sizeof(hname), hcap, (int)sizeof(hcap), &hvis);
-    if (!bar || !lvNameIsHost10(hname))
+    if (!bar || !lvNameIsHemoHost(hname))
         return 0;
     int pw = 0, ph = 0;
     const int rawW = lvSehGetInt(g_getWidth, bar);
@@ -2382,13 +2353,13 @@ static int lvFillGreen(float fill01, float hemo, float maxv)
     return (got > 4) ? 1 : 0;
 }
 
-static void lvSetVisible10(void* w, int on);
+static void lvSetVisibleHemo(void* w, int on);
 
 static int lvNameIsData10(const char* name)
 {
     if (!name || !name[0] || lvIsForbiddenParent(name) || lvNameIsLifeBar1Strict(name))
         return 0;
-    return lvEndsWith(name, "LifeBar10Datapanel") ? 1 : 0;
+    return lvEndsWith(name, "HemolymphBarDatapanel") ? 1 : 0;
 }
 
 /* If caption is Hemolymph but Dylan sees blank: vis/size/z-order, not a missing write.
@@ -2397,7 +2368,7 @@ static void lvEnsureDatapanelVisible()
 {
     if (!lvHudMyGuiOk())
         return;
-    void* w = g_wLifeBar10Data;
+    void* w = g_wHemoData;
     if (!w)
         return;
     char name[96], cap[96];
@@ -2416,7 +2387,7 @@ static void lvEnsureDatapanelVisible()
     }
     if (!lvPixelLooksReal(dw))
         lvReadPixelSize(w, &dw, &dh);
-    lvSetVisible10(w, 1);
+    lvSetVisibleHemo(w, 1);
     /* Do NOT copy LifeBar9Datapanel if 0x0. Size to real host W × Hunger H. */
     int sw = 0, sh = 0, sl = 0, st = 0;
     if (g_wLifeBar9Data)
@@ -2443,10 +2414,10 @@ static void lvEnsureDatapanelVisible()
     if (sw < 50 || sh < 4)
     {
         int bw = 0, bh = 0;
-        int raw10 = g_wLifeBar10 ? lvSehGetInt(g_getWidth, g_wLifeBar10) : 0;
+        int raw10 = g_wHemo ? lvSehGetInt(g_getWidth, g_wHemo) : 0;
         int raw9 = 0;
-        if (g_wLifeBar10 && raw10 > 14 && raw10 <= 400)
-            lvReadHostWh(g_wLifeBar10, &bw, &bh);
+        if (g_wHemo && raw10 > 14 && raw10 <= 400)
+            lvReadHostWh(g_wHemo, &bw, &bh);
         if (!lvPixelLooksReal(bw) && g_wLifeBar9)
         {
             char hn9[96], hc9[96];
@@ -2493,15 +2464,15 @@ static int lvNameIsDepthOk(const char* name)
 {
     if (!name || !name[0] || lvIsForbiddenParent(name) || lvNameIsLifeBar1Strict(name))
         return 0;
-    if (lvEndsWith(name, "LifeBar10Datapanel") || lvEndsWith(name, "LifeBar10Value")
-     || lvEndsWith(name, "LifeBar10Tooltip") || lvEndsWith(name, "LifeBar10Green")
-     || lvEndsWith(name, "LifeBar10"))
+    if (lvEndsWith(name, "HemolymphBarDatapanel") || lvEndsWith(name, "HemolymphValue")
+     || lvEndsWith(name, "HemolymphTooltip") || lvEndsWith(name, "HemolymphBarGreen")
+     || lvEndsWith(name, "HemolymphBar"))
         return 1;
     return 0;
 }
 
-/* Front Depth=0 covers last-child-of-Front. Raise LifeBar10* above that. */
-static void lvSetDepth10(void* w, int depth)
+/* Front Depth=0 covers last-child-of-Front. Raise HemolymphBar* above that. */
+static void lvSetDepthHemo(void* w, int depth)
 {
     if (!lvHudMyGuiOk()) return;
     if (!w || !g_setDepth)
@@ -2517,14 +2488,14 @@ static void lvSetDepth10(void* w, int depth)
     LV_EXCEPT { lvHudSehHit(w); }
 }
 
-static void lvRaiseLifeBar10Z(void)
+static void lvRaiseHemoZ(void)
 {
-    /* Depth=1 above Front (0). LifeBar10 is a Root child again. */
-    lvSetDepth10(g_wLifeBar10, 1);
-    lvSetDepth10(g_wLifeBar10Value, 1);
-    lvSetDepth10(g_wLifeBar10Data, 1);
-    lvSetDepth10(g_wLifeBar10Tooltip, 1);
-    lvSetDepth10(g_wLifeBar10Green, 1);
+    /* Depth=1 — Root child after MedicalPanel, same as v1.33 look. */
+    lvSetDepthHemo(g_wHemo, 1);
+    lvSetDepthHemo(g_wHemoValue, 1);
+    lvSetDepthHemo(g_wHemoData, 1);
+    lvSetDepthHemo(g_wHemoTip, 1);
+    lvSetDepthHemo(g_wHemoGreen, 1);
 }
 
 /* Show gate: name ends with one of the four exact tokens. Never parents / 1–9. */
@@ -2534,13 +2505,13 @@ static int lvNameIsShowOk(const char* name)
         return 0;
     if (lvNameIsLifeBar1Strict(name) || lvIsForbiddenParent(name))
         return 0;
-    if (lvEndsWith(name, "LifeBar10Datapanel"))
+    if (lvEndsWith(name, "HemolymphBarDatapanel"))
         return 1;
-    if (lvEndsWith(name, "LifeBar10Value"))
+    if (lvEndsWith(name, "HemolymphValue"))
         return 1;
-    if (lvEndsWith(name, "LifeBar10Green"))
+    if (lvEndsWith(name, "HemolymphBarGreen"))
         return 1;
-    if (lvEndsWith(name, "LifeBar10"))
+    if (lvEndsWith(name, "HemolymphBar"))
         return 1;
     return 0;
 }
@@ -2550,12 +2521,12 @@ static int lvNameIsStunSkin(const char* name)
 {
     if (!name || !name[0] || lvNameIsLifeBar1Strict(name) || lvIsForbiddenParent(name))
         return 0;
-    if (lvEndsWith(name, "LifeBar10Green"))
+    if (lvEndsWith(name, "HemolymphBarGreen"))
         return 0;
     return lvIsFillBarName(name);
 }
 
-static void lvSetVisible10(void* w, int on)
+static void lvSetVisibleHemo(void* w, int on)
 {
     if (!lvHudMyGuiOk()) return;
     if (!w || !g_setVis)
@@ -2621,25 +2592,25 @@ static int lvReadVis(void* w)
 
 /* LifeBar10 + Datapanel + Value + Green. Hide Grey/Red/Yellow/White/Robot/Crushed.
  * Never Root / MedicalPanel / Back / Front / LifeBar1-9. */
-static void lvShowLifeBar10(int on)
+static void lvShowHemo(int on)
 {
-    if (g_wLifeBar10)
-        lvSetVisible10(g_wLifeBar10, on);
-    if (g_wLifeBar10Data)
-        lvSetVisible10(g_wLifeBar10Data, on);
-    if (g_wLifeBar10Value)
-        lvSetVisible10(g_wLifeBar10Value, on);
-    if (g_wLifeBar10Green)
-        lvSetVisible10(g_wLifeBar10Green, on);
+    if (g_wHemo)
+        lvSetVisibleHemo(g_wHemo, on);
+    if (g_wHemoData)
+        lvSetVisibleHemo(g_wHemoData, on);
+    if (g_wHemoValue)
+        lvSetVisibleHemo(g_wHemoValue, on);
+    if (g_wHemoGreen)
+        lvSetVisibleHemo(g_wHemoGreen, on);
     if (on)
     {
-        lvHideStunSkin(g_wLifeBar10Grey);
-        lvHideStunSkin(g_wLifeBar10Red);
-        lvHideStunSkin(g_wLifeBar10Yellow);
-        lvHideStunSkin(g_wLifeBar10White);
-        lvHideStunSkin(g_wLifeBar10Robot);
-        lvHideStunSkin(g_wLifeBar10Crushed);
-        lvRaiseLifeBar10Z();
+        lvHideStunSkin(g_wHemoGrey);
+        lvHideStunSkin(g_wHemoRed);
+        lvHideStunSkin(g_wHemoYellow);
+        lvHideStunSkin(g_wHemoWhite);
+        lvHideStunSkin(g_wHemoRobot);
+        lvHideStunSkin(g_wHemoCrushed);
+        lvRaiseHemoZ();
     }
 }
 
@@ -2656,21 +2627,21 @@ static int lvCapIsHudKey(const char* c)
          || std::strcmp(c, "Battle-heat") == 0) ? 1 : 0;
 }
 
-static int lvLifeBar10VisOk()
+static int lvHemoVisOk()
 {
-    if (!g_wLifeBar10)
+    if (!g_wHemo)
         return 0;
     char name[96], cap[96];
     int vis = -1;
     name[0] = 0;
     cap[0] = 0;
-    lvReadWidget(g_wLifeBar10, name, (int)sizeof(name), cap, (int)sizeof(cap), &vis);
-    if (!lvNameIsShowOk(name) || !lvEndsWith(name, "LifeBar10") || lvEndsWith(name, "LifeBar10Green"))
+    lvReadWidget(g_wHemo, name, (int)sizeof(name), cap, (int)sizeof(cap), &vis);
+    if (!lvNameIsShowOk(name) || !lvEndsWith(name, "HemolymphBar") || lvEndsWith(name, "HemolymphBarGreen"))
         return 0;
     return vis == 1 ? 1 : 0;
 }
 
-static int lvLifeBar10CapOk(void* dest)
+static int lvHemoCapOk(void* dest)
 {
     if (!dest)
         return 0;
@@ -2687,13 +2658,13 @@ static int lvLifeBar10CapOk(void* dest)
 
 static void lvRestoreCaption()
 {
-    /* Door / box / chair: hide/clear LifeBar10* only. Never touch LifeBar1. */
-    lvShowLifeBar10(0);
-    if (g_wLifeBar10Data && lvDestNameGated(g_wLifeBar10Data))
-        lvWriteKeyISub(g_wLifeBar10Data, "", "clear-data");
-    if (g_wLifeBar10Value)
-        lvTryWriteCaptionOn(g_wLifeBar10Value, "", 1);
-    if (g_wLifeBar10Green)
+    /* Door / box / chair: hide/clear HemolymphBar* only. Never touch LifeBar1. */
+    lvShowHemo(0);
+    if (g_wHemoData && lvDestNameGated(g_wHemoData))
+        lvWriteKeyISub(g_wHemoData, "", "clear-data");
+    if (g_wHemoValue)
+        lvTryWriteCaptionOn(g_wHemoValue, "", 1);
+    if (g_wHemoGreen)
         lvFillGreen(0.f, 0.f, 100.f);
     g_wroteCaption = 0;
     g_wroteValue = 0;
@@ -2731,7 +2702,7 @@ static void lvCacheFound(void* w, const char* name, const char* cap)
             g_wLifeBar9 = w;
         return;
     }
-    if (lvEndsWith(name, "LifeBar9Datapanel") && !lvHasSub(name, "LifeBar10")
+    if (lvEndsWith(name, "LifeBar9Datapanel") && !lvHasSub(name, "HemolymphBar")
      && !g_wLifeBar9Data)
     {
         g_wLifeBar9Data = w;
@@ -2749,24 +2720,24 @@ static void lvCacheFound(void* w, const char* name, const char* cap)
     }
     if (lvNameIsValueWrite(name))
     {
-        if (!g_wLifeBar10Value)
+        if (!g_wHemoValue)
         {
-            g_wLifeBar10Value = w;
+            g_wHemoValue = w;
             if (cap && cap[0])
                 std::snprintf(g_origValue, sizeof(g_origValue), "%s", cap);
         }
         return;
     }
-    if (lvEndsWith(name, "LifeBar10Tooltip") && !g_wLifeBar10Tooltip)
+    if (lvEndsWith(name, "HemolymphTooltip") && !g_wHemoTip)
     {
-        g_wLifeBar10Tooltip = w;
+        g_wHemoTip = w;
         return;
     }
-    if (lvEndsWith(name, "LifeBar10Datapanel"))
+    if (lvEndsWith(name, "HemolymphBarDatapanel"))
     {
-        if (!g_wLifeBar10Data)
+        if (!g_wHemoData)
         {
-            g_wLifeBar10Data = w;
+            g_wHemoData = w;
             if (cap && cap[0])
                 std::snprintf(g_origData, sizeof(g_origData), "%s", cap);
         }
@@ -2775,32 +2746,32 @@ static void lvCacheFound(void* w, const char* name, const char* cap)
     }
     if (lvNameIsStunSkin(name))
     {
-        if (lvEndsWith(name, "LifeBar10Grey") && !g_wLifeBar10Grey)
-            g_wLifeBar10Grey = w;
-        else if (lvEndsWith(name, "LifeBar10Red") && !g_wLifeBar10Red)
-            g_wLifeBar10Red = w;
-        else if (lvEndsWith(name, "LifeBar10Yellow") && !g_wLifeBar10Yellow)
-            g_wLifeBar10Yellow = w;
-        else if (lvEndsWith(name, "LifeBar10White") && !g_wLifeBar10White)
-            g_wLifeBar10White = w;
-        else if (lvEndsWith(name, "LifeBar10Robot") && !g_wLifeBar10Robot)
-            g_wLifeBar10Robot = w;
-        else if (lvEndsWith(name, "LifeBar10Crushed") && !g_wLifeBar10Crushed)
-            g_wLifeBar10Crushed = w;
+        if (lvEndsWith(name, "HemolymphBarGrey") && !g_wHemoGrey)
+            g_wHemoGrey = w;
+        else if (lvEndsWith(name, "HemolymphBarRed") && !g_wHemoRed)
+            g_wHemoRed = w;
+        else if (lvEndsWith(name, "HemolymphBarYellow") && !g_wHemoYellow)
+            g_wHemoYellow = w;
+        else if (lvEndsWith(name, "HemolymphBarWhite") && !g_wHemoWhite)
+            g_wHemoWhite = w;
+        else if (lvEndsWith(name, "HemolymphBarRobot") && !g_wHemoRobot)
+            g_wHemoRobot = w;
+        else if (lvEndsWith(name, "HemolymphBarCrushed") && !g_wHemoCrushed)
+            g_wHemoCrushed = w;
         return;
     }
-    if (lvEndsWith(name, "LifeBar10Green") && !lvIsForbiddenParent(name))
+    if (lvEndsWith(name, "HemolymphBarGreen") && !lvIsForbiddenParent(name))
     {
-        if (!g_wLifeBar10Green)
-            g_wLifeBar10Green = w;
+        if (!g_wHemoGreen)
+            g_wHemoGreen = w;
         return;
     }
-    if (lvEndsWith(name, "LifeBar10")
+    if (lvEndsWith(name, "HemolymphBar")
      && !lvIsFillBarName(name) && !lvIsForbiddenParent(name))
     {
-        if (!g_wLifeBar10)
+        if (!g_wHemo)
         {
-            g_wLifeBar10 = w;
+            g_wHemo = w;
             g_capWidget = w;
             if (cap && cap[0])
                 std::snprintf(g_capOrig, sizeof(g_capOrig), "%s", cap);
@@ -2875,15 +2846,9 @@ static void lvTryPrefixedFind(const char* shortName, void* root)
 
 static void lvResolveLifeBar()
 {
-    /* Prefixed find only. Never _getWidget (v1.19 death, v1.21 HUD hide).
-     * Cache across ticks is OK only if lvHudBeginWrites probed LifeBar10*
-     * live this tick. After invalidate, g_resolveOnce is 0 and we re-find. */
+    /* Prefixed find THIS tick only. Never _getWidget. Never reuse yesterday. */
     if (g_hudSkipTick)
         return;
-    if (g_resolveOnce && g_wLifeBar10 && g_wLifeBar10Data
-     && g_wLifeBar10Value && g_wLifeBar10Green)
-        return;
-    g_resolveOnce = 1;
 
     lvDumpMyGuiExports();
     void* bar = LvMainBar();
@@ -2892,49 +2857,42 @@ static void lvResolveLifeBar()
     lvReadBasePrefix(bar);
     (void)med;
 
-    /* Prefixed find LifeBar10 only. Do not hunt LifeBar1. Do not hunt members. */
+    /* HemolymphBar* only. Do not hunt LifeBar1. Do not hunt LifeBar10. */
 
     void* root = nullptr;
     if (bar)
     {
         LV_TRY { std::memcpy(&root, (const char*)bar + 0x8, sizeof(root)); }
         LV_EXCEPT { root = nullptr; }
-        char rn[96], rc[96];
-        int vis = -1;
-        lvReadWidget(root, rn, (int)sizeof(rn), rc, (int)sizeof(rc), &vis);
-        if (root && !g_wRoot)
-            g_wRoot = root;
-        if (root && lvIsForbiddenParent(rn) == 0 && rn[0]
-         && !lvHasSub(rn, "Root"))
-        {
-            /* Offset +0x8 was not Root — still try findWidget if it is MyGUI. */
-        }
         if (root && !lvVtInMyGui(root))
             root = nullptr;
+        if (root)
+            g_wRoot = root;
     }
+    g_resolveOnce = 1;
 
     lvTryPrefixedFind("MedicalPanel", root);
     lvTryPrefixedFind("MedicalPanel_Back", root);
     lvTryPrefixedFind("MedicalPanel_Front", root);
     lvTryPrefixedFind("LifeBar9", root);
     lvTryPrefixedFind("LifeBar9Datapanel", root);
-    lvTryPrefixedFind("LifeBar10", root);
-    lvTryPrefixedFind("LifeBar10Datapanel", root);
-    lvTryPrefixedFind("LifeBar10Value", root);
-    lvTryPrefixedFind("LifeBar10Tooltip", root);
-    lvTryPrefixedFind("LifeBar10Green", root);
-    lvTryPrefixedFind("LifeBar10Grey", root);
-    lvTryPrefixedFind("LifeBar10Red", root);
-    lvTryPrefixedFind("LifeBar10Yellow", root);
-    lvTryPrefixedFind("LifeBar10White", root);
-    lvTryPrefixedFind("LifeBar10Robot", root);
-    lvTryPrefixedFind("LifeBar10Crushed", root);
+    lvTryPrefixedFind("HemolymphBar", root);
+    lvTryPrefixedFind("HemolymphBarDatapanel", root);
+    lvTryPrefixedFind("HemolymphValue", root);
+    lvTryPrefixedFind("HemolymphTooltip", root);
+    lvTryPrefixedFind("HemolymphBarGreen", root);
+    lvTryPrefixedFind("HemolymphBarGrey", root);
+    lvTryPrefixedFind("HemolymphBarRed", root);
+    lvTryPrefixedFind("HemolymphBarYellow", root);
+    lvTryPrefixedFind("HemolymphBarWhite", root);
+    lvTryPrefixedFind("HemolymphBarRobot", root);
+    lvTryPrefixedFind("HemolymphBarCrushed", root);
 
-    if (!g_capWidget && g_wLifeBar10Data)
-        g_capWidget = g_wLifeBar10Data;
-    if (!g_wLifeBar10Data || !lvDestNameGated(g_wLifeBar10Data))
-        lvWhyOnce("LimbVigor: prefixed find found no LifeBar10Datapanel dest — painted=0, no write");
-    if (g_wLifeBar10 && g_wLifeBar10Data && g_wLifeBar10Value && g_wLifeBar10Green)
+    if (!g_capWidget && g_wHemoData)
+        g_capWidget = g_wHemoData;
+    if (!g_wHemoData || !lvDestNameGated(g_wHemoData))
+        lvWhyOnce("LimbVigor: prefixed find found no HemolymphBarDatapanel dest — painted=0, no write");
+    if (g_wHemo && g_wHemoData && g_wHemoValue && g_wHemoGreen)
         g_hudInvLogged = 0; /* next death can log once */
 }
 
@@ -2945,8 +2903,11 @@ static void lvDumpMyGuiOnce()
     lvResolveLifeBar();
 }
 #else
-static int  lvProbeLifeBar10Alive(void) { return 1; }
-static int  lvHudBeginWrites(void) { return g_hudSkipTick ? 0 : 1; }
+static int  lvHudBeginWrites(void)
+{
+    lvHudNullAll();
+    return g_hudSkipTick ? 0 : 0;
+}
 static void lvDumpMyGuiOnce() {}
 static void lvResolveLifeBar() {}
 static void lvWhyOnce(const char* why) { (void)why; }
@@ -2956,12 +2917,12 @@ static int  lvWriteAndReadBack(void* w, const char* t, int tb, const char* tag)
 static int  lvValueIsDigitBox(void* w) { (void)w; return 0; }
 static void lvRestoreCaption() {}
 static int  lvDestNameGated(void* w) { (void)w; return 0; }
-static void lvShowLifeBar10(int on) { (void)on; }
+static void lvShowHemo(int on) { (void)on; }
 static void lvDumpMyGuiExports() {}
 static void lvLogVisAfterShow() {}
 static int  lvReadVis(void* w) { (void)w; return -1; }
-static int  lvLifeBar10VisOk() { return 0; }
-static int  lvLifeBar10CapOk(void* dest) { (void)dest; return 0; }
+static int  lvHemoVisOk() { return 0; }
+static int  lvHemoCapOk(void* dest) { (void)dest; return 0; }
 static int  lvWriteKeyISub(void* w, const char* t, const char* tag)
 { (void)w; (void)t; (void)tag; return 0; }
 static int  lvFillGreen(float f, float h, float m) { (void)f; (void)h; (void)m; return 0; }
@@ -3036,14 +2997,12 @@ static void* lvCaptionDest()
 {
     if (!LvHudWritesOk())
         return nullptr;
-    if (!g_resolveOnce)
-        lvResolveLifeBar();
-    void* dest = g_wLifeBar10Data;
+    void* dest = g_wHemoData;
     if (!dest)
         return nullptr;
     if (!lvDestNameGated(dest))
     {
-        lvWhyOnce("LimbVigor: dest is not LifeBar10Datapanel — not writing, painted=0 (LifeBar1 untouched)");
+        lvWhyOnce("LimbVigor: dest is not HemolymphBarDatapanel — not writing, painted=0 (LifeBar1 untouched)");
         return nullptr;
     }
     return dest;
@@ -3052,13 +3011,10 @@ static void* lvCaptionDest()
 void LvClearHud(DatapanelGUI* panel)
 {
     (void)panel;
-    /* Door / box / chair: clear LifeBar10 only. Never touch LifeBar1.
-     * Dead LifeBar10*: invalidate and skip writes this tick. */
+    /* Door / box / chair: clear HemolymphBar only. Never touch LifeBar1. */
     if (!lvHudBeginWrites())
         return;
-    if (!g_resolveOnce)
-        lvResolveLifeBar();
-    if (g_hudSkipTick || !g_wLifeBar10)
+    if (g_hudSkipTick || !g_wHemo)
         return;
     lvRestoreCaption();
 }
@@ -3068,8 +3024,7 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     (void)panel;
     if (!snap || !LvCfg().enableHud || !LvWorldInGame())
         return;
-    /* Probe cached LifeBar10* before any setCaption / setSize / setVisible.
-     * Do NOT skip because PausedPanel / Options / Settings exist vis=1. */
+    /* Find HemolymphBar* this tick. Do NOT skip because Paused/Options vis=1. */
     if (!lvHudBeginWrites())
         return;
     if (snap->race == RACE_ANIMAL)
@@ -3086,13 +3041,10 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
         lvDumpMyGuiExports();
 #endif
 
-    /* After orig every selected-person tick. Resolve, then show + hide stun skins. */
-    if (g_hudSkipTick)
+    /* After orig every selected-person tick. Show the just-found host. */
+    if (g_hudSkipTick || !g_wHemo)
         return;
-    lvResolveLifeBar();
-    if (g_hudSkipTick || !g_wLifeBar10)
-        return;
-    lvShowLifeBar10(1);
+    lvShowHemo(1);
     if (g_hudSkipTick)
         return;
 #if !defined(LIMBVIGOR_IDE)
@@ -3104,7 +3056,7 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
         if (!g_paintedOnce)
         {
             g_paintedOnce = 1;
-            LvLog("LimbVigor: painted=0 (prefixed find found no LifeBar10Datapanel dest)");
+            LvLog("LimbVigor: painted=0 (prefixed find found no HemolymphBarDatapanel dest)");
         }
         return;
     }
@@ -3123,7 +3075,7 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
         return;
 
     /* Label on Datapanel only. Value is the NUMBER. Never the word on Value. Never LifeBar1. */
-    const int okData = lvWriteKeyISub(dest, key1, "LifeBar10Datapanel");
+    const int okData = lvWriteKeyISub(dest, key1, "HemolymphBarDatapanel");
     if (g_hudSkipTick)
         return;
 
@@ -3139,11 +3091,11 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     }
 
     int vok = 0;
-    if (g_wLifeBar10Value && num[0])
+    if (g_wHemoValue && num[0])
     {
-        vok = lvWriteAndReadBack(g_wLifeBar10Value, num, 1, "LifeBar10Value");
+        vok = lvWriteAndReadBack(g_wHemoValue, num, 1, "HemolymphValue");
         if (!vok)
-            vok = lvWriteAndReadBack(g_wLifeBar10Value, num, 2, "LifeBar10Value");
+            vok = lvWriteAndReadBack(g_wHemoValue, num, 2, "HemolymphValue");
         if (vok)
             g_wroteValue = 1;
     }
@@ -3170,8 +3122,8 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     int vvis = -1;
     vname[0] = 0;
     vcap[0] = 0;
-    if (g_wLifeBar10Value)
-        lvReadWidget(g_wLifeBar10Value, vname, (int)sizeof(vname), vcap, (int)sizeof(vcap), &vvis);
+    if (g_wHemoValue)
+        lvReadWidget(g_wHemoValue, vname, (int)sizeof(vname), vcap, (int)sizeof(vcap), &vvis);
     const int valOk = lvCaptionLooksDigit(vcap) && !lvCapIsHudKey(vcap) && !lvCapIsBlood(vcap);
 
     char dname[96], dcap[96];
@@ -3179,10 +3131,10 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
     dname[0] = 0;
     dcap[0] = 0;
     lvReadWidget(dest, dname, (int)sizeof(dname), dcap, (int)sizeof(dcap), &dvis);
-    const int visOk = lvLifeBar10VisOk();
-    const int capOk = (okData || lvLifeBar10CapOk(dest)) && dcap[0] && !lvCapIsBlood(dcap);
-    const int greyVis = lvReadVis(g_wLifeBar10Grey);
-    const int greyOk = (g_wLifeBar10Grey && greyVis != 1) ? 1 : 0;
+    const int visOk = lvHemoVisOk();
+    const int capOk = (okData || lvHemoCapOk(dest)) && dcap[0] && !lvCapIsBlood(dcap);
+    const int greyVis = lvReadVis(g_wHemoGrey);
+    const int greyOk = (g_wHemoGrey && greyVis != 1) ? 1 : 0;
     if (!visOk || !capOk || !valOk || !greenOk || !dataOk || !greyOk)
     {
         static int once = 0;
@@ -3204,7 +3156,7 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
 
 void LvHudInstall()
 {
-    LvLog("LimbVigor: HUD module lv_hud — LifeBar10 host + invalidate on dead widget");
+    LvLog("LimbVigor: HUD module lv_hud — HemolymphBar, LifeBar10 slot empty, re-find each paint");
 }
 
 void LvHudEnsureAfterInGame() {}

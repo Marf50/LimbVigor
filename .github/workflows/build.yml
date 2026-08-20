@@ -17,6 +17,7 @@ jobs:
         run: |
           cmake -S . -B build-test -DLIMBVIGOR_BUILD_TESTS=ON
           cmake --build build-test --target lv_sim_test -j
+          python3 tools/check_layout.py
           ./build-test/lv_sim_test
           python3 tools/write_parts_mod.py --out-dir /tmp/lvmod
 
