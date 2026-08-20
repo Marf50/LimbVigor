@@ -647,8 +647,12 @@ int LvEquipGrowthPart(MedicalSystem* med, int limbId, int stage)
         LV_TRY { hp = part->flesh; mx = part->_maxHealth; }
         LV_EXCEPT {}
     }
-    LvLogf("LimbVigor: %s %s → %s nub attached hp=%.1f/%.1f",
-        LvLimbLabel((LimbId)limbId), from, LvPartStageName(stage), hp, mx);
+    if (have < 0 && stage == LV_PART_STUMP)
+        LvLogf("LimbVigor: %s STUMP → budding nub attached",
+            LvLimbLabel((LimbId)limbId));
+    else
+        LvLogf("LimbVigor: %s %s → %s nub attached hp=%.1f/%.1f",
+            LvLimbLabel((LimbId)limbId), from, LvPartStageName(stage), hp, mx);
     LvLogf("LimbVigor: slotted %s (ours) on %s",
         def->name, LvLimbLabel((LimbId)limbId));
     return 1;
@@ -673,9 +677,10 @@ int LvSyncOneLimb(MedicalSystem* med, const CharSnap* snap, int limbId)
     if (cur && !LvIsGrowthPart(cur))
         return 0; // real prosthetic — leave it.
 
-    /* 75-HP arms were a false alarm. Intact / injured flesh is not a
-     * growth socket. Do not slot an LV part on a whole limb with HP>=10. */
-    if (snap->limbs[limbId] == LIMB_KIND_WHOLE && snap->limbHp[limbId] >= 10.f)
+    /* 75-HP arms were a false alarm. Intact flesh with no persist is
+     * not a growth socket. A persist-100% stump may read WHOLE hp=11. */
+    if (snap->limbs[limbId] == LIMB_KIND_WHOLE && snap->limbHp[limbId] >= 10.f
+     && snap->progress[limbId] < 99.5f && snap->lastStage[limbId] < 0)
         return 0;
 
     int need = 0;
@@ -687,7 +692,7 @@ int LvSyncOneLimb(MedicalSystem* med, const CharSnap* snap, int limbId)
             empty15 = 1;
     }
     else if (!cur && snap->limbs[limbId] != LIMB_KIND_PROSTHETIC
-             && snap->limbHp[limbId] < 10.f
+             && snap->limbHp[limbId] < 50.f
              && (snap->progress[limbId] > 0.f || snap->lastStage[limbId] >= 0
                  || snap->progress[limbId] >= 99.5f))
     {

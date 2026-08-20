@@ -18,7 +18,7 @@ LV_EXPORT void startPlugin()
     LvPersistLoad();
     LvInstallHooks();
     if (LvCfg().enableHud)
-        LvLog("LimbVigor: ready v1.35 — bar visible like 1.33 + Hemolymph label + SEH nub attach");
+        LvLog("LimbVigor: ready v1.36 — ESC/settings close lives + nub attach actually runs");
     else
         LvLog("LimbVigor: ready — HUD off (EnableHud=0)");
 }

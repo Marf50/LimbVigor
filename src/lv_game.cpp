@@ -1044,6 +1044,36 @@ static void* g_wFront = nullptr;
 static void* g_wLifeBar9 = nullptr; /* width fallback only — never setCaption / setVisible */
 static void* g_wLifeBar9Data = nullptr; /* pixel size source for LifeBar10Datapanel */
 static void* g_wLifeBar10Tooltip = nullptr;
+static int   g_hudSkipTick = 0;
+static int   g_hudSehLogged = 0;
+
+static void lvHudSehHit(void* w)
+{
+    if (w)
+    {
+        if (w == g_wLifeBar10) g_wLifeBar10 = nullptr;
+        if (w == g_wLifeBar10Data) g_wLifeBar10Data = nullptr;
+        if (w == g_wLifeBar10Value) g_wLifeBar10Value = nullptr;
+        if (w == g_wLifeBar10Green) g_wLifeBar10Green = nullptr;
+        if (w == g_wLifeBar10Grey) g_wLifeBar10Grey = nullptr;
+        if (w == g_wLifeBar10Red) g_wLifeBar10Red = nullptr;
+        if (w == g_wLifeBar10Yellow) g_wLifeBar10Yellow = nullptr;
+        if (w == g_wLifeBar10White) g_wLifeBar10White = nullptr;
+        if (w == g_wLifeBar10Robot) g_wLifeBar10Robot = nullptr;
+        if (w == g_wLifeBar10Crushed) g_wLifeBar10Crushed = nullptr;
+        if (w == g_wLifeBar10Tooltip) g_wLifeBar10Tooltip = nullptr;
+        if (w == g_wLifeBar9) g_wLifeBar9 = nullptr;
+        if (w == g_wLifeBar9Data) g_wLifeBar9Data = nullptr;
+        if (w == g_capWidget) g_capWidget = nullptr;
+    }
+    g_resolveOnce = 0;
+    g_hudSkipTick = 1;
+    if (!g_hudSehLogged)
+    {
+        g_hudSehLogged = 1;
+        LvLog("LimbVigor: HUD SEH skip (options teardown)");
+    }
+}
 
 void LvHudCacheDrop(const char* why)
 {
@@ -2329,7 +2359,7 @@ static void* lvSehFind2(FnFindW fn, void* self, const GameStr* name)
     if (!fn || !self || !name) return nullptr;
     const unsigned char noThrow = 0;
     LV_TRY { w = fn(self, name, noThrow); }
-    LV_EXCEPT { w = nullptr; g_lastFindSeh = 1; }
+    LV_EXCEPT { w = nullptr; g_lastFindSeh = 1; lvHudSehHit(nullptr); }
     return w;
 }
 
@@ -2339,7 +2369,7 @@ static void* lvSehFind3(FnFindW3 fn, void* self, const GameStr* name, const Game
     if (!fn || !self || !name || !prefix) return nullptr;
     const unsigned char noThrow = 0;
     LV_TRY { w = fn(self, name, prefix, noThrow); }
-    LV_EXCEPT { w = nullptr; g_lastFindSeh = 1; }
+    LV_EXCEPT { w = nullptr; g_lastFindSeh = 1; lvHudSehHit(nullptr); }
     return w;
 }
 
@@ -2348,7 +2378,7 @@ static void* lvSehWFind1(void* self, const GameStr* name)
     void* w = nullptr;
     if (!g_wFind1 || !self || !name) return nullptr;
     LV_TRY { w = g_wFind1(self, name); }
-    LV_EXCEPT { w = nullptr; g_lastFindSeh = 1; }
+    LV_EXCEPT { w = nullptr; g_lastFindSeh = 1; lvHudSehHit(nullptr); }
     return w;
 }
 
@@ -2358,7 +2388,7 @@ static void* lvSehWFind2(void* self, const GameStr* name)
     if (!g_wFind2 || !self || !name) return nullptr;
     const unsigned char noThrow = 0;
     LV_TRY { w = g_wFind2(self, name, noThrow); }
-    LV_EXCEPT { w = nullptr; g_lastFindSeh = 1; }
+    LV_EXCEPT { w = nullptr; g_lastFindSeh = 1; lvHudSehHit(nullptr); }
     return w;
 }
 
@@ -2367,7 +2397,7 @@ static int lvSehVisible(void* w)
     int vis = -1;
     if (!g_wVis || !w) return -1;
     LV_TRY { vis = g_wVis(w) ? 1 : 0; }
-    LV_EXCEPT { vis = -1; }
+    LV_EXCEPT { vis = -1; lvHudSehHit(w); }
     return vis;
 }
 
@@ -2376,7 +2406,7 @@ static const void* lvSehGetName(void* w)
     const void* s = nullptr;
     if (!g_wName || !w) return nullptr;
     LV_TRY { s = g_wName(w); }
-    LV_EXCEPT { s = nullptr; }
+    LV_EXCEPT { s = nullptr; lvHudSehHit(w); }
     return s;
 }
 
@@ -2408,12 +2438,12 @@ static const void* lvSehCaption(void* w)
     if (g_getCapISub)
     {
         LV_TRY { s = g_getCapISub(w); }
-        LV_EXCEPT { s = nullptr; }
+        LV_EXCEPT { s = nullptr; lvHudSehHit(w); }
         if (s) return s;
     }
     if (!g_wCaption) return nullptr;
     LV_TRY { s = g_wCaption(w); }
-    LV_EXCEPT { s = nullptr; }
+    LV_EXCEPT { s = nullptr; lvHudSehHit(w); }
     return s;
 }
 
@@ -2728,7 +2758,7 @@ static int lvSehSetCapFn(FnSetCaption fn, void* w, const void* u)
     if (!fn || !w || !u)
         return 1;
     LV_TRY { fn(w, u); }
-    LV_EXCEPT { return 1; }
+    LV_EXCEPT { lvHudSehHit(w); return 1; }
     return 0;
 }
 
@@ -2737,7 +2767,7 @@ static int lvSehSetCapStr(void* w, const GameStr* s)
     if (!g_setCapStr || !w || !s)
         return 1;
     LV_TRY { g_setCapStr(w, s); }
-    LV_EXCEPT { return 1; }
+    LV_EXCEPT { lvHudSehHit(w); return 1; }
     return 0;
 }
 
@@ -2772,7 +2802,7 @@ static int lvSehSetCapFakeFn(FnSetCaption fn, void* w, void* fake)
     if (!fn || !w || !fake)
         return 1;
     LV_TRY { fn(w, fake); }
-    LV_EXCEPT { return 1; }
+    LV_EXCEPT { lvHudSehHit(w); return 1; }
     return 0;
 }
 
@@ -2983,7 +3013,7 @@ static void* lvSehGetSubText(void* w)
         return nullptr;
     void* t = nullptr;
     LV_TRY { t = g_getSubText(w); }
-    LV_EXCEPT { t = nullptr; }
+    LV_EXCEPT { t = nullptr; lvHudSehHit(w); }
     return t;
 }
 
@@ -3100,7 +3130,7 @@ static int lvSehGetInt(FnGetInt fn, void* w)
         return 0;
     int v = 0;
     LV_TRY { v = fn(w); }
-    LV_EXCEPT { v = 0; }
+    LV_EXCEPT { v = 0; lvHudSehHit(w); }
     return v;
 }
 
@@ -3110,7 +3140,7 @@ static void* lvSehGetParent(void* w)
         return nullptr;
     void* p = nullptr;
     LV_TRY { p = g_getParent(w); }
-    LV_EXCEPT { p = nullptr; }
+    LV_EXCEPT { p = nullptr; lvHudSehHit(w); }
     return p;
 }
 
@@ -3120,7 +3150,7 @@ static int lvSehGetCoord(FnGetCoordSret fn, void* w, LvIntCoord* out)
         return 0;
     std::memset(out, 0, sizeof(*out));
     LV_TRY { fn(out, w); }
-    LV_EXCEPT { return 0; }
+    LV_EXCEPT { lvHudSehHit(w); return 0; }
     return 1;
 }
 
@@ -3159,7 +3189,7 @@ static int lvReadPixelSize(void* w, int* ow, int* oh)
     {
         unsigned long long r = 0;
         LV_TRY { r = g_getSizeU64(w); }
-        LV_EXCEPT { r = 0; }
+        LV_EXCEPT { r = 0; lvHudSehHit(w); }
         if (lvTakePackedSize(r, ow, oh))
             return 1;
     }
@@ -3167,7 +3197,7 @@ static int lvReadPixelSize(void* w, int* ow, int* oh)
     {
         const int* p = nullptr;
         LV_TRY { p = g_getCoordRef(w); }
-        LV_EXCEPT { p = nullptr; }
+        LV_EXCEPT { p = nullptr; lvHudSehHit(w); }
         if (p)
         {
             int cw = 0, ch = 0;
@@ -3198,7 +3228,7 @@ static int lvReadPixelSize(void* w, int* ow, int* oh)
     {
         unsigned long long r = 0;
         LV_TRY { r = g_getParentSize(w); }
-        LV_EXCEPT { r = 0; }
+        LV_EXCEPT { r = 0; lvHudSehHit(w); }
         if (lvTakePackedSize(r, ow, oh))
             return 1;
     }
@@ -3395,30 +3425,29 @@ static int lvFillGreen(float fill01, float hemo, float maxv)
         }
         return 0;
     }
-    if (fill01 < 0.f) fill01 = 0.f;
-    if (fill01 > 1.f) fill01 = 1.f;
-    const int fillW = (int)(pw * fill01 + 0.5f);
-    const int nh = ph > 0 ? ph : 0;
-    if (fillW < 1)
+    if (maxv < 1.f) maxv = 100.f;
+    float useFill = (hemo > 0.f) ? (hemo / maxv) : fill01;
+    if (useFill < 0.f) useFill = 0.f;
+    if (useFill > 1.f) useFill = 1.f;
+    if (pw >= 50 && pw <= 400 && ph < 8)
     {
-        static int n = 0;
-        if (n < 8)
-        {
-            n++;
-            LvLogf("LimbVigor: parentW=%d fillW=%d green w=0 fill=%.3f hemo=%.1f max=%.1f — sliver rejected",
-                   pw, fillW, fill01, hemo, maxv);
-        }
-        return 0;
+        int dummy = 0, hh = 0;
+        lvLayoutHungerPx(&dummy, &hh);
+        ph = hh;
     }
+    const int fillW = (pw >= 50 && pw <= 400) ? (int)(pw * useFill + 0.5f) : 0;
+    const int nh = ph > 0 ? ph : 16;
+    if (pw < 50 || pw > 400)
+        return 0;
     if (g_setCoordHHHH)
     {
         LV_TRY { g_setCoordHHHH(w, 0, 0, fillW, nh); }
-        LV_EXCEPT {}
+        LV_EXCEPT { lvHudSehHit(w); }
     }
     else if (g_setSizeHH)
     {
         LV_TRY { g_setSizeHH(w, fillW, nh); }
-        LV_EXCEPT {}
+        LV_EXCEPT { lvHudSehHit(w); }
     }
     int got = 0, gh = 0;
     if (!lvReadPixelSize(w, &got, &gh))
@@ -3428,9 +3457,10 @@ static int lvFillGreen(float fill01, float hemo, float maxv)
     {
         n++;
         LvLogf("LimbVigor: parentW=%d fillW=%d green w=%d fill=%.3f hemo=%.1f max=%.1f",
-               pw, fillW, got, fill01, hemo, maxv);
+               pw, fillW, got, useFill, hemo, maxv);
     }
-    return lvGreenBarOk(pw, got, fill01);
+    /* painted=0 only if green w≤4 AFTER the write */
+    return (got > 4) ? 1 : 0;
 }
 
 static void lvSetVisible10(void* w, int on);
@@ -3556,12 +3586,12 @@ static void lvEnsureDatapanelVisible()
         if (g_setSizeHH)
         {
             LV_TRY { g_setSizeHH(w, sw, sh); }
-            LV_EXCEPT {}
+            LV_EXCEPT { lvHudSehHit(w); }
         }
         else if (g_setCoordHHHH)
         {
             LV_TRY { g_setCoordHHHH(w, sl, st, sw, sh); }
-            LV_EXCEPT {}
+            LV_EXCEPT { lvHudSehHit(w); }
         }
         LvLogf("LimbVigor: Datapanel was %dx%d — setSize host %dx%d",
                dw, dh, sw, sh);
@@ -3592,7 +3622,7 @@ static void lvSetDepth10(void* w, int depth)
     if (!lvNameIsDepthOk(name))
         return;
     LV_TRY { g_setDepth(w, depth); }
-    LV_EXCEPT {}
+    LV_EXCEPT { lvHudSehHit(w); }
 }
 
 static void lvRaiseLifeBar10Z(void)
@@ -3607,9 +3637,7 @@ static void lvRaiseLifeBar10Z(void)
     if (once)
         return;
     once = 1;
-    void* par = nullptr;
-    LV_TRY { par = g_getParent ? g_getParent(g_wLifeBar10) : nullptr; }
-    LV_EXCEPT { par = nullptr; }
+    void* par = lvSehGetParent(g_wLifeBar10);
     char pn[96], pc[96];
     int pvis = -1;
     pn[0] = 0;
@@ -3669,7 +3697,7 @@ static void lvSetVisible10(void* w, int on)
         return;
     }
     LV_TRY { g_setVis(w, on ? 1 : 0); }
-    LV_EXCEPT {}
+    LV_EXCEPT { lvHudSehHit(w); }
 }
 
 static void lvHideStunSkin(void* w)
@@ -3693,7 +3721,7 @@ static void lvHideStunSkin(void* w)
         return;
     }
     LV_TRY { g_setVis(w, 0); }
-    LV_EXCEPT {}
+    LV_EXCEPT { lvHudSehHit(w); }
 }
 
 static int lvReadVis(void* w)
@@ -3994,10 +4022,51 @@ static void lvTryPrefixedFind(const char* shortName, void* root)
     }
 }
 
+static int lvNameLooksMenu(const char* n)
+{
+    if (!n || !n[0])
+        return 0;
+    if (lvEndsWith(n, "PausedPanel") || lvEndsWith(n, "lbPaused")
+     || lvEndsWith(n, "Paused"))
+        return 1;
+    if (lvEndsWith(n, "Options") || lvHasSub(n, "OptionsWindow")
+     || lvHasSub(n, "SettingsWindow") || lvEndsWith(n, "Settings"))
+        return 1;
+    return 0;
+}
+
+/* Read-only findWidget. Not an ESC/pause/options hook. Not WatchGui. */
+static int lvHudMenuOpen(void)
+{
+    static const char* kNames[] = {
+        "PausedPanel", "lbPaused", "Paused", "Options", "Settings", 0
+    };
+    void* root = g_wRoot;
+    for (int i = 0; kNames[i]; ++i)
+    {
+        void* w = nullptr;
+        if (g_prefix[0])
+            w = lvFind3(kNames[i]);
+        if (!w && root)
+            w = lvRootFind(root, kNames[i]);
+        if (!w)
+            continue;
+        char name[96], cap[96];
+        int vis = -1;
+        name[0] = 0;
+        cap[0] = 0;
+        lvReadWidget(w, name, (int)sizeof(name), cap, (int)sizeof(cap), &vis);
+        if (lvNameLooksMenu(name) && vis == 1)
+            return 1;
+    }
+    return 0;
+}
+
 static void lvResolveLifeBar()
 {
     /* Prefixed find only. Never _getWidget (v1.19 death, v1.21 HUD hide). */
-    if (g_resolveOnce)
+    if (g_resolveOnce && g_wLifeBar10 && g_wLifeBar10Data
+     && g_wLifeBar10Value && g_wLifeBar10Green)
         return;
     g_resolveOnce = 1;
 
@@ -4074,6 +4143,7 @@ static void lvDumpMyGuiOnce()
 #else
 static int  lvProbeLifeBar10Alive(void) { return 1; }
 static void lvDumpMyGuiOnce() {}
+static int  lvHudMenuOpen(void) { return 0; }
 static void lvResolveLifeBar() {}
 static void lvWhyOnce(const char* why) { (void)why; }
 static int  lvTryWriteCaption(void* w, const char* t) { (void)w; (void)t; return 1; }
@@ -4212,14 +4282,23 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
         lvDumpMyGuiExports();
 #endif
 
+    g_hudSkipTick = 0;
+    if (lvHudMenuOpen() || g_hudSkipTick)
+    {
+        /* Re-find after close. Not a cache wipe / epoch-drop / ESC hook. */
+        g_resolveOnce = 0;
+        return;
+    }
+
     /* After orig every selected-person tick. Resolve, then show + hide stun skins. */
     if (!LvHudWritesOk())
         return;
-    if (!g_resolveOnce)
-        lvResolveLifeBar();
-    if (!LvHudCacheAlive())
+    lvResolveLifeBar();
+    if (!LvHudCacheAlive() || g_hudSkipTick)
         return;
     lvShowLifeBar10(1);
+    if (g_hudSkipTick)
+        return;
 #if !defined(LIMBVIGOR_IDE)
     lvLogVisAfterShow();
 #endif
@@ -4242,11 +4321,15 @@ void LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap)
         return;
     }
 
-    /* Size from LifeBar9Datapanel first — 0x0 ISub writes do not stick. */
+    /* Host W × Hunger H. Do not copy LifeBar9Datapanel if 0x0. */
     lvEnsureDatapanelVisible();
+    if (g_hudSkipTick)
+        return;
 
     /* Label on Datapanel only. Value is the NUMBER. Never the word on Value. Never LifeBar1. */
     const int okData = lvWriteKeyISub(dest, key1, "LifeBar10Datapanel");
+    if (g_hudSkipTick)
+        return;
 
     char num[32];
     num[0] = 0;

@@ -4,7 +4,7 @@ A [RE_Kenshi](https://www.nexusmods.com/kenshi/mods/847) plugin. Organic charact
 
 Growth is not a silent number. Each stage is a real body part — same kind of item as a robot limb — with its own name, stats, and I-key slot tooltip. Stump → budding → forming → knitting → **grown**. Grown *is* the limb. The plugin does not rip it off to try original flesh.
 
-v1.35 puts Hemolymph back on **LifeBar10 as a Root child after MedicalPanel** (v1.33 coords, Depth=1). v1.34 `LifeBar10Slot` BottomSkin 1-row made getW=2 and hid the bar. Size Green from a 50–400 host; if LifeBar10 **and** LifeBar9 getW≤14, use layout Hunger pixels (`Green host fallback layout Hunger parentW=NNN`). Do not copy a 0x0 LifeBar9Datapanel — setSize host W × Hunger H, then ISub Hemolymph. Equip is SEH-wrapped: success logs `nub attached`, fail logs `nub attach SEH skip` and does not retry. Never Equip GROWN first. Never `setLimb(ORIGINAL)`. **No ESC/pause/options hooks. No epoch-drop.** **No `_getWidget`.** See [testdoc/HUD.md](testdoc/HUD.md).
+v1.36: every HUD MyGUI call is SEH’d. Options teardown nulls that widget and logs `HUD SEH skip (options teardown)` — no ESC hook, no epoch-drop. Skip paint while findWidget sees Paused/Options; re-find after close. Green width = (hemo/max)×parentW (272). Datapanel setSize host W × Hunger H. `restore-on-stump skipped … no write` is gone — a STUMP left leg actually calls EquipWriteSeh (STUMP nub first). **No `_getWidget`.** See [testdoc/HUD.md](testdoc/HUD.md).
 
 This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers as the field-manual bench.
 
@@ -17,7 +17,7 @@ This is not a feast-from-hunger hack. Medical tick, I-key tooltip, same numbers 
 
 A bed roughly halves the time. One stump at a time, legs first. Open **I** and look at the limb slot: you should see `LV Budding Left Leg` (and so on) with worse athletics / dexterity that improve as it knits. A real prosthetic occupies the socket and blocks growth; progress is kept.
 
-v1.35: bar visible like 1.33 + Hemolymph label + SEH nub attach. `LifeBar10Slot` 1-row BottomSkin is rejected. Root-level HemolymphStrip is rejected. Stretching the 9-bar skin is rejected. Widget::setCaption hunt is rejected. Restore-on-stump / Equip GROWN first is rejected. HP-on-stump is rejected. Unlogged Equip crash is rejected. TextBox Datapanel is rejected. v1.23 full-layout drift is rejected. `46d810a` LifeBar1 overwrite is rejected. v1.32 last-child-of-Front and epoch-drop are rejected.
+v1.36: ESC/settings close lives + nub attach actually runs. `LifeBar10Slot` is rejected. Epoch-drop is rejected. `restore-on-stump skipped … no write` is rejected. Equip GROWN first is rejected. HemolymphStrip is rejected. Stretching the 9-bar skin is rejected.
 
 The 1.9.1 playable-loop fixes stay: no Character until the world is in-game; I-key snap as soon as a player character exists; no Economy fallback; mesh-less GameData is refused; FileValue mesh/icon on every LV part. Grown stays — we do not call `setLimb(ORIGINAL)`.
 

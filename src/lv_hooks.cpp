@@ -322,6 +322,11 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                     && live->progress[li] > 0.f && live->lastStage[li] >= 0
                     && (live->limbHp[li] < 10.f || live->limbMax[li] < 20.f))
                     live->limbs[li] = LIMB_KIND_STUMP;
+                /* Persist-100% stump: LvTick marks WHOLE and Bind may
+                 * boost max from a 75-HP sibling. Still a missing limb. */
+                if (live->limbs[li] == LIMB_KIND_WHOLE
+                    && live->progress[li] >= 99.5f && live->limbHp[li] < 50.f)
+                    live->limbs[li] = LIMB_KIND_STUMP;
             }
 
             /* v1.35: nub = slotted growth part. Equip is SEH-wrapped. */
@@ -378,19 +383,19 @@ static void DriveTick(MedicalSystem* med, float frameTime)
                 LV_EXCEPT {}
                 const int stillNub = (now.limbs[limb] == LIMB_KIND_STUMP
                     || now.limbs[limb] == LIMB_KIND_CRUSHED
-                    || (now.limbHp[limb] > 0.f && now.limbHp[limb] < 10.f)) ? 1 : 0;
+                    || now.limbHp[limb] < 50.f) ? 1 : 0;
                 if (stillNub)
                 {
                     live->limbs[limb] = (now.limbs[limb] == LIMB_KIND_CRUSHED)
                         ? LIMB_KIND_CRUSHED : LIMB_KIND_STUMP;
                     live->limbHp[limb] = now.limbHp[limb];
                     live->limbMax[limb] = now.limbMax[limb];
-                    static int once = 0;
-                    if (!once)
+                    /* v1.35 logged "no write" here and never reached EquipWriteSeh. */
+                    LV_TRY { LvSyncOneLimb(med, live, limb); }
+                    LV_EXCEPT
                     {
-                        once = 1;
-                        LvLogf("LimbVigor: restore-on-stump skipped %s hp=%.1f/%.1f — nub keeps ticking, no write",
-                            LvLimbLabel((LimbId)limb), live->limbHp[limb], live->limbMax[limb]);
+                        LvLogf("LimbVigor: %s nub attach SEH skip",
+                            LvLimbLabel((LimbId)limb));
                     }
                 }
                 else
