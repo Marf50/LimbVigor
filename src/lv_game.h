@@ -32,10 +32,14 @@ int       LvIsSelectedCharacter(Character* me); // squad body the panel is drawi
 int       LvPanelIsLeftMedical(DatapanelGUI* panel); // live key "Blood" only — v1.14 does not guess-paint
 int       LvPanelHasBlood(DatapanelGUI* panel); // live key "Blood" on a real line
 void      LvWalkSelPanel(DatapanelGUI* panel); // hunt MainBar widgets (no tree walk)
-void      LvNoteHudProbeSeh(); // drop LifeBar10* cache — never retry _getWidget
-void      LvHudCacheDrop(const char* why); // settings-close / GUI teardown — drop dead widgets
-int       LvHudCacheAlive(); // 0 if cached LifeBar10 is gone (MyGUI rebuild)
-int       LvGrowStumpNub(MedicalSystem* med, int limbId, float progress, float* hpBefore, float* hpAfter);
+void      LvNoteHudProbeSeh(); // drop ALL stale HUD pointers — never retry _getWidget
+void      LvHudCacheDrop(const char* why); // settings-close / GUI teardown — drop LifeBar10* + Front/Back/MedicalPanel/Root
+int       LvHudCacheAlive(); // 0 if teardown or a cached HUD widget is gone
+int       LvHudWritesOk(); // 0 while settings/GUI teardown — skip paint and stump writes
+void      LvHudResumeWrites(); // live medical panel after rebuild — allow resolve again
+void      LvHudWatchGui(); // DriveTick: drop ALL MyGUI ptrs if MainBar/widgets die (options)
+int       LvGrowStumpNub(MedicalSystem* med, int limbId, float progress, float realMaxHint,
+                         float* hpBefore, float* hpAfter, float* maxAfter);
 void      LvClearHud(DatapanelGUI* panel); // hide/clear LifeBar10* only — never touch LifeBar1
 void      LvPaintHud(MedicalSystem* med, DatapanelGUI* panel, const CharSnap* snap); // after orig: Datapanel label + numeric Value + Green fill
 int       LvReadMsvcString(const void* strObj, char* out, int outsz);

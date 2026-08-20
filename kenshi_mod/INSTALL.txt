@@ -23,23 +23,21 @@ https://www.nexusmods.com/kenshi/mods/847
 
 Where the numbers are
 ---------------------
-v1.31 tight stack + green fill
-+ stump HP + settings-close
-safe. LifeBar1-9 are v1.26 /
-3b999b9 fractions of Back.
-LifeBar10 is tucked under
-Hunger inside MedicalPanel
-(after Front). Datapanel
-matches LifeBar9 (PanelEmpty).
-ISub label. Value is the
-number. Hide Grey* skins.
-Green measures LifeBar10 host
-after show (50-400). Left Leg 5
-stays a stump; flesh HP moves.
-No Equip GROWN. No restore
-write. No LifeBar1 overwrite.
-No _getWidget. Close settings
-must not die.
+v1.32 panel down 1 bar +
+LifeBar10 on top +
+settings-close safe + stump
+max + green host. LifeBar1-9
+are 3b999b9 fractions of Back.
+LifeBar10 is last child of
+Front (on the chrome).
+Datapanel matches LifeBar9
+(PanelEmpty). Hide Grey*.
+Green uses LifeBar10 host or
+LifeBar9 if getW<=14. Left
+Leg 5 climbs toward 75, not
+5/5. No Equip GROWN. Close
+settings drops ALL MyGUI
+pointers. No _getWidget.
 
 Spoken lines appear over the character.
 I-key on a stump/bud/knit/grown item is
@@ -50,9 +48,10 @@ gui/layout/Kenshi_MainPanel.layout
 (Dark UI override + LifeBar10).
 This build does not create widgets.
 
-v1.31: tight stack + green fill
-+ stump HP + settings-close
-safe.
+v1.32: panel down 1 bar +
+LifeBar10 on top +
+settings-close safe + stump
+max + green host.
 HUD SEH does not kill growth. No walk spam.
 No ctor / font / _NV_update / _NV_setObject.
 

@@ -123,14 +123,27 @@ static CharSnap* Bind(MedicalSystem* med)
     for (int i = 0; i < LIMB_COUNT; ++i)
     {
         const LimbKind was = live->limbs[i];
+        const float keepMax = live->limbMax[i];
         live->limbHp[i] = tmp.limbHp[i];
         live->limbMax[i] = tmp.limbMax[i];
+        /* 5/5 after a bad write still has a real max (75). Keep the higher. */
+        if (keepMax > live->limbMax[i] && keepMax >= 20.f)
+            live->limbMax[i] = keepMax;
+        if (live->limbMax[i] < 20.f)
+        {
+            for (int j = 0; j < LIMB_COUNT; ++j)
+            {
+                if (tmp.limbMax[j] > live->limbMax[i])
+                    live->limbMax[i] = tmp.limbMax[j];
+            }
+        }
         /* Flesh rising above 10 would read WHOLE and stop growth. Keep the
          * nub as a stump while persist is mid-growth and HP is still a nub. */
         if (tmp.limbs[i] == LIMB_KIND_WHOLE
             && live->progress[i] > 0.f && live->lastStage[i] >= 0
-            && tmp.limbHp[i] < 50.f
-            && tmp.limbs[i] != LIMB_KIND_PROSTHETIC)
+            && (tmp.limbHp[i] < 10.f || tmp.limbMax[i] < 20.f
+                || was == LIMB_KIND_STUMP || was == LIMB_KIND_CRUSHED)
+            && tmp.limbHp[i] < 50.f)
             live->limbs[i] = LIMB_KIND_STUMP;
         else
             live->limbs[i] = tmp.limbs[i];
@@ -192,6 +205,7 @@ static void DriveTick(MedicalSystem* med, float frameTime)
 {
     if (!med || !LvCfg().enableHooks) return;
     if (!LvWorldInGame()) return;
+    LvHudWatchGui();
     if (!g_loggedInGame)
     {
         g_loggedInGame = 1;
@@ -302,23 +316,32 @@ static void DriveTick(MedicalSystem* med, float frameTime)
              * as STUMP so mid-growth Equip / flesh write still run. */
             for (int li = 0; li < LIMB_COUNT; ++li)
             {
+                /* Keep a growing nub as STUMP. Do not restamp an injured
+                 * 23-HP whole limb (Right Leg) just because hp<50. */
                 if (live->limbs[li] == LIMB_KIND_WHOLE
                     && live->progress[li] > 0.f && live->lastStage[li] >= 0
-                    && live->limbHp[li] < 50.f
-                    && live->limbs[li] != LIMB_KIND_PROSTHETIC)
+                    && (live->limbHp[li] < 10.f || live->limbMax[li] < 20.f))
                     live->limbs[li] = LIMB_KIND_STUMP;
             }
 
+            LvHudWatchGui();
             for (int li = 0; li < LIMB_COUNT; ++li)
             {
+                if (!LvHudWritesOk())
+                    break;
                 if (live->limbs[li] != LIMB_KIND_STUMP
                     && live->limbs[li] != LIMB_KIND_CRUSHED)
                     continue;
-                float before = 0.f, after = 0.f;
+                float before = 0.f, after = 0.f, mxAfter = 0.f;
                 LV_TRY
                 {
-                    if (LvGrowStumpNub(med, li, live->progress[li], &before, &after))
+                    if (LvGrowStumpNub(med, li, live->progress[li], live->limbMax[li],
+                                       &before, &after, &mxAfter))
+                    {
                         live->limbHp[li] = after;
+                        if (mxAfter > live->limbMax[li])
+                            live->limbMax[li] = mxAfter;
+                    }
                 }
                 LV_EXCEPT
                 {
@@ -484,6 +507,8 @@ static void AfterGuiRebuild(MedicalSystem* med, DatapanelGUI* panel, Character* 
         LvHudCacheDrop(panel ? "gui-rebuild-title" : "gui-rebuild-null");
         return;
     }
+    /* Live panel after rebuild — allow resolve. Still skip if probe dies. */
+    LvHudResumeWrites();
 
     WalkSafe(panel);
 
